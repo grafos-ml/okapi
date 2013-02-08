@@ -33,6 +33,12 @@
       <version>${hadoop.version}</version>
       <scope>compile</scope>
     </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+	      <!-- Guava 14.0 is not found on the maven repository -->
+      <version>13.0.1</version>
+    </dependency>
   </dependencies>
 
  <repositories>

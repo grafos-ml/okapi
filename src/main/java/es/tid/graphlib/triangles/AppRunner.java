@@ -7,10 +7,11 @@ import org.apache.giraph.io.formats.IntIntNullIntTextInputFormat;
 import org.apache.giraph.job.GiraphJob;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+
+import es.tid.graphlib.io.formats.IntArrayIntNullTextInputFormat;
 
 
 public class AppRunner implements Tool {
@@ -36,7 +37,7 @@ public class AppRunner implements Tool {
     }
     GiraphJob job = new GiraphJob(getConf(), getClass().getName());
     job.getConfiguration().setVertexClass(SimpleTriangleClosingVertex.class);
-    job.getConfiguration().setVertexInputFormatClass(IntIntNullIntTextInputFormat.class);
+    job.getConfiguration().setVertexInputFormatClass(IntArrayIntNullTextInputFormat.class);
     job.getConfiguration().setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
     GiraphFileInputFormat.addVertexInputPath(job.getInternalJob(), new Path(args[0]));
     FileOutputFormat.setOutputPath(job.getInternalJob(), new Path(args[1]));
