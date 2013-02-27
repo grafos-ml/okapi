@@ -19,6 +19,7 @@ package es.tid.graphlib.sgd;
 
 import org.apache.giraph.graph.DefaultEdge;
 import org.apache.giraph.graph.Edge;
+import org.apache.giraph.vertex.Vertex;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.log4j.Logger;
@@ -44,7 +45,8 @@ public abstract class IntArrayIntIntVertex
     extends Vertex<IntWritable, FloatWritable, IntWritable, IntWritable>{		
 	
   /** Class logger */
-  private static final Logger LOG =
+  @SuppressWarnings("unused")
+private static final Logger LOG =
       Logger.getLogger(IntArrayIntIntVertex.class);
   /** Stores the edges */
   private OpenIntIntHashMap edgeMap =
@@ -142,6 +144,7 @@ public abstract class IntArrayIntIntVertex
   /**
    * Helper iterable over the messages.
    */
+  @SuppressWarnings("unused")
   private static class UnmodifiableIntWritableIterable
     implements Iterable<IntWritable> {
     /** Backing store of messages */

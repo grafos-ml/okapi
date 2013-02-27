@@ -19,10 +19,10 @@ package es.tid.graphlib.sgd;
 
 import org.apache.giraph.graph.DefaultEdge;
 import org.apache.giraph.graph.Edge;
+import org.apache.giraph.io.formats.TextVertexInputFormat;
 import org.apache.giraph.vertex.Vertex;
 import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -35,33 +35,38 @@ import java.io.IOException;
 import java.util.List;
 
 /**
-  * VertexInputFormat that features <code>long</code> vertex ID's,
-  * <code>double</code> vertex values and <code>float</code>
-  * out-edge weights, and <code>double</code> message types,
+  * VertexInputFormat that features: 
+  * <code>int</code> vertex ID,
+  * <code>double</code> vertex values,
+  * <code>int</code> edge weights, and 
+  * <code>int</code> message types,
   *  specified in JSON format.
   */
-public class JsonIntDoubleIntIntVertexInputFormat extends
-  TextVertexInputFormat<LongWritable, DoubleWritable,
-  FloatWritable, DoubleWritable> {
+public class JsonIntDoubleArrayIntIntVertexInputFormat extends
+  TextVertexInputFormat<IntWritable, DoubleArrayListWritable,
+  IntWritable, IntWritable> {
 
   @Override
   public TextVertexReader createVertexReader(InputSplit split,
       TaskAttemptContext context) {
-    return new JsonLongDoubleFloatDoubleVertexReader();
+    return new JsonIntDoubleIntIntVertexReader();
   }
 
  /**
   * VertexReader that features <code>double</code> vertex
-  * values and <code>float</code> out-edge weights. The
+  * values and <code>int</code> out-edge weights. The
   * files should be in the following JSON format:
-  * JSONArray(<vertex id>, <vertex value>,
-  *   JSONArray(JSONArray(<dest vertex id>, <edge value>), ...))
-  * Here is an example with vertex id 1, vertex value 4.3, and two edges.
+  * JSONArray(<vertex id>, 
+  * 	JSONArray(<vertex value x>, <vertex value y>),
+  * 	JSONArray(JSONArray(<dest vertex id>, <edge value>), ...))
+  * 
+  * Here is an example with vertex id 1, vertex values 4.3 and 2.1,
+  * and two edges.
   * First edge has a destination vertex 2, edge value 2.1.
   * Second edge has a destination vertex 3, edge value 0.7.
-  * [1,4.3,[[2,2.1],[3,0.7]]]
+  * [1,[4.3,2.1],[[2,2.1],[3,0.7]]]
   */
-  class JsonLongDoubleFloatDoubleVertexReader extends
+  class JsonIntDoubleIntIntVertexReader extends
     TextVertexReaderFromEachLineProcessedHandlingExceptions<JSONArray,
     JSONException> {
 
@@ -71,35 +76,64 @@ public class JsonIntDoubleIntIntVertexInputFormat extends
     }
 
     @Override
-    protected LongWritable getId(JSONArray jsonVertex) throws JSONException,
+    protected IntWritable getId(JSONArray jsonVertex) throws JSONException,
               IOException {
-      return new LongWritable(jsonVertex.getLong(0));
+      return new IntWritable(jsonVertex.getInt(0));
     }
-
+    /*
     @Override
     protected DoubleWritable getValue(JSONArray jsonVertex) throws
       JSONException, IOException {
       return new DoubleWritable(jsonVertex.getDouble(1));
     }
-
+     */
+/*    protected DoubleWritable getValue(JSONArray jsonVertex) throws
+    JSONException, IOException {
+    	JSONArray jsonValueArray = jsonVertex.getJSONArray(2);
+    	
+    }
+*/
+    /*
+    protected Value<DoubleWritable, DoubleWritable> getValue(
+    		JSONArray jsonVertex) throws JSONException, IOException {
+    	JSONArray jsonValue = jsonVertex.getJSONArray(2);
+    	Value<DoubleWritable, DoubleWritable> value =
+    			new DefaultValue<DoubleWritable, DoubleWritable>(
+    					new DoubleWritable(jsonValue.getDouble(0)),
+    					new DoubleWritable(jsonValue.getDouble(1)));
+    	return value;
+    }
+    */
+    protected DoubleArrayListWritable getValue(
+    		JSONArray jsonVertex) throws JSONException, IOException {
+    	// Create a JSON array for the second field of the line
+    	JSONArray jsonValueArray = jsonVertex.getJSONArray(1);
+    	// create an object 
+    	DoubleArrayListWritable values = new DoubleArrayListWritable();
+    	for (int i=0; i < jsonValueArray.length(); ++i){
+    		values.add(new DoubleWritable(jsonValueArray.getDouble(i)));
+    	}
+    	return values;
+    }
+    
     @Override
-    protected Iterable<Edge<LongWritable, FloatWritable>> getEdges(
+    protected Iterable<Edge<IntWritable, IntWritable>> getEdges(
         JSONArray jsonVertex) throws JSONException, IOException {
       JSONArray jsonEdgeArray = jsonVertex.getJSONArray(2);
-      List<Edge<LongWritable, FloatWritable>> edges =
+      List<Edge<IntWritable, IntWritable>> edges =
           Lists.newArrayListWithCapacity(jsonEdgeArray.length());
       for (int i = 0; i < jsonEdgeArray.length(); ++i) {
         JSONArray jsonEdge = jsonEdgeArray.getJSONArray(i);
-        edges.add(new DefaultEdge<LongWritable, FloatWritable>(
-            new LongWritable(jsonEdge.getLong(0)),
-            new FloatWritable((float) jsonEdge.getDouble(1))));
+        edges.add(new DefaultEdge<IntWritable, IntWritable>(
+            new IntWritable(jsonEdge.getInt(0)),
+            new IntWritable(jsonEdge.getInt(1))));
       }
       return edges;
     }
 
     @Override
-    protected Vertex<LongWritable, DoubleWritable, FloatWritable,
-              DoubleWritable> handleException(Text line, JSONArray jsonVertex,
+    protected Vertex<IntWritable, DoubleArrayListWritable, IntWritable,
+              IntWritable> handleException(Text line, JSONArray jsonVertex,
                   JSONException e) {
       throw new IllegalArgumentException(
           "Couldn't get vertex from line " + line, e);
