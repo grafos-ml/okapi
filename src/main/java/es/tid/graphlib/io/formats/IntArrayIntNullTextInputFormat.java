@@ -2,6 +2,7 @@ package es.tid.graphlib.io.formats;
 
 import org.apache.giraph.examples.SimpleTriangleClosingVertex;
 import org.apache.giraph.examples.SimpleTriangleClosingVertex.IntArrayListWritable;
+import org.apache.giraph.graph.DefaultEdge;
 import org.apache.giraph.graph.Edge;
 import org.apache.giraph.graph.EdgeNoValue;
 import org.apache.giraph.io.formats.TextVertexInputFormat;
@@ -72,8 +73,10 @@ public class IntArrayIntNullTextInputFormat extends
       List<Edge<IntWritable, NullWritable>> edges =
           Lists.newArrayListWithCapacity(tokens.length - 1);
       for (int n = 1; n < tokens.length; n++) {
-        edges.add(new EdgeNoValue<IntWritable>(
-            new IntWritable(Integer.parseInt(tokens[n]))));
+        DefaultEdge<IntWritable, NullWritable> edge = new DefaultEdge<>();
+        edge.setTargetVertexId(new IntWritable(Integer.parseInt(tokens[n])));
+        edge.setValue(NullWritable.get());
+        edges.add(edge);
       }
       return edges;
     }

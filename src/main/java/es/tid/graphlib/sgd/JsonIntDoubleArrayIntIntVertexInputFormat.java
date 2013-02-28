@@ -124,9 +124,10 @@ public class JsonIntDoubleArrayIntIntVertexInputFormat extends
           Lists.newArrayListWithCapacity(jsonEdgeArray.length());
       for (int i = 0; i < jsonEdgeArray.length(); ++i) {
         JSONArray jsonEdge = jsonEdgeArray.getJSONArray(i);
-        edges.add(new DefaultEdge<IntWritable, IntWritable>(
-            new IntWritable(jsonEdge.getInt(0)),
-            new IntWritable(jsonEdge.getInt(1))));
+        DefaultEdge edge = new DefaultEdge();
+        edge.setTargetVertexId(new IntWritable(jsonEdge.getInt(0)));
+        edge.setValue(new IntWritable(jsonEdge.getInt(1)));
+        edges.add(edge);
       }
       return edges;
     }

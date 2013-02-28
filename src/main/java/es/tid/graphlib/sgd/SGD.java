@@ -1,6 +1,6 @@
 package es.tid.graphlib.sgd;
 
-import org.apache.giraph.examples.Algorithm;
+import org.apache.giraph.Algorithm;
 import org.apache.giraph.graph.Edge;
 import org.apache.giraph.vertex.EdgeListVertex;
 import org.apache.hadoop.io.DoubleWritable;

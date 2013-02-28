@@ -80,9 +80,10 @@ private static final Logger LOG =
           @Override
           public Edge<IntWritable, IntWritable> next() {
             int targetVertex = targetVertices[offset++];
-            return new DefaultEdge<IntWritable, IntWritable>(
-                new IntWritable(targetVertex),
-                new IntWritable(targetVertex));
+            DefaultEdge edge = new DefaultEdge();
+            edge.setTargetVertexId(new IntWritable(targetVertex));
+            edge.setValue(new IntWritable(edgeMap.get(targetVertex)));
+            return edge;
           }
 
           @Override
