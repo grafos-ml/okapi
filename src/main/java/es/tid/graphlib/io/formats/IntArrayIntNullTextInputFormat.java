@@ -4,7 +4,6 @@ import org.apache.giraph.examples.SimpleTriangleClosingVertex;
 import org.apache.giraph.examples.SimpleTriangleClosingVertex.IntArrayListWritable;
 import org.apache.giraph.graph.DefaultEdge;
 import org.apache.giraph.graph.Edge;
-import org.apache.giraph.graph.EdgeNoValue;
 import org.apache.giraph.io.formats.TextVertexInputFormat;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;

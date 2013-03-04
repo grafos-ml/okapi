@@ -17,6 +17,7 @@
  */
 package es.tid.graphlib.sgd;
 
+//import org.apache.giraph.examples.SimpleTriangleClosingVertex.IntArrayListWritable;
 import org.apache.giraph.graph.DefaultEdge;
 import org.apache.giraph.graph.Edge;
 import org.apache.giraph.io.formats.TextVertexInputFormat;
@@ -42,6 +43,7 @@ import java.util.List;
   * <code>int</code> message types,
   *  specified in JSON format.
   */
+
 public class JsonIntDoubleArrayIntIntVertexInputFormat extends
   TextVertexInputFormat<IntWritable, DoubleArrayListWritable,
   IntWritable, IntWritable> {
@@ -69,69 +71,96 @@ public class JsonIntDoubleArrayIntIntVertexInputFormat extends
   class JsonIntDoubleIntIntVertexReader extends
     TextVertexReaderFromEachLineProcessedHandlingExceptions<JSONArray,
     JSONException> {
-
+	  
     @Override
     protected JSONArray preprocessLine(Text line) throws JSONException {
       return new JSONArray(line.toString());
     }
 
+  /*  protected IntWritable getId(JSONArray jsonVertex) throws
+    JSONException, IOException {
+    	JSONArray jsonIdArray = jsonVertex.getJSONArray(0);
+    	IntArrayListWritable id = new IntArrayListWritable();
+    	for (int i=0; i< jsonIdArray.length(); ++i){
+    		id.add(new IntWritable(jsonIdArray.getInt(i)));
+    	}
+    	return id;
+    }*/
+    
     @Override
-    protected IntWritable getId(JSONArray jsonVertex) throws JSONException,
-              IOException {
+    protected IntWritable getId(JSONArray jsonVertex) throws 
+    JSONException, IOException {
       return new IntWritable(jsonVertex.getInt(0));
     }
+    
     /*
     @Override
-    protected DoubleWritable getValue(JSONArray jsonVertex) throws
-      JSONException, IOException {
-      return new DoubleWritable(jsonVertex.getDouble(1));
-    }
-     */
-/*    protected DoubleWritable getValue(JSONArray jsonVertex) throws
+    protected IntArrayListWritable getId(JSONArray jsonVertex) throws
     JSONException, IOException {
-    	JSONArray jsonValueArray = jsonVertex.getJSONArray(2);
-    	
-    }
-*/
-    /*
-    protected Value<DoubleWritable, DoubleWritable> getValue(
-    		JSONArray jsonVertex) throws JSONException, IOException {
-    	JSONArray jsonValue = jsonVertex.getJSONArray(2);
-    	Value<DoubleWritable, DoubleWritable> value =
-    			new DefaultValue<DoubleWritable, DoubleWritable>(
-    					new DoubleWritable(jsonValue.getDouble(0)),
-    					new DoubleWritable(jsonValue.getDouble(1)));
-    	return value;
-    }
-    */
-    protected DoubleArrayListWritable getValue(
-    		JSONArray jsonVertex) throws JSONException, IOException {
+    	// Create a JSON array for the first field of the line
+    	JSONArray jsonIdArray = jsonVertex.getJSONArray(0);
+    	// Create an object 
+    	IntArrayListWritable ids = new IntArrayListWritable();
+    	for (int i=0; i < jsonIdArray.length(); ++i){
+    		ids.add(new IntWritable(jsonIdArray.getInt(i)));
+    	}
+    	return ids;
+    }*/
+    
+    protected DoubleArrayListWritable getValue(JSONArray jsonVertex) throws 
+    JSONException, IOException {
     	// Create a JSON array for the second field of the line
     	JSONArray jsonValueArray = jsonVertex.getJSONArray(1);
-    	// create an object 
+    	// Create an object 
     	DoubleArrayListWritable values = new DoubleArrayListWritable();
     	for (int i=0; i < jsonValueArray.length(); ++i){
     		values.add(new DoubleWritable(jsonValueArray.getDouble(i)));
     	}
     	return values;
     }
-    
+   /* 
+    @Override
+    protected Iterable<Edge<IntArrayListWritable, IntWritable>> getEdges(
+        JSONArray jsonVertex) throws JSONException, IOException {
+    	// Create a JSON array for the third field of the line
+    	JSONArray jsonEdgeArray = jsonVertex.getJSONArray(2);
+    	// Create a List of objects
+    	List<Edge<IntArrayListWritable, IntWritable>> edges =
+    			Lists.newArrayListWithCapacity(jsonEdgeArray.length());
+    	for (int i = 0; i < jsonEdgeArray.length(); ++i) {
+    		// Create object
+    		JSONArray jsonEdge = jsonEdgeArray.getJSONArray(i);
+    		DefaultEdge<IntArrayListWritable, IntWritable> edge = 
+    				new DefaultEdge<IntArrayListWritable, IntWritable>();
+    		//edge.setTargetVertexId(new IntWritable(jsonEdge.getInt(0)));
+//    		edge.setTargetVertexId(new IntWritable(jsonEdge.getJSONArray(0).getInt(0)));
+    		edge.setTargetVertexId(new IntArrayListWritable(jsonEdge.getJSONObject(0).get()));
+//    		edge.setTargetVertexId(new IntArrayListWritable(jsonEdge.));
+    		edge.setValue(new IntWritable(jsonEdge.getInt(1)));
+    		edges.add(edge);
+    	}
+      return edges;
+    }*/
+
     @Override
     protected Iterable<Edge<IntWritable, IntWritable>> getEdges(
         JSONArray jsonVertex) throws JSONException, IOException {
-      JSONArray jsonEdgeArray = jsonVertex.getJSONArray(2);
-      List<Edge<IntWritable, IntWritable>> edges =
-          Lists.newArrayListWithCapacity(jsonEdgeArray.length());
-      for (int i = 0; i < jsonEdgeArray.length(); ++i) {
-        JSONArray jsonEdge = jsonEdgeArray.getJSONArray(i);
-        DefaultEdge edge = new DefaultEdge();
-        edge.setTargetVertexId(new IntWritable(jsonEdge.getInt(0)));
-        edge.setValue(new IntWritable(jsonEdge.getInt(1)));
-        edges.add(edge);
-      }
+    	// Create a JSON array for the third field of the line
+    	JSONArray jsonEdgeArray = jsonVertex.getJSONArray(2);
+    	// Create an object 
+    	List<Edge<IntWritable, IntWritable>> edges =
+    			Lists.newArrayListWithCapacity(jsonEdgeArray.length());
+    	for (int i = 0; i < jsonEdgeArray.length(); ++i) {
+    		JSONArray jsonEdge = jsonEdgeArray.getJSONArray(i);
+    		DefaultEdge<IntWritable, IntWritable> edge = 
+    				new DefaultEdge<IntWritable, IntWritable>();
+    		edge.setTargetVertexId(new IntWritable(jsonEdge.getInt(0)));
+    		edge.setValue(new IntWritable(jsonEdge.getInt(1)));
+    		edges.add(edge);
+    	}
       return edges;
     }
-
+    
     @Override
     protected Vertex<IntWritable, DoubleArrayListWritable, IntWritable,
               IntWritable> handleException(Text line, JSONArray jsonVertex,

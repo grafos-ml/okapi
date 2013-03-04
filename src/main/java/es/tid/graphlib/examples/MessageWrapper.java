@@ -58,9 +58,12 @@ public class MessageWrapper implements WritableComparable<MessageWrapper> {
 
 	@Override
 	public void readFields(DataInput input) throws IOException {
-		IntWritable sourceId = conf.createVertexId();
+		sourceId = new IntWritable();
+		//sourceId = conf.createVertexId();
+		toString();
 		sourceId.readFields(input);
-		DoubleArrayListWritable message = conf.createMessageValue();
+		//message = conf.createMessageValue();
+		message = new DoubleArrayListWritable();
 		message.readFields(input);
 	}
 

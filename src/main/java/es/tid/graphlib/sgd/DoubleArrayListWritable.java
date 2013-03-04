@@ -3,7 +3,6 @@ package es.tid.graphlib.sgd;
 import org.apache.giraph.utils.ArrayListWritable;
 import org.apache.hadoop.io.DoubleWritable;
 
-
 @SuppressWarnings("serial")
 public class DoubleArrayListWritable
 	extends ArrayListWritable<DoubleWritable>{	
@@ -11,10 +10,12 @@ public class DoubleArrayListWritable
 	public DoubleArrayListWritable() {
 		super();
 	}
+
 	@Override
 	public void setClass() {
 		setClass(DoubleWritable.class);
 	}
+	
 	/*
 	public int compareTo(MessageWrapper wrapper) {
 		if (this == wrapper )

@@ -1,13 +1,17 @@
 package es.tid.graphlib.sgd;
 
-import org.apache.giraph.graph.Edge;
+//import org.apache.giraph.graph.Edge;
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.giraph.vertex.Vertex;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
+//import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.json.JSONArray;
+import org.json.JSONException;
+
 import java.io.IOException;
+
 /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -31,39 +35,38 @@ import java.io.IOException;
  * VertexOutputFormat that supports JSON encoded vertices featuring
  * <code>double</code> values and <code>float</code> out-edge weights
  */
-public class JsonIntDoubleArrayIntIntVertexOutputFormat extends
+public class JsonIntDoubleArrayNullNullVertexOutputFormat extends
   TextVertexOutputFormat<IntWritable, DoubleArrayListWritable,
   IntWritable> {
-
-  @Override
-  public TextVertexWriter createVertexWriter(
-      TaskAttemptContext context) {
-    return new JsonIntDoubleArrayIntIntVertexWriter();
-  }
-
- /**
-  * VertexWriter that supports vertices with 
-  * <code>DoubleArrayListWritable</code> values 
-  * <code>Int</code> out-edge weights.
-  */
-  private class JsonIntDoubleArrayIntIntVertexWriter extends
-    TextVertexWriterToEachLine {
-	  @Override
-	  public Text convertVertexToLine(
-			  Vertex<IntWritable, DoubleArrayListWritable, IntWritable, ?> vertex) 
-					  throws IOException {
-		  JSONArray jsonVertex = new JSONArray();
-		  jsonVertex.put(vertex.getId().get());
-		  jsonVertex.put(vertex.getValue());
-		  JSONArray jsonEdgeArray = new JSONArray();
-		  for (Edge<IntWritable, IntWritable> edge : vertex.getEdges()) {
-			  JSONArray jsonEdge = new JSONArray();
-			  jsonEdge.put(edge.getTargetVertexId().get());
-			  jsonEdge.put(edge.getValue().get());
-			  jsonEdgeArray.put(jsonEdge);
-			  }
-		  jsonVertex.put(jsonEdgeArray);
-		  return new Text(jsonVertex.toString());
-		  }
-	  }
+	@Override
+	public TextVertexWriter createVertexWriter(TaskAttemptContext context) {
+		return new JsonIntDoubleArrayNullNullVertexWriter();
+    }
+	/**
+	 * VertexWriter that supports vertices with 
+	 * <code>DoubleArrayListWritable</code> values 
+	 * <code>Int</code> out-edge weights.
+	 */
+	private class JsonIntDoubleArrayNullNullVertexWriter extends
+	TextVertexWriterToEachLine{
+		public Text convertVertexToLine(
+				Vertex<IntWritable, DoubleArrayListWritable, IntWritable, ?> vertex) 
+						throws IOException {
+			boolean flag = getContext().getConfiguration().getBoolean("sgd.printerr", false);
+			System.out.println("flag=" + flag);
+			JSONArray jsonVertex = new JSONArray();
+			jsonVertex.put(vertex.getId().get());
+			jsonVertex.put(vertex.getValue());
+			if (flag == true){
+				try {
+					jsonVertex.put(((SGD)vertex).e);
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				//System.out.println("e=" + (SGD)vertex.e);
+			}
+			return new Text(jsonVertex.toString());
+		}
+	}
 }
