@@ -8,6 +8,8 @@ import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.log4j.Logger;
 import es.tid.graphlib.examples.MessageWrapper;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Demonstrates the Pregel Stochastic Gradient Descent (SGD) implementation.
@@ -28,7 +30,7 @@ IntWritable, MessageWrapper>{
 	/** Learning rate */
 	static double GAMMA=0.01;
 	/** Number of supersteps */
-	static double ITERATIONS=10;
+	static double ITERATIONS=5;
 	/** Max rating */
 	static double MAX=5;
 	/** Min rating */
@@ -46,18 +48,33 @@ IntWritable, MessageWrapper>{
 			Logger.getLogger(SGD.class);
 
 	public void compute(Iterable<MessageWrapper> messages) {
-		
-		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep());
+		/** Value of Vertex */
+		DoubleArrayListWritable value = new DoubleArrayListWritable();
 
-		if (getSuperstep()==1) {
-			// In 1st round for items, initialize their value			
-			DoubleArrayListWritable value = new DoubleArrayListWritable();
+		/** Array List with errors for printing in the last superstep */
+		//ArrayList<Double> errors = new ArrayList<Double>();
+		HashMap<Integer,Double> errmap = new HashMap<Integer,Double>();
+				
+		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep());
+		//System.out.println("*******  Vertex: "+getSourceVertexId()+", superstep:"+getSuperstep());
+
+		/** First Superstep for users */
+		if (getSuperstep()==0) {
+			for (int i=0; i<SGD_VECTOR_SIZE; i++) {
+				value.add(new DoubleWritable(INIT));
+			}
+			setValue(value);
+		}
+		/** First Superstep for items */
+		if (getSuperstep()==1) {		
+			
 			for (int i=0; i<SGD_VECTOR_SIZE; i++) {
 				value.add(new DoubleWritable(INIT));
 			}
 			setValue(value);
 			item=true;
 		}
+		
 		System.out.println("item:" + item);
 		/*** For each message */
 		for (MessageWrapper message : messages) {
@@ -69,6 +86,7 @@ IntWritable, MessageWrapper>{
 			System.out.println("-I am vertex " + getId() + 
 					" and received from " + message.getSourceId().get());
 
+			/** Start receiving message from the second superstep */
 			if (getSuperstep()==1) {							
 				// Save its rating given from the user
 				observed = message.getMessage().get(message.getMessage().size()-1).get();
@@ -97,6 +115,10 @@ IntWritable, MessageWrapper>{
 			e = getError((double)getEdgeValue(message.getSourceId()).get(), 
 					getValue(), message.getMessage());
 			System.out.println("ERROR = " + e);
+			if (getSuperstep() == ITERATIONS-2 && item==false 
+					|| getSuperstep() == ITERATIONS-1 && item==false) {
+				errmap.put(new Integer(getEdgeValue(message.getSourceId()).get()), e);
+			}
 		} // End of for each message
 		System.out.print("I am vertex " + getId() + " and sent to ");
 		
@@ -121,6 +143,12 @@ IntWritable, MessageWrapper>{
 				System.out.print(edge.getTargetVertexId() + " ");
 			}				
 			System.out.println();
+			if (getSuperstep() == ITERATIONS-2 && item==false 
+					|| getSuperstep() == ITERATIONS-1 && item==false) {
+				for (Map.Entry<Integer, Double> entry : errmap.entrySet()) {
+				    System.out.println("------ Error for item " + entry.getKey() + ": " + entry.getValue() + " -------");
+				}
+			}
 		}
 		else {
 			System.out.println("nowhere! Time to sleep!");
@@ -136,7 +164,9 @@ IntWritable, MessageWrapper>{
 		if (predicted < MIN)	predicted = MIN;
 		return java.lang.Math.abs(observed-predicted);
 	}
-	
+	public double  getError(){
+		return e;
+	}
 	/*** Calculate the dot product of 2 vectors: vector1*vector2 */
 	public double dotProduct(DoubleArrayListWritable ma, DoubleArrayListWritable mb){
 		double result = ma.get(0).get() * mb.get(0).get() + ma.get(1).get() * mb.get(1).get();

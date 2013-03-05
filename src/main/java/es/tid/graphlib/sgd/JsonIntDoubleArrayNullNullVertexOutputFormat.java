@@ -1,15 +1,12 @@
 package es.tid.graphlib.sgd;
 
-//import org.apache.giraph.graph.Edge;
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.giraph.vertex.Vertex;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-//import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.json.JSONArray;
 import org.json.JSONException;
-
 import java.io.IOException;
 
 /*
