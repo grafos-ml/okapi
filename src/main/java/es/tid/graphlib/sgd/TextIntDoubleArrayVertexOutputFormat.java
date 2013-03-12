@@ -64,7 +64,7 @@ public class TextIntDoubleArrayVertexOutputFormat extends
 		      throws IOException {
 		    	
 		    	boolean flag = getContext().getConfiguration().getBoolean("sgd.printerr", false);
-				System.out.println("flag=" + flag);
+				//System.out.println("flag=" + flag);
 
 		        String id = vertex.getId().toString();
 		        String value = vertex.getValue().toString();
@@ -72,7 +72,7 @@ public class TextIntDoubleArrayVertexOutputFormat extends
 		        Text line;
 		        if (flag == true) {
 		        	try{
-		        		error = Double.toString(((SGD)vertex).e);
+		        		error = Double.toString(((SgdMaxIter2)vertex).err);
 		        	} catch (Exception exc) {
 		        		exc.printStackTrace();
 		        	}

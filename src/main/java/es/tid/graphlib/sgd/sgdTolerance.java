@@ -25,7 +25,7 @@ IntWritable, MessageWrapper>{
 	/** The convergence tolerance */
 	static double INIT = 0.5;
 	/** SGD vector size **/
-	static int SGD_VECTOR_SIZE = 20;
+	static int SGD_VECTOR_SIZE = 2;
 	/** SGD regularization weight */
 	static double LAMBDA = 0.001;
 	/** SGD step size - learning rate */
@@ -35,18 +35,17 @@ IntWritable, MessageWrapper>{
 	/** The Convergence Tolerance */
 	static double TOLERANCE = 0.003;
 	/** Maximum number of updates */
-	static int MAX_UPDATES = -1;
+	static int MAX_UPDATES = 10;
 	/** Max rating */
 	static double MAX = 1e+100;
 	/** Min rating */
 	static double MIN = -1e+100;
-	
 	/** Observed Value - Rating */
 	private double observed = 0d;
 	/** Predicted Value */
 	private double predicted = 0d;
 	/** Error */    
-	public double err = 0d;
+	public Double err = 0d;
 	/** Number of times the vertex got updated */
 	private int nupdates = 0;
 	/** Type of vertex
@@ -58,7 +57,7 @@ IntWritable, MessageWrapper>{
 	private static final Logger LOG =
 			Logger.getLogger(sgdTolerance.class);
 
-	sgdTolerance() {
+	public sgdTolerance() {
 		for (int i=0; i<SGD_VECTOR_SIZE; i++) {
 			value.add(new DoubleWritable(INIT));
 		}
@@ -70,13 +69,8 @@ IntWritable, MessageWrapper>{
 			item=true;
 			System.out.println("item:" + item);
 		}		
-
-		/** Array List with errors for printing in the last superstep */
-		//ArrayList<Double> errors = new ArrayList<Double>();
-		//HashMap<Integer,Double> errmap = new HashMap<Integer,Double>();
-				
+		
 		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep());
-
 		/*** For each message */
 		for (MessageWrapper message : messages) {
 			/*** Debugging */
@@ -87,7 +81,9 @@ IntWritable, MessageWrapper>{
 			System.out.println("-I am vertex " + getId() + 
 					" and received from " + message.getSourceId().get());
 
-			/** Start receiving message from the second superstep */
+			/** Start receiving message from the second superstep 
+			 *  Only for the first round of items, create their edges and save the ratings
+			 */
 			if (getSuperstep()==1) {							
 				// Save its rating given from the user
 				observed = message.getMessage().get(message.getMessage().size()-1).get();
@@ -100,10 +96,14 @@ IntWritable, MessageWrapper>{
 				// Remove the last value from message - it's there for the 1st round
 				message.getMessage().remove(message.getMessage().size()-1);				
 			}
+			
 			/*** Calculate error */
 			predicted = dotProduct(getValue(), message.getMessage());
 			observed = (double)getEdgeValue(message.getSourceId()).get();
 			err = getError(predicted, observed);
+			if (err.isNaN()){
+				System.out.println("[ERROR] Numeric errors.. Try to tune step size and regularization (lambda and gamma)");
+			}
 			System.out.println("BEFORE: error = " + err);
 			
 			/** Recompute latent values
@@ -128,22 +128,19 @@ IntWritable, MessageWrapper>{
 				MessageWrapper sndMessage = new MessageWrapper();
 				sndMessage.setSourceId(getId());
 				sndMessage.setMessage(getValue());
+
+				if (getSuperstep()==0) {
+					sndMessage.getMessage().add(
+							new DoubleWritable(message.getSourceId().get()));
+				}
 				sendMessage(message.getSourceId(), sndMessage);
 			}
-			/*
-			if (getSuperstep() == ITERATIONS-2 && item==false 
-					|| getSuperstep() == ITERATIONS-1 && item==false) {
-				errmap.put(new Integer(getEdgeValue(message.getSourceId()).get()), err);
-				System.out.println("------ Error for item " + entry.getKey() + ": " + entry.getValue() + " -------");
-			}*/
 		} // End of for each message
 		voteToHalt();
 	}//EofCompute
 
 	/*** Calculate the error: e=observed-predicted */
 	public double getError(double predicted, double observed){
-		predicted = Math.min(predicted, MAX);
-		predicted = Math.max(predicted, MIN);
 		return predicted-observed;
 	}
 
@@ -153,6 +150,8 @@ IntWritable, MessageWrapper>{
 		for (int i=0; i<SGD_VECTOR_SIZE; i++){
 			result += ma.get(i).get() * mb.get(i).get();
 		}
+		result = Math.min(result, MAX);
+		result = Math.max(result, MIN);
 		return result;
 	}
 	

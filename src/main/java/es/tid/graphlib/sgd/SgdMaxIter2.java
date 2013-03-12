@@ -8,9 +8,9 @@ import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.log4j.Logger;
 import es.tid.graphlib.examples.MessageWrapper;
-import java.util.HashMap;
-import java.util.Map;
-import java.lang.Math;
+//import java.util.HashMap;
+//import java.util.Map;
+//import java.lang.Math;
 
 /**
  * Demonstrates the Pregel Stochastic Gradient Descent (SGD) implementation.
@@ -20,7 +20,7 @@ import java.lang.Math;
     description = "Minimizes the error in users preferences predictions"
 )
 
-public class sgdMaxIter extends EdgeListVertex<IntWritable, DoubleArrayListWritable, 
+public class SgdMaxIter2 extends EdgeListVertex<IntWritable, DoubleArrayListWritable, 
 IntWritable, MessageWrapper>{
 	/** The convergence tolerance */
 	static double INIT=0.5;
@@ -31,52 +31,48 @@ IntWritable, MessageWrapper>{
 	/** Learning rate */
 	static double GAMMA=0.01;
 	/** Number of supersteps */
-	static double ITERATIONS=10;
+	static double ITERATIONS=11;
+	/** The Convergence Tolerance */
+	static double TOLERANCE = 0.003;
+	/** Maximum number of updates */
+	static int MAX_UPDATES = 10;
 	/** Max rating */
-	static double MAX=5;
+	static double MAX=1e+100;
 	/** Min rating */
-	static double MIN=0;
+	static double MIN=-1e+100;
 	/** Error */    
-	public double err;
+	public Double err = 0d;
 	/** Observed Value - Rating */
-	private double observed;
+	private double observed = 0d;
+	/** Number of times the vertex got updated */
+	private int nupdates = 0;
 	/** Type of vertex
 	 * 0 for user, 1 for item */
 	private boolean item=false;
-	
 	/** Class logger */
-	private static final Logger LOG =
-			Logger.getLogger(sgdMaxIter.class);
-
+	private static final Logger LOG = Logger.getLogger(sgdMaxIter.class);
+	
 	public void compute(Iterable<MessageWrapper> messages) {
 		/** Value of Vertex */
 		DoubleArrayListWritable value = new DoubleArrayListWritable();
 
-		/** Array List with errors for printing in the last superstep */
-		//ArrayList<Double> errors = new ArrayList<Double>();
-		HashMap<Integer,Double> errmap = new HashMap<Integer,Double>();
-				
-		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep());
-		//System.out.println("*******  Vertex: "+getSourceVertexId()+", superstep:"+getSuperstep());
-
-		/** First Superstep for users */
-		if (getSuperstep()==0) {
+		/* If it's the first round for users (0) or 
+		 * or if it's the first round for items (1)
+		 */
+		if (getSuperstep()< 2){ 
 			for (int i=0; i<SGD_VECTOR_SIZE; i++) {
 				value.add(new DoubleWritable(INIT));
 			}
 			setValue(value);
-		}
-		/** First Superstep for items */
-		if (getSuperstep()==1) {		
-			
-			for (int i=0; i<SGD_VECTOR_SIZE; i++) {
-				value.add(new DoubleWritable(INIT));
-			}
-			setValue(value);
-			item=true;
 		}
 		
-		System.out.println("item:" + item);
+		/** First Superstep for items */
+		if (getSuperstep()==1) {		
+			item=true;
+		}
+		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item); 
+		System.out.println("Initialized:vertex_vector=" + getValue().get(0).get() + "," + getValue().get(1).get()); 
+
 		/*** For each message */
 		for (MessageWrapper message : messages) {
 			/*** Debugging */
@@ -86,12 +82,11 @@ IntWritable, MessageWrapper>{
 			}
 			System.out.println("-I am vertex " + getId() + 
 					" and received from " + message.getSourceId().get());
-
+			//System.out.println("BEFORE:vertex_vector=" + getValue().get(0).get() + "," + getValue().get(1).get()); 
 			/** Start receiving message from the second superstep - items*/
 			if (getSuperstep()==1) {							
 				// Save its rating given from the user
 				observed = message.getMessage().get(message.getMessage().size()-1).get();
-				System.out.println("observed: " + observed);
 				IntWritable sourceId = message.getSourceId();
 				DefaultEdge<IntWritable, IntWritable> edge = new DefaultEdge<IntWritable, IntWritable>();
 				edge.setTargetVertexId(sourceId);
@@ -103,27 +98,50 @@ IntWritable, MessageWrapper>{
 			}
 			/*** Calculate error */
 			observed = (double)getEdgeValue(message.getSourceId()).get();
-			err = getError(observed, getValue(), message.getMessage());
-			System.out.println("ERROR = " + err);
+			err = getError(getValue(), message.getMessage(), observed);
+			if (err.isNaN()){
+				System.out.println("[ERROR] Numeric errors.. Try to tune step size and regularization (lambda and gamma)");
+			}
+			System.out.println("BEFORE: error = " + err);
 			/** user_vector = vertex_vector + 
 			 * 2*GAMMA*(real_value - 
 			 * dot_product(vertex_vector,other_vertex_vector))*other_vertex_vector + 
 			 * LAMBDA * vertex_vector */
 			System.out.println("BEFORE:vertex_vector=" + getValue().get(0).get() + "," + getValue().get(1).get()); 
-			setValue(dotAddition(dotAddition(getValue(), 
+			/*setValue(dotAddition(dotAddition(getValue(), 
 					numMatrixProduct((double) (2*GAMMA*err), message.getMessage())),
 					numMatrixProduct((double) LAMBDA, getValue())));
-			System.out.println("AFTER:vertex_vector=" + getValue().get(0).get() + "," + getValue().get(1).get()); 
-			err = getError(observed, getValue(), message.getMessage());
-			System.out.println("ERROR = " + err);
-			if (getSuperstep() == ITERATIONS-2 && item==false 
+			*/
+			setValue(dotAddition(getValue(),
+					numMatrixProduct((double) -GAMMA,
+					(dotAddition(numMatrixProduct((double) err,message.getMessage()),
+							numMatrixProduct((double) LAMBDA, getValue()))))));
+			nupdates++;
+			System.out.println("AFTER:vertex_vector = " + getValue().get(0).get() + "," + getValue().get(1).get()); 
+			
+			err = getError(getValue(), message.getMessage(), observed);
+			System.out.println("AFTER: error = " + err);
+			
+			if (Math.abs(err) > TOLERANCE && nupdates < MAX_UPDATES){
+				/** Create a message and wrap together the source id and the message */
+				System.out.print("I am vertex " + getId() + " and sent to " + message.getSourceId());
+				MessageWrapper sndMessage = new MessageWrapper();
+				sndMessage.setSourceId(getId());
+				sndMessage.setMessage(getValue());
+				
+				if (getSuperstep()==0) {
+					sndMessage.getMessage().add(
+							new DoubleWritable(getEdgeValue(message.getSourceId()).get()));
+				}
+				sendMessage(message.getSourceId(), message);
+				System.out.print("I am vertex " + getId() + " and sent to " + message.getSourceId());
+			}
+			/*if (getSuperstep() == ITERATIONS-2 && item==false 
 					|| getSuperstep() == ITERATIONS-1 && item==false) {
 				errmap.put(new Integer(getEdgeValue(message.getSourceId()).get()), err);
-			}
+			}*/
 		} // End of for each message
-		
-		if (getSuperstep()<ITERATIONS){
-			/** Send to all neighbors a message*/
+		if (getSuperstep()==0){
 			for (Edge<IntWritable, IntWritable> edge : getEdges()) {
 				if (LOG.isDebugEnabled()) {
 					LOG.debug("Vertex " + getId() + " sent a message to " +
@@ -133,40 +151,23 @@ IntWritable, MessageWrapper>{
 				MessageWrapper message = new MessageWrapper();
 				message.setSourceId(getId());
 				message.setMessage(getValue());
-				
-				if (getSuperstep()==0) {
-					message.getMessage().add(
-							new DoubleWritable(getEdgeValue(edge.getTargetVertexId()).get()));
-					System.out.println("rating: " + getEdgeValue(edge.getTargetVertexId()));
-				}
+				message.getMessage().add(new DoubleWritable(getEdgeValue(edge.getTargetVertexId()).get()));		
 				sendMessage(edge.getTargetVertexId(), message);
-				System.out.println("I am vertex " + getId() + " and sent value " + getEdgeValue(edge.getTargetVertexId()) + " to " + edge.getTargetVertexId());	
-			}				
-			System.out.println();
-			if (getSuperstep() == ITERATIONS-2 && item==false 
-					|| getSuperstep() == ITERATIONS-1 && item==false) {
-				for (Map.Entry<Integer, Double> entry : errmap.entrySet()) {
-				    System.out.println("------ Error for item " + entry.getKey() + ": " + entry.getValue() + " -------");
-				}
+				System.out.println("I am vertex " + getId() + " and sent value " + getEdgeValue(edge.getTargetVertexId()) + " to " + edge.getTargetVertexId());
 			}
-		}
-		else {
-			System.out.println("nowhere! Time to sleep!");
 		}
 		voteToHalt();
 	}//EofCompute
 
 	/*** Calculate the error: e=observed-predicted */
-	public double getError(double observed, DoubleArrayListWritable ma, DoubleArrayListWritable mb){
+	public double getError(DoubleArrayListWritable ma, DoubleArrayListWritable mb, double observed){
 		/*** Predicted value */
 		double predicted = dotProduct(ma,mb);
 		predicted = Math.min(predicted, MAX);
 		predicted = Math.max(predicted, MIN);
-		return Math.abs(observed-predicted);
+		return predicted-observed;
 	}
-	public double  getError(){
-		return err;
-	}
+
 	/*** Calculate the dot product of 2 vectors: vector1*vector2 */
 	public double dotProduct(DoubleArrayListWritable ma, DoubleArrayListWritable mb){
 		double result = 0d;
