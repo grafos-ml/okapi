@@ -72,7 +72,7 @@ public class TextIntDoubleArrayVertexOutputFormat extends
 		        Text line;
 		        if (flag == true) {
 		        	try{
-		        		error = Double.toString(((SgdMaxIter2)vertex).err);
+		        		error = Double.toString((Math.abs(((SgdAvgVerErr)vertex).err)));
 		        	} catch (Exception exc) {
 		        		exc.printStackTrace();
 		        	}

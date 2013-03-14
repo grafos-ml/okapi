@@ -19,7 +19,7 @@ package es.tid.graphlib.sgd;
 
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
-import org.apache.giraph.utils.IntPair;
+import es.tid.graphlib.sgd.IntPairVal;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
  *
  * Each line consists of: source_vertex, target_vertex
  */
-public class IntIntTextEdgeInput extends
+public class IntIntTextEdgeInputFormat extends
     TextEdgeInputFormat<IntWritable, IntWritable> {
   /** Splitter for endpoints */
   private static final Pattern SEPARATOR = Pattern.compile("[\t ]");
@@ -50,29 +50,29 @@ public class IntIntTextEdgeInput extends
    * {@link IntNullTextEdgeInputFormat}.
    */
   public class IntIntTextEdgeReader extends
-      TextEdgeReaderFromEachLineProcessed<IntPair> {
+      TextEdgeReaderFromEachLineProcessed<IntPairVal> {
     @Override
-    protected IntPair preprocessLine(Text line) throws IOException {
+    protected IntPairVal preprocessLine(Text line) throws IOException {
       String[] tokens = SEPARATOR.split(line.toString());
-      return new IntPair(Integer.valueOf(tokens[0]),
-          Integer.valueOf(tokens[1]));
+      return new IntPairVal(Integer.valueOf(tokens[0]),
+          Integer.valueOf(tokens[1]), Integer.valueOf(tokens[2]));
     }
 
     @Override
-    protected IntWritable getSourceVertexId(IntPair endpoints)
+    protected IntWritable getSourceVertexId(IntPairVal endpoints)
       throws IOException {
       return new IntWritable(endpoints.getFirst());
     }
 
     @Override
-    protected IntWritable getTargetVertexId(IntPair endpoints)
+    protected IntWritable getTargetVertexId(IntPairVal endpoints)
       throws IOException {
       return new IntWritable(endpoints.getSecond());
     }
 
     @Override
-    protected IntWritable getValue(IntPair endpoints) throws IOException {
-      return new IntWritable();
+    protected IntWritable getValue(IntPairVal endpoints) throws IOException {
+      return new IntWritable(endpoints.getValue());
     }
   }
 }
