@@ -31,7 +31,7 @@ IntWritable, MessageWrapper>{
 	/** Learning rate */
 	static double GAMMA=0.01;
 	/** Number of supersteps */
-	static double ITERATIONS=200;
+	static double ITERATIONS=10;
 	/** Tolerance */
 	static double TOLERANCE = 0.3;
 	/** Max rating */

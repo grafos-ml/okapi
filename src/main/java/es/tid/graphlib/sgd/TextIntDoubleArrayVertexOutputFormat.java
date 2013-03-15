@@ -64,15 +64,13 @@ public class TextIntDoubleArrayVertexOutputFormat extends
 		      throws IOException {
 		    	
 		    	boolean flag = getContext().getConfiguration().getBoolean("sgd.printerr", false);
-				//System.out.println("flag=" + flag);
-
 		        String id = vertex.getId().toString();
 		        String value = vertex.getValue().toString();
 		        String error = null;
 		        Text line;
 		        if (flag == true) {
 		        	try{
-		        		error = Double.toString((Math.abs(((SgdAvgVerErr)vertex).err)));
+		        		error = Double.toString((Math.abs(((SgdVectorL2Norm)vertex).normVector)));
 		        	} catch (Exception exc) {
 		        		exc.printStackTrace();
 		        	}
