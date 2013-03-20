@@ -31,7 +31,7 @@ IntWritable, MessageWrapper>{
 	/** Learning rate */
 	static double GAMMA=0.01;
 	/** Number of supersteps */
-	static double ITERATIONS=200;
+	static double ITERATIONS=10;
 	/** Max rating */
 	static double MAX=5;
 	/** Min rating */
@@ -77,9 +77,9 @@ IntWritable, MessageWrapper>{
 			item=true;
 		}
 		
-		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item + 
+		/*System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item + 
 				", [" + getValue().get(0).get() + "," + getValue().get(1).get() + "]"); 
-
+		*/
 		/*** For each message */
 		for (MessageWrapper message : messages) {
 			/*** Debugging */
@@ -87,19 +87,19 @@ IntWritable, MessageWrapper>{
 				LOG.debug("Vertex " + getId() + " predicts for item " +
 						message.getSourceId().get());
 			}
-			System.out.println("  [RECEIVE] from " + message.getSourceId().get()
-					+ " [" + message.getMessage().get(0) + "," + message.getMessage().get(1) + "]");
+			/*System.out.println("  [RECEIVE] from " + message.getSourceId().get()
+					+ " [" + message.getMessage().get(0) + "," + message.getMessage().get(1) + "]");*/
 			DefaultEdge<IntWritable, IntWritable> edge = new DefaultEdge<IntWritable, IntWritable>();
 		
 			/** Start receiving message from the second superstep - items*/
 			if (getSuperstep()==1) {							
 				// Save its rating given from the user
 				observed = message.getMessage().get(message.getMessage().size()-1).get();
-				System.out.println("observed: " + observed);
+				/*System.out.println("observed: " + observed);*/
 				IntWritable sourceId = message.getSourceId();
 				edge.setTargetVertexId(sourceId);
 				edge.setValue(new IntWritable((int) observed));
-				System.out.println("   Adding edge:" + edge);
+				/*System.out.println("   Adding edge:" + edge);*/
 				addEdge(edge);
 				// Remove the last value from message - it's there for the 1st round
 				message.getMessage().remove(message.getMessage().size()-1);				
@@ -111,19 +111,19 @@ IntWritable, MessageWrapper>{
 			 * 2*GAMMA*(real_value - 
 			 * dot_product(vertex_vector,other_vertex_vector))*other_vertex_vector + 
 			 * LAMBDA * vertex_vector */
-			System.out.println("BEFORE: error = " + err);
-			System.out.println("BEFORE:vertex_vector= " + getValue().get(0).get() + "," + getValue().get(1).get()); 
+			/*System.out.println("BEFORE: error = " + err);
+			System.out.println("BEFORE:vertex_vector= " + getValue().get(0).get() + "," + getValue().get(1).get());*/ 
 			setValue(dotAddition(getValue(),
 					numMatrixProduct((double) -GAMMA,
 					(dotAddition(numMatrixProduct((double) err,message.getMessage()),
 							numMatrixProduct((double) LAMBDA, getValue())))))); 
 			err = getError(getValue(), message.getMessage(),observed);
-			System.out.println("AFTER: vertex_vector = " + getValue().get(0).get() + "," + getValue().get(1).get());
-			System.out.println("AFTER: error = " + err);
+			/*System.out.println("AFTER: vertex_vector = " + getValue().get(0).get() + "," + getValue().get(1).get());
+			System.out.println("AFTER: error = " + err);*/
 			/** For printing purposes */
 			if (getSuperstep() == ITERATIONS-2 && item==false 
 					|| getSuperstep() == ITERATIONS-1 && item==false) {
-				errmap.put(new Integer(getEdgeValue(message.getSourceId()).get()), err);
+				errmap.put(new Integer((message.getSourceId()).get()), err);
 			}
 		} // End of for each message
 		    
@@ -144,15 +144,15 @@ IntWritable, MessageWrapper>{
 							new DoubleWritable(edge.getValue().get()));
 				}
 				sendMessage(edge.getTargetVertexId(), message);
-				System.out.println("  [SEND] to " + edge.getTargetVertexId() + 
+				/*System.out.println("  [SEND] to " + edge.getTargetVertexId() + 
 						" (rating: " + edge.getValue() + ")" +
-						" [" + getValue().get(0) + "," + getValue().get(1) + "]");
+						" [" + getValue().get(0) + "," + getValue().get(1) + "]");*/
 			} // End of for each edge				
-			System.out.println();
+			/*System.out.println();*/
 			if (getSuperstep() == ITERATIONS-2 && item==false 
 					|| getSuperstep() == ITERATIONS-1 && item==false) {
 				for (Map.Entry<Integer, Double> entry : errmap.entrySet()) {
-				    System.out.println("------ Error for item " + entry.getKey() + ": " + entry.getValue() + " -------");
+				    System.out.println("--SS:" + getSuperstep() + "---[user,item]: [" + getId() + "," + entry.getKey() + "]= " + entry.getValue() + " -----");
 				}
 			}
 		}
@@ -165,10 +165,8 @@ IntWritable, MessageWrapper>{
 		double predicted = dotProduct(ma,mb);
 		predicted = Math.min(predicted, MAX);
 		predicted = Math.max(predicted, MIN);
-		return predicted-observed;
-	}
-	public double  getError(){
-		return err;
+		//return Math.abs(predicted-observed);
+		return (predicted-observed);
 	}
 	/*** Calculate the dot product of 2 vectors: vector1*vector2 */
 	public double dotProduct(DoubleArrayListWritable ma, DoubleArrayListWritable mb){

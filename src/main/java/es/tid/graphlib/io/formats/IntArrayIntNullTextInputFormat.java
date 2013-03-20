@@ -72,7 +72,7 @@ public class IntArrayIntNullTextInputFormat extends
       List<Edge<IntWritable, NullWritable>> edges =
           Lists.newArrayListWithCapacity(tokens.length - 1);
       for (int n = 1; n < tokens.length; n++) {
-        DefaultEdge<IntWritable, NullWritable> edge = new DefaultEdge<>();
+        DefaultEdge<IntWritable, NullWritable> edge = new DefaultEdge<IntWritable, NullWritable>();
         edge.setTargetVertexId(new IntWritable(Integer.parseInt(tokens[n])));
         edge.setValue(NullWritable.get());
         edges.add(edge);
