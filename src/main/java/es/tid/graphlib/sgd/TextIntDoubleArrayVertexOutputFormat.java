@@ -70,7 +70,10 @@ public class TextIntDoubleArrayVertexOutputFormat extends
 		        Text line;
 		        if (flag == true) {
 		        	try{
-		        		error = Double.toString((Math.abs(((SgdVectorL2Norm)vertex).normVector)));
+		        		//error = Double.toString((Math.abs(((SgdVectorL2Norm)vertex).normVector)));
+		        		//error = Double.toString((Math.abs(((SgdMaxIter)vertex).err)));
+		        		//error = Double.toString((Math.abs(((SgdRMSD)vertex).finalRMSD)));
+		        		error = Double.toString((Math.abs(((SgdGeneral)vertex).err_factor)));
 		        	} catch (Exception exc) {
 		        		exc.printStackTrace();
 		        	}

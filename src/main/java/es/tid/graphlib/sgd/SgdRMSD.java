@@ -6,7 +6,6 @@ import org.apache.giraph.graph.DefaultEdge;
 import org.apache.giraph.graph.Edge;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.giraph.vertex.EdgeListVertex;
-import org.apache.giraph.worker.WorkerContext;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.log4j.Logger;
@@ -43,6 +42,8 @@ IntWritable, MessageWrapper>{
 	static double MIN=0;
 	/** Error */    
 	public double err;
+	/** RMSD for current vertex */
+	double finalRMSD; 
 	/** Observed Value - Rating */
 	private double observed;
 	/** Type of vertex
@@ -136,7 +137,7 @@ IntWritable, MessageWrapper>{
 			workerContext.setFinalSum(rmsdErr);
 			LOG.info("Current sum: " + rmsdErr);*/
 		}
-		double finalRMSD = getRMSD(msgCounter);
+		finalRMSD = getRMSD(msgCounter);
 		System.out.println("myRMSD: " + finalRMSD + ", numEdges: " + msgCounter);
 		
 		if (getSuperstep()==0 || (finalRMSD > TOLERANCE && getSuperstep()<ITERATIONS)){

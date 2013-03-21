@@ -6,6 +6,7 @@ import org.apache.giraph.graph.DefaultEdge;
 import org.apache.giraph.graph.Edge;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.giraph.vertex.EdgeListVertex;
+//import org.apache.giraph.worker.WorkerContext;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.log4j.Logger;
@@ -22,7 +23,7 @@ import java.lang.Math;
 		description = "Minimizes the error in users preferences predictions"
 		)
 
-public class SgdVectorL2Norm extends EdgeListVertex<IntWritable, DoubleArrayListWritable, 
+public class SgdGeneral extends EdgeListVertex<IntWritable, DoubleArrayListWritable, 
 IntWritable, MessageWrapper>{
 	/** The convergence tolerance */
 	static double INIT=0.5;
@@ -35,46 +36,50 @@ IntWritable, MessageWrapper>{
 	/** Number of supersteps */
 	static double ITERATIONS=10;
 	/** Tolerance */
-	static double TOLERANCE = 0.0003;
+	static double TOLERANCE = 0.3;
 	/** Max rating */
 	static double MAX=5;
 	/** Min rating */
 	static double MIN=0;
 	/** Error */    
 	public double err;
-	/** L2 Norm on initial vector and last one */
-	public double normVector;
 	/** Observed Value - Rating */
 	private double observed;
 	/** Type of vertex
 	 * 0 for user, 1 for item */
 	private boolean item=false;
 	/** RMSD Error */
-	//private double rmsdErr=0d;
-	/** Class logger */
-	private static final Logger LOG = Logger.getLogger(SgdVectorL2Norm.class);
-	/** Aggregator to get values from the workers to the master */
+	private double rmsdErr=0d;
+	/** Factor Error: it may be RMSD or L2NORM on initial&final vector  */
+	public double err_factor=0d;
+	/** Aggregators to get values from the workers to the master */
 	public static final String RMSD_AGG = "rmsd.aggregator";
-
+	/** Class logger */
+	private static final Logger LOG = Logger.getLogger(SgdGeneral.class);
+	
+	
 	public void compute(Iterable<MessageWrapper> messages) {
 		/** Value of Vertex */
 		DoubleArrayListWritable value = new DoubleArrayListWritable();
-		/* Counter of messages received - different from getNumEdges() 
-		 * because a neighbor may not send a message
-		 */
-		//int msgCounter = 0;
-		/** Flag for checking if parameter for aggregator received */
-		//boolean rmsdFlag = getContext().getConfiguration().getBoolean("sgd.aggregate", false);
-
+		/** Counter of messages received - different from getNumEdges() 
+		 * because a neighbor may not send a message */
+		int msgCounter = 0;
+		/** Initial vector value to be used for the L2Norm case */
 		DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
-		/* If it's the first round for users (0) or 
-		 * or if it's the first round for items (1)
+		/** Flag for checking if parameter for RMSD aggregator received */
+		boolean rmsdFlag = getContext().getConfiguration().getBoolean("sgd.aggregate", false);
+		/** Flag for checking which termination factor to use: basic, rmsd, l2norm */
+		String factorFlag = getContext().getConfiguration().get("sgd.factor", "basic");
+		
+		/** If it's the first round for users (superstep: 0) or 
+		 *  If it's the first round for items (superstep: 1)
 		 */
 		if (getSuperstep() < 2){ 
 			for (int i=0; i<SGD_VECTOR_SIZE; i++) {
 				value.add(new DoubleWritable(INIT));
 			}
 			setValue(value);
+			/** For L2Norm */
 			initialValue = getValue();
 		}
 		/** First Superstep for items */
@@ -84,7 +89,7 @@ IntWritable, MessageWrapper>{
 		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item + 
 				", [" + getValue().get(0).get() + "," + getValue().get(1).get() + "]"); 
 
-		//rmsdErr=0d;
+		rmsdErr=0d;
 		/*** For each message */
 		for (MessageWrapper message : messages) {
 			/*** Debugging */
@@ -92,14 +97,13 @@ IntWritable, MessageWrapper>{
 				LOG.debug("Vertex " + getId() + " predicts for item " +
 						message.getSourceId().get());
 			}
-			//msgCounter++;
+			msgCounter++;
 			System.out.println("  [RECEIVE] from " + message.getSourceId().get()
 					+ " [" + message.getMessage().get(0) + "," + message.getMessage().get(1) + "]");
 			DefaultEdge<IntWritable, IntWritable> edge = new DefaultEdge<IntWritable, IntWritable>();
 
-			/** Start receiving message from the second superstep - items*/
+			/** If first superstep for items --> store the rating given from user */
 			if (getSuperstep()==1) {							
-				// Save its rating given from the user
 				observed = message.getMessage().get(message.getMessage().size()-1).get();
 				System.out.println("observed: " + observed);
 				IntWritable sourceId = message.getSourceId();
@@ -126,22 +130,42 @@ IntWritable, MessageWrapper>{
 			err = getError(getValue(), message.getMessage(),observed);
 			System.out.println("AFTER: vertex_vector = " + getValue().get(0).get() + "," + getValue().get(1).get());
 			System.out.println("AFTER: error = " + err);
-			/** For the RMSD calculation/aggregator */
-			//rmsdErr+= Math.pow(err, 2);
-			//System.out.println("rmsdErr: " + rmsdErr);
+			/* If termination flag is set to RMSD or RMSD aggregator is true */
+			if (factorFlag.equals("rmsd") || rmsdFlag){
+				rmsdErr+= Math.pow(err, 2);
+				System.out.println("rmsdErr: " + rmsdErr);
+			}
 		} // End of for each message
 		
-		// If aggregator flag is true
-		/*if (rmsdFlag){
+		// If basic factor specified
+		if (factorFlag.equals("basic")){
+			err_factor=TOLERANCE+1;
+		}
+		// If RMSD aggregator flag is true
+		if (rmsdFlag){
 			this.aggregate(RMSD_AGG, new DoubleWritable(rmsdErr));
-		}*/
-		//double finalRMSD = getRMSD(msgCounter);
-		//System.out.println("myRMSD: " + finalRMSD + ", numEdges: " + msgCounter);
-		normVector = getL2Norm(initialValue, getValue());
-		System.out.println("NormVector: sqrt((initial[0]-final[0])^2 + (initial[1]-final[1])^2): " 
-				+ normVector);
-		
-		if (getSuperstep()==0 || (normVector > TOLERANCE && getSuperstep()<ITERATIONS)){
+		}
+		if (factorFlag.equals("rmsd")){
+			err_factor = getRMSD(msgCounter);
+			System.out.println("myRMSD: " + err_factor + ", numEdges: " + msgCounter);
+		}
+		// If termination factor is set to L2NOrm
+		if (factorFlag.equals("l2norm")){
+			err_factor = getL2Norm(initialValue, getValue());
+			System.out.println("NormVector: sqrt((initial[0]-final[0])^2 + (initial[1]-final[1])^2): " 
+					+ err_factor);
+		}
+		sendMsgs(err_factor);
+		// err_factor is used in the OutputFormat file. --> To print the error
+		if (factorFlag.equals("basic")){
+			err_factor=err;
+		}
+		voteToHalt();
+	}//EofCompute
+
+	/*** Send messages to neighbours */
+	public void sendMsgs(double termin_factor){
+		if (getSuperstep()==0 || (termin_factor > TOLERANCE && getSuperstep()<ITERATIONS)){
 			/** Send to all neighbors a message*/
 			for (Edge<IntWritable, IntWritable> edge : getEdges()) {
 				if (LOG.isDebugEnabled()) {
@@ -163,15 +187,18 @@ IntWritable, MessageWrapper>{
 						" [" + getValue().get(0) + "," + getValue().get(1) + "]");
 			} // End of for each edge
 		}
-		voteToHalt();
-	}//EofCompute
-
+	}
+	/*** Calculate the RMSD on the errors calculated by the current vertex */
+	public double getRMSD(int msgCounter){
+		return Math.sqrt(rmsdErr/msgCounter);
+	}
 	/*** Calculate the RMSD on the errors calculated by the current vertex */
 	public double getL2Norm(DoubleArrayListWritable valOld, DoubleArrayListWritable valNew){
 		double result=0;
 		for (int i=0; i<valOld.size(); i++){
 			result += Math.pow((valOld.get(i).get() - valNew.get(i).get()),2);
 		}
+		System.out.println("L2norm: " + result);
 		return Math.sqrt(result);
 	}
 	/*** Calculate the error: e=observed-predicted */
@@ -213,21 +240,17 @@ IntWritable, MessageWrapper>{
 		}
 		return result;
 	}
-
+	
 	/**
 	 * MasterCompute used with {@link SimpleMasterComputeVertex}.
 	 */
-	public static class RMSDMasterCompute
+	public static class MasterCompute
 	extends DefaultMasterCompute {
 		@Override
 		public void compute() {
 			double numRatings=0;
 			double totalRMSD=0;
 			if (getSuperstep()>1){
-				/*			  System.out.println("[Aggregator] RMSD: " 
-		  + Math.sqrt(((DoubleWritable)getAggregatedValue(RMSD_AGG)).get()
-					  /(getTotalNumEdges())));
-				 */
 				// In superstep=1 only half edges are created (users to items)
 				if (getSuperstep()==2)
 					numRatings = getTotalNumEdges();
@@ -235,25 +258,24 @@ IntWritable, MessageWrapper>{
 					numRatings = getTotalNumEdges()/2;
 
 				totalRMSD = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSD_AGG)).get()/numRatings);
-				
+					
 				System.out.println("Superstep: " + getSuperstep() + ", [Aggregator] Added Values: " + getAggregatedValue(RMSD_AGG)
 						+ " / " + numRatings
 						+ " = " + ((DoubleWritable)getAggregatedValue(RMSD_AGG)).get()/numRatings
 						+ " --> sqrt(): " + totalRMSD);
-
-				getAggregatedValue(RMSD_AGG); 
+					
+				getAggregatedValue(RMSD_AGG);
 				if (totalRMSD < TOLERANCE){
 					System.out.println("HALT!");
 					haltComputation();
 				}
 			}
-		}
-
+		} // Eof Compute()
 
 		@Override
 		public void initialize() throws InstantiationException,
 		IllegalAccessException {
-			registerAggregator(RMSD_AGG, DoubleSumAggregator.class);
+				registerAggregator(RMSD_AGG, DoubleSumAggregator.class);
 		}
 	}
 }
