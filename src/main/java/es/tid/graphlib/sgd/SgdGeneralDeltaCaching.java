@@ -189,9 +189,11 @@ IntWritable, MessageWrapper>{
 		boolean updated=false;
 		for (int i=0; i<SGD_VECTOR_SIZE; i++){
 			if (latestVal.get(i) != curVal.get(i)){
-				System.out.println("[COMPARE]" + curVal.get(i) + ", " + latestVal.get(i));
 				curVal.set(i, latestVal.get(i));
 				updated=true;
+			}
+			else {
+				System.out.println("[COMPARE]" + curVal.get(i) + ", " + latestVal.get(i));
 			}
 		}
 		return updated;
