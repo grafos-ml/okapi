@@ -164,7 +164,7 @@ IntWritable, MessageWrapper>{
 		DoubleArrayListHashMapWritable value = new DoubleArrayListHashMapWritable();
 		DoubleArrayListWritable latentVector = new DoubleArrayListWritable();
 		for (int i=0; i<SGD_VECTOR_SIZE; i++) {
-			latentVector.add(new DoubleWritable((double)((int)(0.9/((double)(getId().get()+i+1))*100))/100d));
+			latentVector.add(new DoubleWritable(((double)(getId().get()+i) % 100d)/100d));
 		}
 		value.setLatentVector(latentVector);
 		setValue(value);

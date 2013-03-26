@@ -151,7 +151,7 @@ IntWritable, MessageWrapper>{
 	/*** Initialize Vertex Latent Vector */
 	public void initLatentVector(){		
 		for (int i=0; i<SGD_VECTOR_SIZE; i++) {
-			getValue().add(new DoubleWritable((double)((int)(0.9/((double)(getId().get()+i+1))*100))));
+			getValue().add(new DoubleWritable(((double)(getId().get()+i) % 100d)/100d));
 		}
 		/** For L2Norm */
 		initialValue = getValue();
