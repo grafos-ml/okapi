@@ -10,7 +10,7 @@
 
   <properties>
     <giraph.version>0.2-SNAPSHOT</giraph.version>
-    <hadoop.version>0.20.2-cdh3u5</hadoop.version>
+    <hadoop.version>0.20.203.0</hadoop.version>
   </properties>
 
   <build>
@@ -65,7 +65,6 @@
       <version>${giraph.version}</version>
       <scope>compile</scope>
     </dependency>
-
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-core</artifactId>
@@ -80,17 +79,38 @@
     </dependency>
   </dependencies>
 
- <repositories>
+  <repositories>
     <repository>
       <id>cloudera cdh</id>
       <url>https://repository.cloudera.com/artifactory/cloudera-repos</url>
       <releases>
-	<enabled>true</enabled>
+        <enabled>true</enabled>
       </releases>
       <snapshots>
-	<enabled>false</enabled>
+        <enabled>false</enabled>
       </snapshots>
     </repository>
- </repositories>
-
+    <repository>
+      <id>apache snapshots</id>
+      <name>www.apache.org</name>
+      <url>https://repository.apache.org/content/repositories/snapshots</url>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+      <releases>
+        <enabled>false</enabled>
+      </releases>
+    </repository>
+    <repository>
+      <id>apache releases</id>
+      <name>www.apache.org</name>
+      <url>https://repository.apache.org/content/repositories/releases</url>
+      <snapshots>
+        <enabled>false</enabled>
+      </snapshots>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+    </repository>
+  </repositories>
 </project>
