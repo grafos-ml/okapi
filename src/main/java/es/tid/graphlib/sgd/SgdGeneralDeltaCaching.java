@@ -25,8 +25,6 @@ import java.util.Map.Entry;
 
 public class SgdGeneralDeltaCaching extends EdgeListVertex<IntWritable, DoubleArrayListHashMapWritable, 
 IntWritable, MessageWrapper>{
-	/** The convergence tolerance */
-	static double INIT=0.5;
 	/** SGD vector size **/
 	static int SGD_VECTOR_SIZE=2;
 	/** Regularization parameter */
@@ -35,7 +33,7 @@ IntWritable, MessageWrapper>{
 	static double GAMMA=0.01;
 	/** Number of supersteps */
 	static double ITERATIONS=10;
-	/** Tolerance */
+	/** Convergence Tolerance */
 	static double TOLERANCE = 0.3;
 	/** Value Tolerance - For delta caching */
 	static double VAL_TOLERANCE = 0.1;
@@ -76,17 +74,17 @@ IntWritable, MessageWrapper>{
 		if (getSuperstep() == 1) {		
 			item=true;
 		}
-		
+/*		
 		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item + 
 				", " + getValue().getLatentVector()); 
-		
+*/		
 		rmsdErr=0d; msgCounter=0;
 		/*** For each message */
 		for (MessageWrapper message : messages) {
 			msgCounter++;
-			System.out.println("  [RECEIVE] from " + message.getSourceId().get()
+/*			System.out.println("  [RECEIVE] from " + message.getSourceId().get()
 						+ ", " + message.getMessage());
-			/** First superstep for items 
+*/			/** First superstep for items 
 			 *  --> Add Edges connecting to users
 			 *  --> Store the rating given from users
 			 */
@@ -95,7 +93,7 @@ IntWritable, MessageWrapper>{
 				DefaultEdge<IntWritable, IntWritable> edge = new DefaultEdge<IntWritable, IntWritable>();
 				edge.setTargetVertexId(message.getSourceId());
 				edge.setValue(new IntWritable((int) observed));
-				System.out.println("   Adding edge:" + edge);
+				//System.out.println("   Adding edge:" + edge);
 				addEdge(edge);
 				// Remove the last value from message - it's there for the 1st round
 				message.getMessage().remove(message.getMessage().size()-1);	
@@ -117,16 +115,16 @@ IntWritable, MessageWrapper>{
 				/*** Calculate error */
 				observed = (double)getEdgeValue(vvertex.getKey()).get();
 				err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
-				System.out.println("vvertex: " + vvertex.getKey() + " value: " + vvertex.getValue());
-				System.out.println("BEFORE: error = " + err + " vertex_vector= " + getValue().getLatentVector());
+				//System.out.println("vvertex: " + vvertex.getKey() + " value: " + vvertex.getValue());
+				//System.out.println("BEFORE: error = " + err + " vertex_vector= " + getValue().getLatentVector());
 				/** Change the Vertex Latent Vector based on SGD equation */
 				runSgdAlgorithm(vvertex.getValue());
 				err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
-				System.out.println("AFTER: error = " + err + " vertex_vector = " + getValue().getLatentVector());
+				//System.out.println("AFTER: error = " + err + " vertex_vector = " + getValue().getLatentVector());
 				/* If termination flag is set to RMSD or RMSD aggregator is true */
 				if (factorFlag.equals("rmsd") || rmsdFlag){
 					rmsdErr+= Math.pow(err, 2);
-					System.out.println("rmsdErr: " + rmsdErr);
+					//System.out.println("rmsdErr: " + rmsdErr);
 				}
 			}
 		} // End of for each message
@@ -141,13 +139,13 @@ IntWritable, MessageWrapper>{
 		}
 		if (factorFlag.equals("rmsd")){
 			err_factor = getRMSD(msgCounter);
-			System.out.println("myRMSD: " + err_factor + ", numEdges: " + msgCounter);
+			//System.out.println("myRMSD: " + err_factor + ", numEdges: " + msgCounter);
 		}
 		// If termination factor is set to L2NOrm
 		if (factorFlag.equals("l2norm")){
 			err_factor = getL2Norm(initialValue, getValue().getLatentVector());
-			System.out.println("NormVector: sqrt((initial[0]-final[0])^2 + (initial[1]-final[1])^2): " 
-					+ err_factor);
+			/*System.out.println("NormVector: sqrt((initial[0]-final[0])^2 + (initial[1]-final[1])^2): " 
+					+ err_factor);*/
 		}
 		if (getSuperstep()==0 || (err_factor > TOLERANCE && getSuperstep()<ITERATIONS)){
 			sendMsgs();
@@ -168,7 +166,7 @@ IntWritable, MessageWrapper>{
 		}
 		value.setLatentVector(latentVector);
 		setValue(value);
-		System.out.println("[INIT] value: " + value.getLatentVector());
+		//System.out.println("[INIT] value: " + value.getLatentVector());
 		/** For L2Norm */
 		initialValue = getValue().getLatentVector();
 	}
@@ -190,8 +188,8 @@ IntWritable, MessageWrapper>{
 	public boolean updateNeighValues(DoubleArrayListWritable curVal, DoubleArrayListWritable latestVal){
 		boolean updated=false;
 		for (int i=0; i<SGD_VECTOR_SIZE; i++){
-			System.out.println("[COMPARE]" + curVal.get(i) + ", " + latestVal.get(i));
 			if (latestVal.get(i) != curVal.get(i)){
+				System.out.println("[COMPARE]" + curVal.get(i) + ", " + latestVal.get(i));
 				curVal.set(i, latestVal.get(i));
 				updated=true;
 			}
@@ -214,10 +212,10 @@ IntWritable, MessageWrapper>{
 				message.setMessage(x);
 			}
 			sendMessage(edge.getTargetVertexId(), message);
-			System.out.println("  [SEND] to " + edge.getTargetVertexId() + 
+/*			System.out.println("  [SEND] to " + edge.getTargetVertexId() + 
 					" (rating: " + edge.getValue() + ")" +
 					" [" + getValue().getLatentVector() + "]");
-		} // End of for each edge
+*/		} // End of for each edge
 	}
 
 	/*** Calculate the RMSD on the errors calculated by the current vertex */
@@ -230,7 +228,7 @@ IntWritable, MessageWrapper>{
 		for (int i=0; i<valOld.size(); i++){
 			result += Math.pow((valOld.get(i).get() - valNew.get(i).get()),2);
 		}
-		System.out.println("L2norm: " + result);
+		//System.out.println("L2norm: " + result);
 		return Math.sqrt(result);
 	}
 	/*** Calculate the error: e=observed-predicted */
