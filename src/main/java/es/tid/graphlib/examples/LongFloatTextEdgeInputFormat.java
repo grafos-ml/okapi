@@ -19,9 +19,7 @@ package es.tid.graphlib.examples;
 
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
-import es.tid.graphlib.sgd.IntPairVal;
-
-import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -36,28 +34,28 @@ import java.util.regex.Pattern;
  *
  * Each line consists of: source_vertex, target_vertex
  */
-public class LongDoubleTextEdgeInputFormat extends
-    TextEdgeInputFormat<LongWritable, DoubleWritable> {
+public class LongFloatTextEdgeInputFormat extends
+    TextEdgeInputFormat<LongWritable, FloatWritable> {
   /** Splitter for endpoints */
   private static final Pattern SEPARATOR = Pattern.compile("[\t ]");
 
   @Override
-  public EdgeReader<LongWritable, DoubleWritable> createEdgeReader(
+  public EdgeReader<LongWritable, FloatWritable> createEdgeReader(
       InputSplit split, TaskAttemptContext context) throws IOException {
-    return new LongLongDoubleTextEdgeReader();
+    return new LongLongFloatTextEdgeReader();
   }
 
   /**
    * {@link org.apache.giraph.io.EdgeReader} associated with
    * {@link LongLongDoubleTextEdgeInputFormat}.
    */
-  public class LongLongDoubleTextEdgeReader extends
+  public class LongLongFloatTextEdgeReader extends
       TextEdgeReaderFromEachLineProcessed<LongPairVal> {
     @Override
     protected LongPairVal preprocessLine(Text line) throws IOException {
       String[] tokens = SEPARATOR.split(line.toString());
       return new LongPairVal(Long.valueOf(tokens[0]),
-          Long.valueOf(tokens[1]), Double.valueOf(tokens[2]));
+          Long.valueOf(tokens[1]), Float.valueOf(tokens[2]));
     }
 
     @Override
@@ -73,9 +71,9 @@ public class LongDoubleTextEdgeInputFormat extends
     }
 
     @Override
-    protected DoubleWritable getValue(LongPairVal endpoints) 
+    protected FloatWritable getValue(LongPairVal endpoints) 
       throws IOException {
-      return new DoubleWritable(endpoints.getValue());
+      return new FloatWritable(endpoints.getValue());
     }
   }
 }

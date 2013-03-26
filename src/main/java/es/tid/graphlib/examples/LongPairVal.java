@@ -3,7 +3,7 @@ package es.tid.graphlib.examples;
 
 public class LongPairVal extends LongPair {
 	/** Value between two elements. */
-	private double value;
+	private float value;
 	
 	/** Constructor.
 	  *
@@ -11,7 +11,7 @@ public class LongPairVal extends LongPair {
 	  * @param snd Second element
 	  * @param val Value
 	  */
-	public LongPairVal(long fst, long snd, double val) {
+	public LongPairVal(long fst, long snd, float val) {
 		super(fst, snd);
 	    value = val;
 	}
@@ -21,7 +21,7 @@ public class LongPairVal extends LongPair {
 	   *
 	   * @return The value
 	   */
-	  public double getValue(){
+	  public float getValue(){
 		  return value;
 	  }
 	  
@@ -30,7 +30,7 @@ public class LongPairVal extends LongPair {
 	   *
 	   * @param value The value
 	   */
-	  public void setValue(double value) {
+	  public void setValue(float value) {
 		  this.value = value;
 	  }
 	  
