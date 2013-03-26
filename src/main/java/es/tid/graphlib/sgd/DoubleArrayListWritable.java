@@ -11,6 +11,10 @@ public class DoubleArrayListWritable
 		super();
 	}
 
+	public DoubleArrayListWritable(DoubleArrayListWritable other) {
+		super(other);
+	}
+	
 	@Override
 	public void setClass() {
 		setClass(DoubleWritable.class);
