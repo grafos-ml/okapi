@@ -50,17 +50,16 @@ IntWritable, MessageWrapper>{
 	private double rmsdErr=0d;
 	/** Factor Error: it may be RMSD or L2NORM on initial&final vector  */
 	public double err_factor=0d;
+	/** Initial vector value to be used for the L2Norm case */
+	DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
 	/** Aggregators to get values from the workers to the master */
 	public static final String RMSD_AGG = "rmsd.aggregator";
 	
 	public void compute(Iterable<MessageWrapper> messages) {
-		/** Value of Vertex */
-		DoubleArrayListWritable value = new DoubleArrayListWritable();
 		/** Counter of messages received - different from getNumEdges() 
 		 * because a neighbor may not send a message */
 		int msgCounter = 0;
-		/** Initial vector value to be used for the L2Norm case */
-		DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
+
 		/** Flag for checking if parameter for RMSD aggregator received */
 		boolean rmsdFlag = getContext().getConfiguration().getBoolean("sgd.aggregate", false);
 		/** Flag for checking which termination factor to use: basic, rmsd, l2norm */
@@ -70,12 +69,7 @@ IntWritable, MessageWrapper>{
 		 *  If it's the first round for items (superstep: 1)
 		 */
 		if (getSuperstep() < 2){ 
-			for (int i=0; i<SGD_VECTOR_SIZE; i++) {
-				value.add(new DoubleWritable(INIT));
-			}
-			setValue(value);
-			/** For L2Norm */
-			initialValue = getValue();
+			initLatentVector();
 		}
 		/** First Superstep for items */
 		if (getSuperstep() == 1) {		
@@ -154,6 +148,15 @@ IntWritable, MessageWrapper>{
 		voteToHalt();
 	}//EofCompute
 
+	/*** Initialize Vertex Latent Vector */
+	public void initLatentVector(){		
+		for (int i=0; i<SGD_VECTOR_SIZE; i++) {
+			getValue().add(new DoubleWritable((double)((int)(0.9/((double)(getId().get()+i+1))*100))));
+		}
+		/** For L2Norm */
+		initialValue = getValue();
+	}
+	
 	/*** Modify Vertex Latent Vector based on SGD equation */
 	public void runSgdAlgorithm(DoubleArrayListWritable vvertex){
 		/** user_vector = vertex_vector + 
