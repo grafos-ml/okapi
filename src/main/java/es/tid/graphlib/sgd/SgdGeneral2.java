@@ -23,7 +23,7 @@ import java.util.Map.Entry;
 		description = "Minimizes the error in users preferences predictions"
 		)
 
-public class SgdGeneralDeltaCaching extends EdgeListVertex<IntWritable, DoubleArrayListHashMapWritable, 
+public class SgdGeneral2 extends EdgeListVertex<IntWritable, DoubleArrayListHashMapWritable, 
 IntWritable, MessageWrapper>{
 	/** SGD vector size **/
 	static int SGD_VECTOR_SIZE=2;
@@ -34,7 +34,7 @@ IntWritable, MessageWrapper>{
 	/** Number of supersteps */
 	static double ITERATIONS=10;
 	/** Convergence Tolerance */
-	static double TOLERANCE = 0.3;
+	static double TOLERANCE = 0.0003;
 	/** Value Tolerance - For delta caching */
 	static double VAL_TOLERANCE = 0.1;
 	/** Max rating */
@@ -67,7 +67,9 @@ IntWritable, MessageWrapper>{
 		boolean rmsdFlag = getContext().getConfiguration().getBoolean("sgd.aggregate", false);
 		/** Flag for checking which termination factor to use: basic, rmsd, l2norm */
 		String factorFlag = getContext().getConfiguration().get("sgd.factor", "basic");
-		
+		/** Flat for checking if delta caching is enabled */
+		boolean deltaFlag = getContext().getConfiguration().getBoolean("sgd.delta", false);
+
 		/** First superstep for users (superstep: 0) & items (superstep: 1) */
 		if (getSuperstep() < 2){ 
 			initLatentVector();
@@ -76,8 +78,8 @@ IntWritable, MessageWrapper>{
 		if (getSuperstep() == 1) {		
 			item=true;
 		}
-/*		
-		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item + 
+		
+/*		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item + 
 				", " + getValue().getLatentVector()); 
 */		
 		rmsdErr=0d; msgCounter=0;
@@ -100,38 +102,45 @@ IntWritable, MessageWrapper>{
 				// Remove the last value from message - it's there for the 1st round
 				message.getMessage().remove(message.getMessage().size()-1);	
 			}
+			if (deltaFlag) {
+				/** Create table with neighbors latent values and ids */
+				if (getSuperstep() == 1 || getSuperstep() == 2) {
+					getValue().setNeighborValue(message.getSourceId(), message.getMessage());
+				}
 			
-			/** Create table with neighbors latent values and ids */
-			if (getSuperstep() == 1 || getSuperstep() == 2){
-				getValue().setNeighborValue(message.getSourceId(), message.getMessage());
-			}
-			
-			if (getSuperstep() > 2){
-				updateNeighValues(getValue().getNeighValue(message.getSourceId()), message.getMessage());
-			}
-		}
-		
-		if (getSuperstep()>0){
-			for (int i=0; i<getValue().getSize(); i++);
-			for (Entry<IntWritable, DoubleArrayListWritable> vvertex: getValue().getAllNeighValue().entrySet()){
-				
-				/*** Calculate error */
-				observed = (double)getEdgeValue(vvertex.getKey()).get();
-				err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
-				//System.out.println("vvertex: " + vvertex.getKey() + " value: " + vvertex.getValue());
-				//System.out.println("BEFORE: error = " + err + " vertex_vector= " + getValue().getLatentVector());
-				/** Change the Vertex Latent Vector based on SGD equation */
-				runSgdAlgorithm(vvertex.getValue());
-				err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
-				//System.out.println("AFTER: error = " + err + " vertex_vector = " + getValue().getLatentVector());
-				/* If termination flag is set to RMSD or RMSD aggregator is true */
-				if (factorFlag.equals("rmsd") || rmsdFlag){
-					rmsdErr+= Math.pow(err, 2);
-					//System.out.println("rmsdErr: " + rmsdErr);
+				if (getSuperstep() > 2) {
+					updateNeighValues(getValue().getNeighValue(message.getSourceId()), message.getMessage());
 				}
 			}
-		} // End of for each message
-		
+			if (!deltaFlag) {
+				/*** Calculate error */
+				observed = (double)getEdgeValue(message.getSourceId()).get();
+				err = getError(getValue().getLatentVector(), message.getMessage(), observed);
+				/** Change the Vertex Latent Vector based on SGD equation */
+				runSgdAlgorithm(message.getMessage());
+				err = getError(getValue().getLatentVector(), message.getMessage(),observed);
+				/* If termination flag is set to RMSD or RMSD aggregator is true */
+				if (factorFlag.equals("rmsd") || rmsdFlag) {
+					rmsdErr+= Math.pow(err, 2);
+				}
+			}
+		} // Eof Messages
+		if (deltaFlag) {
+			if (getSuperstep()>0) {
+				for (Entry<IntWritable, DoubleArrayListWritable> vvertex: getValue().getAllNeighValue().entrySet()){
+					/*** Calculate error */
+					observed = (double)getEdgeValue(vvertex.getKey()).get();
+					err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
+					/** Change the Vertex Latent Vector based on SGD equation */
+					runSgdAlgorithm(vvertex.getValue());
+					err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
+					/** If termination flag is set to RMSD or RMSD aggregator is true */
+					if (factorFlag.equals("rmsd") || rmsdFlag) {
+						rmsdErr+= Math.pow(err, 2);
+					}
+				}
+			}
+		}
 		// If basic factor specified
 		if (factorFlag.equals("basic")){
 			err_factor=TOLERANCE+1;
@@ -142,7 +151,7 @@ IntWritable, MessageWrapper>{
 		}
 		if (factorFlag.equals("rmsd")){
 			err_factor = getRMSD(msgCounter);
-			//System.out.println("myRMSD: " + err_factor + ", numEdges: " + msgCounter);
+			System.out.println("myRMSD: " + err_factor);
 		}
 		// If termination factor is set to L2NOrm
 		if (factorFlag.equals("l2norm")){
@@ -160,6 +169,11 @@ IntWritable, MessageWrapper>{
 		voteToHalt();
 	}//EofCompute
 
+	/** Return type of current vertex */
+	public boolean isItem(){
+		return item;
+	}
+	
 	/*** Initialize Vertex Latent Vector */
 	public void initLatentVector(){
 		DoubleArrayListHashMapWritable value = new DoubleArrayListHashMapWritable();
@@ -248,7 +262,7 @@ IntWritable, MessageWrapper>{
 		for (int i=0; i<valOld.size(); i++){
 			result += Math.pow((valOld.get(i).get() - valNew.get(i).get()),2);
 		}
-		//System.out.println("L2norm: " + result);
+		System.out.println("L2norm: " + result);
 		return Math.sqrt(result);
 	}
 	/*** Calculate the error: e=observed-predicted */

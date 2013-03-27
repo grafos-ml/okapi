@@ -64,7 +64,16 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat extends
 		      throws IOException {
 		    	
 		    	boolean flag = getContext().getConfiguration().getBoolean("sgd.printerr", false);
-		        String id = vertex.getId().toString();
+		    	String type="";
+		    	if (((SgdGeneral2)vertex).isItem()==true) {
+		        	//item.concat("item");
+		        	type = "item";
+		    	}
+		        else {
+		        	//item.concat("user");
+		        	type = "user";
+		        }
+		    	String id = vertex.getId().toString();
 		        String value = vertex.getValue().getLatentVector().toString();
 		        String error = null;
 		        Text line;
@@ -73,11 +82,11 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat extends
 		        		//error = Double.toString((Math.abs(((SgdVectorL2Norm)vertex).normVector)));
 		        		//error = Double.toString((Math.abs(((SgdMaxIter)vertex).err)));
 		        		//error = Double.toString((Math.abs(((SgdRMSD)vertex).finalRMSD)));
-		        		error = Double.toString((Math.abs(((SgdGeneralDeltaCaching)vertex).err_factor)));
+		        		error = Double.toString((Math.abs(((SgdGeneral2)vertex).err_factor)));
 		        	} catch (Exception exc) {
 		        		exc.printStackTrace();
 		        	}
-			        line = new Text(id + delimiter + value 
+			        line = new Text(type + delimiter + id + delimiter + value 
 			        		+ delimiter + error);
 		        }
 		        else {

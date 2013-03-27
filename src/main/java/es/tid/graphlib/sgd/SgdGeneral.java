@@ -37,6 +37,8 @@ IntWritable, MessageWrapper>{
 	static double MAX=5;
 	/** Min rating */
 	static double MIN=0;
+	/** Decimals */
+	static int DECIMALS=4;
 	/** Error */    
 	public double err;
 	/** Observed Value - Rating */
@@ -161,11 +163,26 @@ IntWritable, MessageWrapper>{
 		 * 2*GAMMA*(real_value - 
 		 * dot_product(vertex_vector,other_vertex_vector))*other_vertex_vector + 
 		 * LAMBDA * vertex_vector */
-		DoubleArrayListWritable la, ra, ga = new DoubleArrayListWritable();
+		DoubleArrayListWritable la, ra, ga, val = new DoubleArrayListWritable();
 		la = numMatrixProduct((double) LAMBDA, getValue());
 		ra = numMatrixProduct((double) err,vvertex);
 		ga = numMatrixProduct((double) -GAMMA, (dotAddition(ra, la)));
-		setValue(dotAddition(getValue(), ga));
+		val = dotAddition(getValue(), ga);
+		//System.out.print("Latent Vector: " + val);
+		keepXdecimals(val, DECIMALS);
+		//System.out.println(" , 4 decimals: " + val);
+		setValue(val);
+	}
+	
+	/*** Decimal Precision of latent vector values */
+	public void keepXdecimals(DoubleArrayListWritable value, int x){
+		double num=1;
+		for (int i=0; i<x; i++){
+			num*=10;
+		}
+		for (int i=0; i<value.size(); i++){
+			value.set(i, new DoubleWritable((double)(Math.round(value.get(i).get() * num) / num)));
+		}
 	}
 	
 	/*** Send messages to neighbours */

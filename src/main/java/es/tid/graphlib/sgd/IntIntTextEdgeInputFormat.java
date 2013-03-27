@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
- * unweighted graphs with int ids.
+ * weighted graphs with int ids int values.
  *
  * Each line consists of: source_vertex, target_vertex
  */
