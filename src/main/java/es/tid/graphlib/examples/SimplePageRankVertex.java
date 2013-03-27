@@ -34,7 +34,7 @@ public class SimplePageRankVertex extends LongDoubleFloatDoubleVertex {
   /** Decimals */
   static int DECIMALS=4;
   /** Tolerance */
-  static double TOLERANCE = 0.3;
+  static double TOLERANCE = 0.003;
   /** Initial value to be used for the L2Norm case */
   DoubleWritable initialValue = new DoubleWritable();
   /** L2Norm Error */
@@ -70,10 +70,12 @@ public class SimplePageRankVertex extends LongDoubleFloatDoubleVertex {
 
     if (getSuperstep() < MAX_SUPERSTEPS) {
       long edges = getNumEdges();
-      sendMessageToAllEdges(
-          new DoubleWritable(getValue().get() / edges));
-    } else {
-      voteToHalt();
+      if (l2normError > TOLERANCE){
+    	  sendMessageToAllEdges(
+    			  new DoubleWritable(getValue().get() / edges));
+      } else {
+    	  voteToHalt();
+      }
     }
   }
   
