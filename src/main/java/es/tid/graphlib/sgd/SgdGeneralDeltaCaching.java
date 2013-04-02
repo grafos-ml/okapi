@@ -173,6 +173,11 @@ IntWritable, MessageWrapper>{
 		/** For L2Norm */
 		initialValue = getValue().getLatentVector();
 	}
+
+	/** Return type of current vertex */
+        public boolean isItem(){
+                return item;
+        }
 	
 	/*** Modify Vertex Latent Vector based on SGD equation */
 	public void runSgdAlgorithm(DoubleArrayListWritable vvertex){

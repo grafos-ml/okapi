@@ -43,12 +43,13 @@ public class SimplePageRankVertex extends LongDoubleFloatDoubleVertex {
   @Override
   public void compute(Iterable<DoubleWritable> messages) {
 	  /** Flag for checking if parameter for L2Norm is enabled */
-	  boolean l2normFlag = getContext().getConfiguration().getBoolean("sgd.l2norm", false);
-		
+	  boolean l2normFlag = getContext().getConfiguration().getBoolean("PageRank.l2norm", false);
+	  //System.out.println("PageRank: " + l2normFlag);	
 		
 	  if (getSuperstep() == 0){
 		  if (l2normFlag) {
 			  initialValue = getValue();
+			  //System.out.println("**S: " + getSuperstep() + ", vertex, init_value: " + getId() + ", " + initialValue);
 		  }
 		  /** Set value with X decimals */
 		  keepXdecimals(new DoubleWritable(1d/getTotalNumVertices()), DECIMALS);
@@ -64,19 +65,19 @@ public class SimplePageRankVertex extends LongDoubleFloatDoubleVertex {
 		  /** Compute L2Norm */
 		  if (l2normFlag) {
 			  l2normError = getL2Norm(initialValue, getValue());
-			  System.out.println("VertexId,L2norm: " + getId() + ", " + l2normError);
+			  System.out.println("**S: " + getSuperstep() + ", VertexId: " + getId() + ", [" + initialValue + ", " +getValue() + "], " + l2normError);
 		  }
 	  }
 
-    if (getSuperstep() < MAX_SUPERSTEPS) {
-      long edges = getNumEdges();
-      if (l2normError > TOLERANCE){
-    	  sendMessageToAllEdges(
-    			  new DoubleWritable(getValue().get() / edges));
-      } else {
-    	  voteToHalt();
-      }
-    }
+    	  if (getSuperstep() < MAX_SUPERSTEPS) {
+      		long edges = getNumEdges();
+      		if (getSuperstep() == 0 || l2normError > TOLERANCE){
+    			sendMessageToAllEdges(
+    			  	new DoubleWritable(getValue().get() / edges));
+      		} else {
+    	 		voteToHalt();
+      		}
+    	}
   }
   
 	/*** Decimal Precision of latent vector values */
