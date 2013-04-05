@@ -1,21 +1,23 @@
-package es.tid.graphlib.sgd;
+package es.tid.graphlib.utils;
 
 import org.apache.giraph.utils.ArrayListWritable;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.WritableComparable;
+import org.apache.hadoop.io.DoubleWritable;
 
-@SuppressWarnings({ "serial", "rawtypes" })
-public class IntArrayListWritable
-	extends ArrayListWritable<IntWritable>
-	implements WritableComparable{	
+@SuppressWarnings("serial")
+public class DoubleArrayListWritable
+	extends ArrayListWritable<DoubleWritable>{	
 	/** Default constructor for reflection */
-	public IntArrayListWritable() {
+	public DoubleArrayListWritable() {
 		super();
 	}
 
+	public DoubleArrayListWritable(DoubleArrayListWritable other) {
+		super(other);
+	}
+	
 	@Override
 	public void setClass() {
-		setClass(IntWritable.class);
+		setClass(DoubleWritable.class);
 	}
 	
 	/*
@@ -29,7 +31,7 @@ public class IntArrayListWritable
 			return this.sourceId.compareTo(wrapper.getSourceId());
 	}
 	*/
-	public int compareTo(IntArrayListWritable message) {
+	public int compareTo(DoubleArrayListWritable message) {
 		/*
 		DoubleArrayListWritable msg = new DoubleArrayListWritable;
 		msg = this;
@@ -42,12 +44,6 @@ public class IntArrayListWritable
 				return 1;
 			i++;
 		}*/
-		return 0;
-	}
-
-	@Override
-	public int compareTo(Object o) {
-		// TODO Auto-generated method stub
 		return 0;
 	}
 }

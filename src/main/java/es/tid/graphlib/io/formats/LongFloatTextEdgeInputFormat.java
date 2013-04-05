@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package es.tid.graphlib.examples;
+package es.tid.graphlib.io.formats;
 
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
@@ -24,6 +24,8 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+
+import es.tid.graphlib.utils.LongPairVal;
 
 import java.io.IOException;
 import java.util.regex.Pattern;

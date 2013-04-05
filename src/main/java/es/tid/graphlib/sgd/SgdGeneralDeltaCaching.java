@@ -9,8 +9,10 @@ import org.apache.giraph.vertex.EdgeListVertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 
-import es.tid.graphlib.examples.MessageWrapper;
 import es.tid.graphlib.examples.SimpleMasterComputeVertex;
+import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
+import es.tid.graphlib.utils.DoubleArrayListWritable;
+import es.tid.graphlib.utils.MessageWrapper;
 
 import java.lang.Math;
 import java.util.Map.Entry;
@@ -25,8 +27,11 @@ import java.util.Map.Entry;
 
 public class SgdGeneralDeltaCaching extends EdgeListVertex<IntWritable, DoubleArrayListHashMapWritable, 
 IntWritable, MessageWrapper>{
-	/** SGD vector size **/
-	static int SGD_VECTOR_SIZE=2;
+	/** Type of vertex
+	 * 0 for user, 1 for item */
+	private boolean item=false;
+	/** Vector size **/
+	static int VECTOR_SIZE=2;
 	/** Regularization parameter */
 	static double LAMBDA= 0.005;
 	/** Learning rate */
@@ -35,21 +40,18 @@ IntWritable, MessageWrapper>{
 	static double ITERATIONS=10;
 	/** Convergence Tolerance */
 	static double TOLERANCE = 0.3;
-	/** Value Tolerance - For delta caching */
-	static double VAL_TOLERANCE = 0.1;
 	/** Max rating */
 	static double MAX=5;
 	/** Min rating */
 	static double MIN=0;
 	/** Decimals */
 	static int DECIMALS=4;
+	/** Number of updates */
+	public int nupdates=0;
 	/** Error */    
 	public double err;
 	/** Observed Value - Rating */
 	private double observed;
-	/** Type of vertex
-	 * 0 for user, 1 for item */
-	private boolean item=false;
 	/** RMSD Error */
 	private double rmsdErr=0d;
 	/** Factor Error: it may be RMSD or L2NORM on initial&final vector  */
@@ -100,7 +102,7 @@ IntWritable, MessageWrapper>{
 				// Remove the last value from message - it's there for the 1st round
 				message.getMessage().remove(message.getMessage().size()-1);	
 			}
-			
+
 			/** Create table with neighbors latent values and ids */
 			if (getSuperstep() == 1 || getSuperstep() == 2){
 				getValue().setNeighborValue(message.getSourceId(), message.getMessage());
@@ -112,9 +114,7 @@ IntWritable, MessageWrapper>{
 		}
 		
 		if (getSuperstep()>0){
-			for (int i=0; i<getValue().getSize(); i++);
 			for (Entry<IntWritable, DoubleArrayListWritable> vvertex: getValue().getAllNeighValue().entrySet()){
-				
 				/*** Calculate error */
 				observed = (double)getEdgeValue(vvertex.getKey()).get();
 				err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
@@ -122,6 +122,7 @@ IntWritable, MessageWrapper>{
 				//System.out.println("BEFORE: error = " + err + " vertex_vector= " + getValue().getLatentVector());
 				/** Change the Vertex Latent Vector based on SGD equation */
 				runSgdAlgorithm(vvertex.getValue());
+				nupdates++;
 				err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
 				//System.out.println("AFTER: error = " + err + " vertex_vector = " + getValue().getLatentVector());
 				/* If termination flag is set to RMSD or RMSD aggregator is true */
@@ -164,7 +165,7 @@ IntWritable, MessageWrapper>{
 	public void initLatentVector(){
 		DoubleArrayListHashMapWritable value = new DoubleArrayListHashMapWritable();
 		DoubleArrayListWritable latentVector = new DoubleArrayListWritable();
-		for (int i=0; i<SGD_VECTOR_SIZE; i++) {
+		for (int i=0; i<VECTOR_SIZE; i++) {
 			latentVector.add(new DoubleWritable(((double)(getId().get()+i) % 100d)/100d));
 		}
 		value.setLatentVector(latentVector);
@@ -174,12 +175,17 @@ IntWritable, MessageWrapper>{
 		initialValue = getValue().getLatentVector();
 	}
 
-	/** Return type of current vertex */
-        public boolean isItem(){
-                return item;
-        }
+	/*** Return type of current vertex */
+    public boolean isItem(){
+    	return item;
+    }
 	
-	/*** Modify Vertex Latent Vector based on SGD equation */
+    /*** Return amount of vertex updates */
+    public int getUpdates(){
+    	return nupdates;
+    }
+    
+	/*** Update Vertex Latent Vector based on SGD equation */
 	public void runSgdAlgorithm(DoubleArrayListWritable vvertex){
 		/** user_vector = vertex_vector + 
 		 * 2*GAMMA*(real_value - 
@@ -210,7 +216,7 @@ IntWritable, MessageWrapper>{
 	/*** Update Neighbor's values */
 	public boolean updateNeighValues(DoubleArrayListWritable curVal, DoubleArrayListWritable latestVal){
 		boolean updated=false;
-		for (int i=0; i<SGD_VECTOR_SIZE; i++){
+		for (int i=0; i<VECTOR_SIZE; i++){
 			if (latestVal.get(i) != curVal.get(i)){
 				curVal.set(i, latestVal.get(i));
 				updated=true;
@@ -268,7 +274,7 @@ IntWritable, MessageWrapper>{
 	/*** Calculate the dot product of 2 vectors: vector1*vector2 */
 	public double dotProduct(DoubleArrayListWritable ma, DoubleArrayListWritable mb){
 		double result = 0d;
-		for (int i=0; i<SGD_VECTOR_SIZE; i++){
+		for (int i=0; i<VECTOR_SIZE; i++){
 			result += (ma.get(i).get() * mb.get(i).get());
 		}
 		return result;
@@ -279,7 +285,7 @@ IntWritable, MessageWrapper>{
 			DoubleArrayListWritable ma, 
 			DoubleArrayListWritable mb){
 		DoubleArrayListWritable result = new DoubleArrayListWritable();
-		for (int i=0; i<SGD_VECTOR_SIZE; i++){
+		for (int i=0; i<VECTOR_SIZE; i++){
 			result.add(new DoubleWritable(ma.get(i).get() + mb.get(i).get()));
 		}
 		return result;
@@ -288,7 +294,7 @@ IntWritable, MessageWrapper>{
 	/*** Calculate the product num*matirx */
 	public DoubleArrayListWritable numMatrixProduct(double num, DoubleArrayListWritable matrix){
 		DoubleArrayListWritable result = new DoubleArrayListWritable();
-		for (int i=0; i<SGD_VECTOR_SIZE; i++){
+		for (int i=0; i<VECTOR_SIZE; i++){
 			result.add(new DoubleWritable(num * matrix.get(i).get()));
 		}
 		return result;

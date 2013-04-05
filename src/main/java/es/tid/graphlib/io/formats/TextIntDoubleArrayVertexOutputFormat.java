@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package es.tid.graphlib.sgd;
+package es.tid.graphlib.io.formats;
 
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.giraph.vertex.Vertex;
@@ -23,6 +23,10 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+
+import es.tid.graphlib.sgd.SgdGeneral;
+import es.tid.graphlib.utils.DoubleArrayListWritable;
+
 import java.io.IOException;
 
 /**

@@ -8,8 +8,9 @@ import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.giraph.vertex.EdgeListVertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
-import es.tid.graphlib.examples.MessageWrapper;
 import es.tid.graphlib.examples.SimpleMasterComputeVertex;
+import es.tid.graphlib.utils.DoubleArrayListWritable;
+import es.tid.graphlib.utils.MessageWrapper;
 
 import java.lang.Math;
 
@@ -203,11 +204,17 @@ IntWritable, MessageWrapper>{
 */			 // End of for each edge
 		}
 	}
+	
+	/** Return type of current vertex */
+	public boolean isItem(){
+		return item;
+	}
+	
 	/*** Calculate the RMSD on the errors calculated by the current vertex */
 	public double getRMSD(int msgCounter){
 		return Math.sqrt(rmsdErr/msgCounter);
 	}
-	/*** Calculate the RMSD on the errors calculated by the current vertex */
+	/*** Calculate the L2Norm on the errors calculated by the current vertex */
 	public double getL2Norm(DoubleArrayListWritable valOld, DoubleArrayListWritable valNew){
 		double result=0;
 		for (int i=0; i<valOld.size(); i++){

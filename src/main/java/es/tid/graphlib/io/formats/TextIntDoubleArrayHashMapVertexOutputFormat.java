@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package es.tid.graphlib.sgd;
+package es.tid.graphlib.io.formats;
 
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.giraph.vertex.Vertex;

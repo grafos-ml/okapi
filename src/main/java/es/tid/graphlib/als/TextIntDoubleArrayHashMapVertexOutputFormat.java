@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package es.tid.graphlib.sgd;
+package es.tid.graphlib.als;
 
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.giraph.vertex.Vertex;
@@ -24,7 +24,6 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import es.tid.graphlib.sgd.SgdGeneralDeltaCaching;
 import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
 
 import java.io.IOException;
@@ -67,9 +66,9 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat extends
 		    (Vertex<IntWritable, DoubleArrayListHashMapWritable, IntWritable, ?> vertex)
 		      throws IOException {
 		    	
-		    	boolean flag = getContext().getConfiguration().getBoolean("sgd.printerr", false);
+		    	boolean flag = getContext().getConfiguration().getBoolean("als.printerr", false);
 		    	String type="";
-		    	if (((SgdGeneralDeltaCaching)vertex).isItem()==true) {
+		    	if (((Als)vertex).isItem()==true) {
 		        	//item.concat("item");
 		        	type = "item";
 		    	}
@@ -80,14 +79,11 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat extends
 		    	String id = vertex.getId().toString();
 		        String value = vertex.getValue().getLatentVector().toString();
 		        String error = null;
-		        String updates = Integer.toString(((SgdGeneralDeltaCaching)vertex).getUpdates()); //.toString();
+		        String updates = Integer.toString(((Als)vertex).getUpdates()); //.toString();
 		        Text line;
 		        if (flag == true) {
 		        	try{
-		        		//error = Double.toString((Math.abs(((SgdVectorL2Norm)vertex).normVector)));
-		        		//error = Double.toString((Math.abs(((SgdMaxIter)vertex).err)));
-		        		//error = Double.toString((Math.abs(((SgdRMSD)vertex).finalRMSD)));
-		        		error = Double.toString((Math.abs(((SgdGeneralDeltaCaching)vertex).err_factor)));
+		        		error = Double.toString((Math.abs(((Als)vertex).err_factor)));
 		        	} catch (Exception exc) {
 		        		exc.printStackTrace();
 		        	}

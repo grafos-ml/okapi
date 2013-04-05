@@ -1,4 +1,4 @@
-package es.tid.graphlib.examples;
+package es.tid.graphlib.utils;
 
 /**
  * A pair of integers.

@@ -15,11 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package es.tid.graphlib.sgd;
+package es.tid.graphlib.io.formats;
 
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
-import es.tid.graphlib.sgd.IntPairVal;
+
+import es.tid.graphlib.utils.IntPairVal;
+
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;

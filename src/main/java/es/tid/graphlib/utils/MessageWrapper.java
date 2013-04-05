@@ -1,10 +1,10 @@
-package es.tid.graphlib.examples;
+package es.tid.graphlib.utils;
 
 import org.apache.giraph.conf.ImmutableClassesGiraphConfiguration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.WritableComparable;
 
-import es.tid.graphlib.sgd.DoubleArrayListWritable;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;

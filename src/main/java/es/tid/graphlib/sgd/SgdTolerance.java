@@ -7,10 +7,11 @@ import org.apache.giraph.vertex.EdgeListVertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.log4j.Logger;
-import es.tid.graphlib.examples.MessageWrapper;
 //import java.util.HashMap;
 //import java.util.Map;
 //import java.lang.Math;
+import es.tid.graphlib.utils.DoubleArrayListWritable;
+import es.tid.graphlib.utils.MessageWrapper;
 
 /**
  * Demonstrates the Pregel Stochastic Gradient Descent (SGD) implementation.

@@ -1,4 +1,4 @@
-package es.tid.graphlib.sgd;
+package es.tid.graphlib.utils;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -7,6 +7,7 @@ import java.util.HashMap;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Writable;
+
 
 
 /**
@@ -67,7 +68,7 @@ public class DoubleArrayListHashMapWritable implements Writable {
 	   * 
 	   * @return Vertex Latent Value
 	   */
-	  protected DoubleArrayListWritable getLatentVector() {
+	  public DoubleArrayListWritable getLatentVector() {
 		  return sourceValue;
 	  }
 	 
@@ -87,7 +88,7 @@ public class DoubleArrayListHashMapWritable implements Writable {
 	   * @param Neighbor Id
 	   * @return Neighbor Latent Value
 	   */
-	  protected DoubleArrayListWritable getNeighValue(IntWritable id){
+	  public DoubleArrayListWritable getNeighValue(IntWritable id){
 		  return neighValues.get(id);
 	  }
 	  
@@ -96,7 +97,7 @@ public class DoubleArrayListHashMapWritable implements Writable {
 	   *
 	   * @return Neighbors values
 	   */
-	  protected HashMap<IntWritable,DoubleArrayListWritable>getAllNeighValue() {
+	  public HashMap<IntWritable,DoubleArrayListWritable>getAllNeighValue() {
 		  return neighValues;
 	  }
 	  
@@ -117,9 +118,4 @@ public class DoubleArrayListHashMapWritable implements Writable {
 	  public boolean isEmpty() {
 	    return getSize() == 0;
 	  }
-
-
-	  
-
-	  
 }

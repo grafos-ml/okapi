@@ -1,10 +1,10 @@
-package es.tid.graphlib.sgd;
+package es.tid.graphlib.utils;
 
-import org.apache.giraph.utils.IntPair;
 
-public class IntPairVal extends IntPair {
+
+public class LongPairVal extends LongPair {
 	/** Value between two elements. */
-	private int value;
+	private float value;
 	
 	/** Constructor.
 	  *
@@ -12,7 +12,7 @@ public class IntPairVal extends IntPair {
 	  * @param snd Second element
 	  * @param val Value
 	  */
-	public IntPairVal(int fst, int snd, int val) {
+	public LongPairVal(long fst, long snd, float val) {
 		super(fst, snd);
 	    value = val;
 	}
@@ -22,7 +22,7 @@ public class IntPairVal extends IntPair {
 	   *
 	   * @return The value
 	   */
-	  public int getValue(){
+	  public float getValue(){
 		  return value;
 	  }
 	  
@@ -31,7 +31,7 @@ public class IntPairVal extends IntPair {
 	   *
 	   * @param value The value
 	   */
-	  public void setValue(int value) {
+	  public void setValue(float value) {
 		  this.value = value;
 	  }
 	  
