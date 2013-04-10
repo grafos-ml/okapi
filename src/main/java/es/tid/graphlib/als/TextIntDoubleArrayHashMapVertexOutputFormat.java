@@ -83,7 +83,7 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat extends
 		        Text line;
 		        if (flag == true) {
 		        	try{
-		        		error = Double.toString((Math.abs(((Als)vertex).err_factor)));
+		        		error = Double.toString((Math.abs(((Als)vertex).halt_factor)));
 		        	} catch (Exception exc) {
 		        		exc.printStackTrace();
 		        	}

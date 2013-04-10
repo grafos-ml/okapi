@@ -69,7 +69,7 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat extends
 		    	
 		    	boolean flag = getContext().getConfiguration().getBoolean("sgd.printerr", false);
 		    	String type="";
-		    	if (((SgdGeneralDeltaCaching)vertex).isItem()==true) {
+		    	if (((Sgd)vertex).isItem()==true) {
 		        	//item.concat("item");
 		        	type = "item";
 		    	}
@@ -80,14 +80,14 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat extends
 		    	String id = vertex.getId().toString();
 		        String value = vertex.getValue().getLatentVector().toString();
 		        String error = null;
-		        String updates = Integer.toString(((SgdGeneralDeltaCaching)vertex).getUpdates()); //.toString();
+		        String updates = Integer.toString(((Sgd)vertex).getUpdates()); //.toString();
 		        Text line;
 		        if (flag == true) {
 		        	try{
 		        		//error = Double.toString((Math.abs(((SgdVectorL2Norm)vertex).normVector)));
 		        		//error = Double.toString((Math.abs(((SgdMaxIter)vertex).err)));
 		        		//error = Double.toString((Math.abs(((SgdRMSD)vertex).finalRMSD)));
-		        		error = Double.toString((Math.abs(((SgdGeneralDeltaCaching)vertex).err_factor)));
+		        		error = Double.toString((Math.abs(((Sgd)vertex).err_factor)));
 		        	} catch (Exception exc) {
 		        		exc.printStackTrace();
 		        	}

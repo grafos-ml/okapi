@@ -5,6 +5,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.HashMap;
 
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Writable;
 
@@ -61,6 +62,16 @@ public class DoubleArrayListHashMapWritable implements Writable {
 	   */
 	  public void setLatentVector(DoubleArrayListWritable value) {
 	    sourceValue = value;
+	  }
+	  
+	  /**
+	   * Set one element of vertex latent value
+	   *
+	   * @param index index of the vertex Latent vector
+	   * @param value Latent Value for the index
+	   */
+	  public void setLatentVector(int index, DoubleWritable value){
+		  sourceValue.add(index, value);
 	  }
 	  
 	  /**

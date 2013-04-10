@@ -49,8 +49,8 @@ IntWritable, MessageWrapper>{
 	private double observed = 0d;
 	/** Error */    
 	public double err = 0d;
-	/** RMSD Error */
-	private double rmsdErr = 0d;
+	/** RMSE Error */
+	private double rmseErr = 0d;
 	/** Factor Error: it may be RMSD or L2NORM on initial&final vector  */
 	public double err_factor = 0d;
 	/** Initial vector value to be used for the L2Norm case */
@@ -59,15 +59,15 @@ IntWritable, MessageWrapper>{
 	 * 0 for user, 1 for item */
 	private boolean item = false;
 	/** Aggregator to get values from the workers to the master */
-	public static final String RMSD_AGG = "rmsd.aggregator";
+	public static final String RMSD_AGG = "rmse.aggregator";
 	
 	public void compute(Iterable<MessageWrapper> messages) {
 		/** Counter of messages received - different from getNumEdges() 
 		 * because a neighbor may not send a message */
 		int msgCounter = 0;
-		/** Flag for checking if parameter for RMSD aggregator received */
-		boolean rmsdFlag = getContext().getConfiguration().getBoolean("sgd.aggregate", false);
-		/** Flag for checking which termination factor to use: basic, rmsd, l2norm */
+		/** Flag for checking if parameter for RMSE aggregator received */
+		boolean rmseFlag = getContext().getConfiguration().getBoolean("sgd.aggregate", false);
+		/** Flag for checking which termination factor to use: basic, rmse, l2norm */
 		String factorFlag = getContext().getConfiguration().get("sgd.factor", "basic");
 		/** Flat for checking if delta caching is enabled */
 		boolean deltaFlag = getContext().getConfiguration().getBoolean("sgd.delta", false);
@@ -84,7 +84,8 @@ IntWritable, MessageWrapper>{
 /*		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item + 
 				", " + getValue().getLatentVector()); 
 */		
-		rmsdErr=0d; msgCounter=0;
+		rmseErr=0d;
+		boolean neighUpdated = false;
 		/*** For each message */
 		for (MessageWrapper message : messages) {
 			msgCounter++;
@@ -111,7 +112,9 @@ IntWritable, MessageWrapper>{
 				}
 			
 				if (getSuperstep() > 2) {
-					updateNeighValues(getValue().getNeighValue(message.getSourceId()), message.getMessage());
+					if (updateNeighValues(getValue().getNeighValue(message.getSourceId()), message.getMessage())) {
+						neighUpdated=true;
+					}
 				}
 			}
 			if (!deltaFlag) {
@@ -122,23 +125,25 @@ IntWritable, MessageWrapper>{
 				runSgdAlgorithm(message.getMessage());
 				err = getError(getValue().getLatentVector(), message.getMessage(),observed);
 				/* If termination flag is set to RMSD or RMSD aggregator is true */
-				if (factorFlag.equals("rmsd") || rmsdFlag) {
-					rmsdErr+= Math.pow(err, 2);
+				if (factorFlag.equals("rmse") || rmseFlag) {
+					rmseErr+= Math.pow(err, 2);
 				}
 			}
 		} // Eof Messages
-		if (deltaFlag) {
-			if (getSuperstep()>0) {
-				for (Entry<IntWritable, DoubleArrayListWritable> vvertex: getValue().getAllNeighValue().entrySet()){
-					/*** Calculate error */
-					observed = (double)getEdgeValue(vvertex.getKey()).get();
-					err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
+		if (deltaFlag && getSuperstep()>0) {
+			for (Entry<IntWritable, DoubleArrayListWritable> vvertex: getValue().getAllNeighValue().entrySet()){
+				/*** Calculate error */
+				observed = (double)getEdgeValue(vvertex.getKey()).get();
+				err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
+				/** If at least one neighbour has changed its latent vector
+				 *  then calculation of vertex can not be avoided */
+				if (neighUpdated) {
 					/** Change the Vertex Latent Vector based on SGD equation */
 					runSgdAlgorithm(vvertex.getValue());
 					err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
-					/** If termination flag is set to RMSD or RMSD aggregator is true */
-					if (factorFlag.equals("rmsd") || rmsdFlag) {
-						rmsdErr+= Math.pow(err, 2);
+					/** If termination flag is set to RMSE or RMSE aggregator is true */
+					if (factorFlag.equals("rmse") || rmseFlag) {
+						rmseErr+= Math.pow(err, 2);
 					}
 				}
 			}
@@ -147,19 +152,19 @@ IntWritable, MessageWrapper>{
 		if (factorFlag.equals("basic")){
 			err_factor=TOLERANCE+1;
 		}
-		// If RMSD aggregator flag is true
-		if (rmsdFlag){
-			this.aggregate(RMSD_AGG, new DoubleWritable(rmsdErr));
+		// If RMSE aggregator flag is true
+		if (rmseFlag){
+			this.aggregate(RMSD_AGG, new DoubleWritable(rmseErr));
 		}
-		if (factorFlag.equals("rmsd")){
-			err_factor = getRMSD(msgCounter);
+		if (factorFlag.equals("rmse")){
+			err_factor = getRMSE(msgCounter);
 			System.out.println("myRMSD: " + err_factor);
 		}
 		// If termination factor is set to L2NOrm
 		if (factorFlag.equals("l2norm")){
 			err_factor = getL2Norm(initialValue, getValue().getLatentVector());
-			/*System.out.println("NormVector: sqrt((initial[0]-final[0])^2 + (initial[1]-final[1])^2): " 
-					+ err_factor);*/
+			//System.out.println("NormVector: sqrt((initial[0]-final[0])^2 + (initial[1]-final[1])^2): " 
+			//		+ err_factor);
 		}
 		if (getSuperstep()==0 || (err_factor > TOLERANCE && getSuperstep()<ITERATIONS)){
 			sendMsgs();
@@ -179,11 +184,9 @@ IntWritable, MessageWrapper>{
 	/*** Initialize Vertex Latent Vector */
 	public void initLatentVector(){
 		DoubleArrayListHashMapWritable value = new DoubleArrayListHashMapWritable();
-		DoubleArrayListWritable latentVector = new DoubleArrayListWritable();
 		for (int i=0; i<VECTOR_SIZE; i++) {
-			latentVector.add(new DoubleWritable(((double)(getId().get()+i) % 100d)/100d));
+			value.setLatentVector(i,new DoubleWritable(((double)(getId().get()+i) % 100d)/100d));
 		}
-		value.setLatentVector(latentVector);
 		setValue(value);
 		//System.out.println("[INIT] value: " + value.getLatentVector());
 		/** For L2Norm */
@@ -205,6 +208,7 @@ IntWritable, MessageWrapper>{
 		keepXdecimals(value, DECIMALS);
 		//System.out.println(" , 4 decimals: " + value);
 		getValue().setLatentVector(value);
+		nupdates++;
 	}
 	
 	/*** Decimal Precision of latent vector values */
@@ -254,9 +258,9 @@ IntWritable, MessageWrapper>{
 */		} // End of for each edge
 	}
 
-	/*** Calculate the RMSD on the errors calculated by the current vertex */
-	public double getRMSD(int msgCounter){
-		return Math.sqrt(rmsdErr/msgCounter);
+	/*** Calculate the RMSE on the errors calculated by the current vertex */
+	public double getRMSE(int msgCounter){
+		return Math.sqrt(rmseErr/msgCounter);
 	}
 	/*** Calculate the RMSD on the errors calculated by the current vertex */
 	public double getL2Norm(DoubleArrayListWritable valOld, DoubleArrayListWritable valNew){
@@ -270,6 +274,10 @@ IntWritable, MessageWrapper>{
 	/*** Calculate the error: e=observed-predicted */
 	public double getError(DoubleArrayListWritable ma, DoubleArrayListWritable mb, double observed){
 		/*** Predicted value */
+		System.out.println("ma, mb");
+		ma.print();
+		mb.print();
+		
 		double predicted = dotProduct(ma,mb);
 		predicted = Math.min(predicted, MAX);
 		predicted = Math.max(predicted, MIN);
@@ -304,6 +312,11 @@ IntWritable, MessageWrapper>{
 		}
 		return result;
 	}
+	
+	/*** Return amount of vertex updates */
+    public int getUpdates(){
+    	return nupdates;
+    }
 	
 	/**
 	 * MasterCompute used with {@link SimpleMasterComputeVertex}.

@@ -31,6 +31,17 @@ public class DoubleArrayListWritable
 			return this.sourceId.compareTo(wrapper.getSourceId());
 	}
 	*/
+	public void print(){
+		System.out.print("[");
+		for (int i=0; i<this.size(); i++) {
+			System.out.print(this.get(i));
+			if (i<this.size()-1) {
+				System.out.print("; ");
+			}
+		}
+		System.out.println("]");
+	}
+	
 	public int compareTo(DoubleArrayListWritable message) {
 		/*
 		DoubleArrayListWritable msg = new DoubleArrayListWritable;
