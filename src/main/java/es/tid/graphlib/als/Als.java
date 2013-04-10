@@ -7,8 +7,13 @@ import org.apache.giraph.Algorithm;
 import org.apache.giraph.graph.DefaultEdge;
 import org.apache.giraph.graph.Edge;
 import org.apache.giraph.vertex.EdgeListVertex;
+
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
+
+import org.apache.mahout.math.QRDecomposition;
+import org.apache.mahout.math.DenseMatrix;
+import org.apache.mahout.math.Vector;
 
 import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
 import es.tid.graphlib.utils.DoubleArrayListWritable;
@@ -49,16 +54,24 @@ IntWritable, MessageWrapper>{
 	private double observed = 0d;
 	/** Error */    
 	public double err = 0d;
-	/** Factor Error: it may be RMSD or L2NORM on initial&final vector  */
+	/** RMSE Error */
+	private double rmseErr = 0d;
+	/** Factor Error: it may be RMSE or L2NORM on initial&final vector  */
 	public double err_factor=0d;
 	/** Type of vertex
 	 * 0 for user, 1 for item */
 	private boolean item = false;
-
+	/** Aggregator to get values from the workers to the master */
+	public static final String RMSE_AGG = "rmse.aggregator";
+	
 	public void compute(Iterable<MessageWrapper> messages) {
 		/** Counter of messages received - different from getNumEdges() 
 		 * because a neighbor may not send a message */
 		int msgCounter = 0;
+		/** Flag for checking if parameter for RMSE aggregator received */
+		boolean rmseFlag = getContext().getConfiguration().getBoolean("als.aggregate", false);
+		/** Flag for checking which termination factor to use: basic, rmse, l2norm */
+		String factorFlag = getContext().getConfiguration().get("als.factor", "basic");
 		/** Flat for checking if delta caching is enabled */
 		boolean deltaFlag = getContext().getConfiguration().getBoolean("als.delta", false);
 
@@ -70,10 +83,9 @@ IntWritable, MessageWrapper>{
 		if (getSuperstep() == 1) {		
 			item=true;
 		}
-				System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item + 
+		System.out.println("*******  Vertex: "+getId()+", superstep:"+getSuperstep()+", item:" + item + 
 		", " + getValue().getLatentVector()); 
 		 
-		msgCounter=0;
 		/** For each message */
 		for (MessageWrapper message : messages) {
 			msgCounter++;
@@ -89,7 +101,6 @@ IntWritable, MessageWrapper>{
 				DefaultEdge<IntWritable, IntWritable> edge = new DefaultEdge<IntWritable, IntWritable>();
 				edge.setTargetVertexId(message.getSourceId());
 				edge.setValue(new IntWritable((int) observed));
-				//System.out.println("   Adding edge:" + edge);
 				addEdge(edge);
 				// Remove the last value from message - it's there for the 1st round
 				message.getMessage().remove(message.getMessage().size()-1);	
@@ -122,33 +133,26 @@ IntWritable, MessageWrapper>{
 		} // Eof Messages
 		if (deltaFlag) {
 			if (getSuperstep()>0) {
-				int i=0;
-				DoubleMatrix mat = new DoubleMatrix(getNumEdges(),VECTOR_SIZE);
-				System.out.println("mat is created");
 				for (Entry<IntWritable, DoubleArrayListWritable> vvertex: getValue().getAllNeighValue().entrySet()){
-					DoubleMatrix v = new DoubleMatrix(1, VECTOR_SIZE, (double)getEdgeValue(vvertex.getKey()).get());
-					mat.putRow(i, v);
-					System.out.println("mat.rows: " + mat.rows + ", mat.columns: " + mat.columns);
-					i++;
-					/*** Calculate error */
+					/** Calculate error */
 					observed = (double)getEdgeValue(vvertex.getKey()).get();
 					err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
 					System.out.println("BEFORE: error = " + err + " vertex_vector= " + getValue().getLatentVector());
-					/** Change the Vertex Latent Vector based on SGD equation */
-					//runAlsAlgorithm(vvertex.getValue());
-					DoubleMatrix A = mat.mmul(mat.transpose());
-					//DoubleMatrix V = mat.mm
-					double reg = LAMBDA * getNumEdges();
-					nupdates++;
+				}
+				runAlsAlgorithm();
+				for (Entry<IntWritable, DoubleArrayListWritable> vvertex: getValue().getAllNeighValue().entrySet()){
+					observed = (double)getEdgeValue(vvertex.getKey()).get();
 					err = getError(getValue().getLatentVector(), vvertex.getValue(), observed);
 					System.out.println("AFTER: error = " + err + " vertex_vector= " + getValue().getLatentVector());
-					/** If termination flag is set to RMSD or RMSD aggregator is true */
-					/*if (factorFlag.equals("rmsd") || rmsdFlag) {
-						rmsdErr+= Math.pow(err, 2);
-					}*/
+				}
+				
+				/** If termination flag is set to RMSD or RMSD aggregator is true */
+				if (factorFlag.equals("rmse") || rmseFlag) {
+					rmseErr+= Math.pow(err, 2);
 				}
 			}
 		}
+		
 		err_factor = TOLERANCE + 1;
 		if (getSuperstep()==0 || (err_factor > TOLERANCE && getSuperstep()<ITERATIONS)){
 			sendMsgs();
@@ -161,7 +165,7 @@ IntWritable, MessageWrapper>{
 	public boolean isItem(){
 		return item;
 	}
-	
+
 	/*** Initialize Vertex Latent Vector */
 	public void initLatentVector(){
 		DoubleArrayListHashMapWritable value = new DoubleArrayListHashMapWritable();
@@ -179,35 +183,88 @@ IntWritable, MessageWrapper>{
     	return nupdates;
     }
 
-    /*** Update Vertex Latent Vector based on ALS equation */
-	public void runAlsAlgorithm(DoubleArrayListWritable vvertex){
-
-		// from paper
-		DoubleArrayListWritable la, ra, value = new DoubleArrayListWritable();
-		double num = LAMBDA * getNumEdges();
-		la = numMatrixProduct(num, getValue().getLatentVector());
-		ra = numMatrixProduct(err,vvertex);
-		value = dotAddition(getValue().getLatentVector(), dotAddition(la, ra));
-		keepXdecimals(value, DECIMALS);
-		//System.out.println(" , 4 decimals: " + value);
-		getValue().setLatentVector(value);
+    /*** Update Vertex Latent Vector based on ALS equation
+     * Amat = MiIi * t(MiIi) + LAMBDA * Nui * E
+	 * Vmat = MiIi * t(R(i,Ii))
+	 * Amat * Umat = Vmat <==> solve Umat
+	 *  
+	 * where MiIi: movies feature matrix rated by user i (matNeighVectors)
+	 * 		 t(MiIi): transpose of MiIi (matNeighVectorsTrans)
+	 * 		 Nui: number of ratings of user i (getNumEdges())
+	 * 		 E: identity matrix (matId)
+	 * 		 R(i,Ii): ratings of movies rated by user i
+	 */
+	public void runAlsAlgorithm(){
+		int j=0;
+		DoubleMatrix matNeighVectors = new DoubleMatrix(VECTOR_SIZE,getNumEdges());
+		double[] curVec = new double[VECTOR_SIZE];
+		DoubleMatrix ratings = new DoubleMatrix(getNumEdges());
+		/** Go through the neighbors */
+		for (Entry<IntWritable, DoubleArrayListWritable> vvertex: getValue().getAllNeighValue().entrySet()){
+			/* Store the latent vector of the current neighbor */
+			for (int i=0; i<VECTOR_SIZE;i++){
+				curVec[i]=vvertex.getValue().get(i).get();
+			}
+			matNeighVectors.putColumn(j, new DoubleMatrix(curVec));
+			
+			/* Store the rating related with the current neighbor */
+			ratings.put(j, (double)getEdgeValue(vvertex.getKey()).get());
+			j++;
+		} // Eof Neighbours Edges
 		
-		// from als.cpp
-		// XtX = neighbor.vector * neighbor.vector.transpose
-		// Xy = neighbor.vector * rating
-		DoubleArrayListWritable  Xy, oldVal, newVal, diff = new DoubleArrayListWritable();
-		double XtX = dotProduct(vvertex,vvertex);
-		Xy = numMatrixProduct(observed,vvertex);
+		/** Amat = MiIi * t(MiIi) + LAMBDA * getNumEdges() * matId */
+		System.out.println("matNeigh * matNeighTrans = matMul");
+		DoubleMatrix matNeighVectorsTrans = matNeighVectors.transpose();
+		DoubleMatrix matMul = matNeighVectors.mmul(matNeighVectorsTrans);
+		matNeighVectors.print();
+		matNeighVectorsTrans.print();
+		matMul.print();
+		
 		double reg = LAMBDA * getNumEdges();
-		double regXtx = XtX + reg;
-		oldVal = getValue().getLatentVector();
-		newVal = dotAddition(getValue().getLatentVector(), Xy);
-		diff = dotSubtraction(newVal,oldVal);
-		double result = 0d;
-		for (int i=0; i < diff.size(); i++){
-			result += diff.get(i).get();
+		DoubleMatrix matId = new DoubleMatrix();
+		matId = matId.eye(VECTOR_SIZE);
+		System.out.println("matMul + (reg=" + reg + " * matId)");
+		matMul.print();
+		matId.print();
+		DoubleMatrix Amat = matMul.add(matId.mul(reg));
+		
+		/** Vmat = MiIi * t(R(i,Ii)) */
+		System.out.println("matNeigh * transpose(ratings)");
+		matNeighVectors.print();
+		ratings.print();
+		DoubleMatrix Vmat = matNeighVectors.mmul(ratings);
+		
+		System.out.println("Amat, Vmat");
+		Amat.print();
+		Vmat.print();
+		
+		/** Amat * Umat = Vmat <==> solve Umat
+		 *  Convert Amat and Vmat into type: Matrix of Mahout 
+		 */
+		double[][] amatDouble = new double[VECTOR_SIZE][VECTOR_SIZE];		
+		for (int i=0; i<VECTOR_SIZE; i++){
+			for (j=0; j<VECTOR_SIZE; j++){
+				amatDouble[i][j]=Amat.get(i, j);
+			}
 		}
-		result = result / getNumEdges();
+		DenseMatrix amat = new DenseMatrix(amatDouble);
+		
+		double[][] vmatDouble = new double[VECTOR_SIZE][1];
+		for (int i=0; i<VECTOR_SIZE; i++){
+			vmatDouble[i][0] = Vmat.get(i,0);
+		}
+		DenseMatrix vmat = new DenseMatrix(vmatDouble);
+		
+		Vector Umat = new QRDecomposition(amat).solve(vmat).viewColumn(0);
+		
+		/** Update current vertex latent vector */
+		DoubleArrayListWritable val = new DoubleArrayListWritable();
+		for (int i=0; i<VECTOR_SIZE; i++){
+			val.add(new DoubleWritable(Umat.get(i)));
+		}
+		getValue().setLatentVector(val);
+
+		nupdates++;
 	}
 	
 	/*** Update Neighbor's values */
