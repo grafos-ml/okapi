@@ -23,8 +23,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
-import es.tid.graphlib.sgd.SgdGeneralDeltaCaching;
 import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
 
 import java.io.IOException;
@@ -67,35 +65,39 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat extends
 		    (Vertex<IntWritable, DoubleArrayListHashMapWritable, IntWritable, ?> vertex)
 		      throws IOException {
 		    	
-		    	boolean flag = getContext().getConfiguration().getBoolean("sgd.printerr", false);
+		    	boolean flagError = getContext().getConfiguration().getBoolean("sgd.printerr", false);
+		    	boolean flagUpdates = getContext().getConfiguration().getBoolean("als.printupdates", false);
+		    	
 		    	String type="";
 		    	if (((Sgd)vertex).isItem()==true) {
-		        	//item.concat("item");
 		        	type = "item";
 		    	}
 		        else {
-		        	//item.concat("user");
 		        	type = "user";
 		        }
 		    	String id = vertex.getId().toString();
 		        String value = vertex.getValue().getLatentVector().toString();
 		        String error = null;
-		        String updates = Integer.toString(((Sgd)vertex).getUpdates()); //.toString();
-		        Text line;
-		        if (flag == true) {
+		        String updates = null;
+		        Text line = new Text(type + delimiter + id + delimiter + value);
+		       
+		        if (flagError) {
 		        	try{
-		        		//error = Double.toString((Math.abs(((SgdVectorL2Norm)vertex).normVector)));
-		        		//error = Double.toString((Math.abs(((SgdMaxIter)vertex).err)));
-		        		//error = Double.toString((Math.abs(((SgdRMSD)vertex).finalRMSD)));
-		        		error = Double.toString((Math.abs(((Sgd)vertex).err_factor)));
+		        		error = Double.toString((Math.abs(((Sgd)vertex).halt_factor)));
 		        	} catch (Exception exc) {
 		        		exc.printStackTrace();
 		        	}
-			        line = new Text(type + delimiter + id + delimiter + value 
-			        		+ delimiter + error + delimiter + updates);
+		        	line.append(delimiter.getBytes(),0,delimiter.length());
+		        	line.append(error.getBytes(), 0, error.length());
 		        }
-		        else {
-			        line = new Text(id + delimiter + value);
+		        if (flagUpdates){
+		        	try{
+		        		updates = Integer.toString(((Sgd)vertex).getUpdates()); //.toString();
+		        	} catch (Exception exc) {
+		        		exc.printStackTrace();
+		        	}
+		        	line.append(delimiter.getBytes(),0,delimiter.length());
+		        	line.append(updates.getBytes(), 0, updates.length());
 		        }
 				return new Text(line);
 		        

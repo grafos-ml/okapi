@@ -52,7 +52,7 @@ IntWritable, MessageWrapper>{
 	/** RMSE Error */
 	private double rmseErr = 0d;
 	/** Factor Error: it may be RMSD or L2NORM on initial&final vector  */
-	public double err_factor = 0d;
+	public double halt_factor = 0d;
 	/** Initial vector value to be used for the L2Norm case */
 	DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
 	/** Type of vertex
@@ -150,28 +150,28 @@ IntWritable, MessageWrapper>{
 		}
 		// If basic factor specified
 		if (factorFlag.equals("basic")){
-			err_factor=TOLERANCE+1;
+			halt_factor=TOLERANCE+1;
 		}
 		// If RMSE aggregator flag is true
 		if (rmseFlag){
 			this.aggregate(RMSD_AGG, new DoubleWritable(rmseErr));
 		}
 		if (factorFlag.equals("rmse")){
-			err_factor = getRMSE(msgCounter);
-			System.out.println("myRMSD: " + err_factor);
+			halt_factor = getRMSE(msgCounter);
+			System.out.println("myRMSD: " + halt_factor);
 		}
 		// If termination factor is set to L2NOrm
 		if (factorFlag.equals("l2norm")){
-			err_factor = getL2Norm(initialValue, getValue().getLatentVector());
+			halt_factor = getL2Norm(initialValue, getValue().getLatentVector());
 			//System.out.println("NormVector: sqrt((initial[0]-final[0])^2 + (initial[1]-final[1])^2): " 
 			//		+ err_factor);
 		}
-		if (getSuperstep()==0 || (err_factor > TOLERANCE && getSuperstep()<ITERATIONS)){
+		if (getSuperstep()==0 || (halt_factor > TOLERANCE && getSuperstep()<ITERATIONS)){
 			sendMsgs();
 		}
 		// err_factor is used in the OutputFormat file. --> To print the error
 		if (factorFlag.equals("basic")){
-			err_factor=err;
+			halt_factor=err;
 		}
 		voteToHalt();
 	}//EofCompute
