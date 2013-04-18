@@ -5,10 +5,10 @@ import java.util.Map.Entry;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
-import org.apache.giraph.graph.DefaultEdge;
-import org.apache.giraph.graph.Edge;
+import org.apache.giraph.edge.DefaultEdge;
+import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
-import org.apache.giraph.vertex.EdgeListVertex;
 
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
@@ -33,7 +33,7 @@ import org.jblas.DoubleMatrix;
 				"It Minimizes the error in users preferences predictions"
 		)
 
-public class Als extends EdgeListVertex<IntWritable, DoubleArrayListHashMapWritable, 
+public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable, 
 IntWritable, MessageWrapper>{
 	/** Vector size **/
 	static int VECTOR_SIZE = 2;

@@ -2,8 +2,8 @@ package es.tid.graphlib.io.formats;
 
 import org.apache.giraph.examples.SimpleTriangleClosingVertex;
 import org.apache.giraph.examples.SimpleTriangleClosingVertex.IntArrayListWritable;
-import org.apache.giraph.graph.DefaultEdge;
-import org.apache.giraph.graph.Edge;
+import org.apache.giraph.edge.DefaultEdge;
+import org.apache.giraph.edge.Edge;
 import org.apache.giraph.io.formats.TextVertexInputFormat;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
@@ -27,8 +27,7 @@ import java.util.regex.Pattern;
  * Each line consists of: vertex neighbor1 neighbor2 ...
  */
 public class IntArrayIntNullTextInputFormat extends
-    TextVertexInputFormat<IntWritable, IntArrayListWritable, NullWritable,
-    IntWritable> {
+    TextVertexInputFormat<IntWritable, IntArrayListWritable, NullWritable> {
   /** Separator of the vertex and neighbors */
   private static final Pattern SEPARATOR = Pattern.compile("[\t ]");
 
