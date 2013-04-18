@@ -2,10 +2,10 @@ package es.tid.graphlib.sgd;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
-import org.apache.giraph.graph.DefaultEdge;
-import org.apache.giraph.graph.Edge;
+import org.apache.giraph.edge.DefaultEdge;
+import org.apache.giraph.edge.Edge;
 import org.apache.giraph.master.DefaultMasterCompute;
-import org.apache.giraph.vertex.EdgeListVertex;
+import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 
@@ -25,7 +25,7 @@ import java.util.Map.Entry;
 		description = "Minimizes the error in users preferences predictions"
 		)
 
-public class SgdGeneralDeltaCaching extends EdgeListVertex<IntWritable, DoubleArrayListHashMapWritable, 
+public class SgdGeneralDeltaCaching extends Vertex<IntWritable, DoubleArrayListHashMapWritable, 
 IntWritable, MessageWrapper>{
 	/** Type of vertex
 	 * 0 for user, 1 for item */

@@ -2,10 +2,10 @@ package es.tid.graphlib.sgd;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
-import org.apache.giraph.graph.DefaultEdge;
-import org.apache.giraph.graph.Edge;
+import org.apache.giraph.edge.DefaultEdge;
+import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
-import org.apache.giraph.vertex.EdgeListVertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.log4j.Logger;
@@ -23,7 +23,7 @@ import java.lang.Math;
 		description = "Minimizes the error in users preferences predictions"
 		)
 
-public class SgdRMSD extends EdgeListVertex<IntWritable, DoubleArrayListWritable, 
+public class SgdRMSD extends Vertex<IntWritable, DoubleArrayListWritable, 
 IntWritable, MessageWrapper>{
 	/** The convergence tolerance */
 	static double INIT=0.5;

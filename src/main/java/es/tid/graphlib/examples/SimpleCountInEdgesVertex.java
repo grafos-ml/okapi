@@ -1,8 +1,8 @@
 package es.tid.graphlib.examples;
 
 import org.apache.giraph.examples.Algorithm;
-import org.apache.giraph.graph.Edge;
-import org.apache.giraph.vertex.EdgeListVertex;
+import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.LongWritable;
@@ -18,8 +18,7 @@ import org.apache.log4j.Logger;
 )
   
 public class SimpleCountInEdgesVertex extends
-EdgeListVertex<LongWritable, DoubleWritable, 
-FloatWritable, DoubleWritable>{
+  Vertex<LongWritable, DoubleWritable, FloatWritable, DoubleWritable>{
 	/** Class logger */
 	private static final Logger LOG =
 			Logger.getLogger(SimpleCountInEdgesVertex.class);

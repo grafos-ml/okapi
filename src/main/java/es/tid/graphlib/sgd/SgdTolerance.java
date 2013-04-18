@@ -1,9 +1,9 @@
 package es.tid.graphlib.sgd;
 
 import org.apache.giraph.Algorithm;
-import org.apache.giraph.graph.DefaultEdge;
-import org.apache.giraph.graph.Edge;
-import org.apache.giraph.vertex.EdgeListVertex;
+import org.apache.giraph.edge.DefaultEdge;
+import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.log4j.Logger;
@@ -21,7 +21,7 @@ import es.tid.graphlib.utils.MessageWrapper;
     description = "Minimizes the error in users preferences predictions"
 )
 
-public class SgdTolerance extends EdgeListVertex<IntWritable, DoubleArrayListWritable, 
+public class SgdTolerance extends Vertex<IntWritable, DoubleArrayListWritable, 
 IntWritable, MessageWrapper>{
 	/** The convergence tolerance */
 	static double INIT=0.5;

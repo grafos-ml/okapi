@@ -19,8 +19,15 @@
 package es.tid.graphlib.examples;
 
 import org.apache.giraph.examples.Algorithm;
-import org.apache.giraph.vertex.LongDoubleFloatDoubleVertex;
+//import org.apache.giraph.examples.FloatWritable;
+//import org.apache.giraph.examples.LongWritable;
+import org.apache.giraph.graph.Vertex;
+//import org.apache.giraph.vertex.LongDoubleFloatDoubleVertex;
 import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.Writable;
 
 /**
  * Demonstrates the basic Pregel PageRank implementation.
@@ -28,7 +35,8 @@ import org.apache.hadoop.io.DoubleWritable;
 @Algorithm(
     name = "Page rank - modified"
 )
-public class SimplePageRankVertex extends LongDoubleFloatDoubleVertex {
+public class SimplePageRankVertex extends Vertex<LongWritable,
+  DoubleWritable, FloatWritable, DoubleWritable>  {
   /** Number of supersteps for this test */
   public static final int MAX_SUPERSTEPS = 30;
   /** Decimals */
