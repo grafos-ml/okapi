@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package es.tid.graphlib.examples;
+package es.tid.graphlib.pagerank;
 
 import org.apache.giraph.examples.Algorithm;
 //import org.apache.giraph.examples.FloatWritable;
@@ -35,7 +35,7 @@ import org.apache.hadoop.io.Writable;
 @Algorithm(
     name = "Page rank - modified"
 )
-public class SimplePageRankVertex extends Vertex<LongWritable,
+public class PageRank extends Vertex<LongWritable,
   DoubleWritable, FloatWritable, DoubleWritable>  {
   /** Number of supersteps for this test */
   public static final int MAX_SUPERSTEPS = 30;
