@@ -23,11 +23,12 @@ import java.util.regex.Pattern;
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.IntNullTextEdgeInputFormat;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
-import org.apache.giraph.utils.IntPair;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+
+import es.tid.graphlib.utils.IntPairVal;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
@@ -35,7 +36,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  *
  * Each line consists of: source_vertex, target_vertex
  */
-public class TextIntIntEdgeInputFormat extends
+public class TextIntIntIntEdgeInputFormat extends
     TextEdgeInputFormat<IntWritable, IntWritable> {
   /** Splitter for endpoints */
   private static final Pattern SEPARATOR = Pattern.compile("[\t ]");
@@ -51,29 +52,29 @@ public class TextIntIntEdgeInputFormat extends
    * {@link IntNullTextEdgeInputFormat}.
    */
   public class IntIntTextEdgeReader extends
-      TextEdgeReaderFromEachLineProcessed<IntPair> {
+      TextEdgeReaderFromEachLineProcessed<IntPairVal> {
     @Override
-    protected IntPair preprocessLine(Text line) throws IOException {
+    protected IntPairVal preprocessLine(Text line) throws IOException {
       String[] tokens = SEPARATOR.split(line.toString());
-      return new IntPair(Integer.valueOf(tokens[0]),
-          Integer.valueOf(tokens[1]));
+      return new IntPairVal(Integer.valueOf(tokens[0]),
+          Integer.valueOf(tokens[1]), Integer.valueOf(tokens[2]));
     }
 
     @Override
-    protected IntWritable getSourceVertexId(IntPair endpoints)
+    protected IntWritable getSourceVertexId(IntPairVal endpoints)
       throws IOException {
       return new IntWritable(endpoints.getFirst());
     }
 
     @Override
-    protected IntWritable getTargetVertexId(IntPair endpoints)
+    protected IntWritable getTargetVertexId(IntPairVal endpoints)
       throws IOException {
       return new IntWritable(endpoints.getSecond());
     }
 
     @Override
-    protected IntWritable getValue(IntPair line) throws IOException {
-      return null;
+    protected IntWritable getValue(IntPairVal endpoints) throws IOException {
+      return new IntWritable(endpoints.getValue());
     }
   }
 }
