@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
  *
  * Each line consists of: source_vertex, target_vertex
  */
-public class IntIntTextEdgeInputFormat extends
+public class TextIntIntEdgeInputFormat extends
     TextEdgeInputFormat<IntWritable, IntWritable> {
   /** Splitter for endpoints */
   private static final Pattern SEPARATOR = Pattern.compile("[\t ]");
