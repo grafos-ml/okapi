@@ -73,7 +73,7 @@ public class TextIntIntEdgeInputFormat extends
 
     @Override
     protected IntWritable getValue(IntPair line) throws IOException {
-      return null;
+      return new IntWritable(-1);
     }
   }
 }
