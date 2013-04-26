@@ -67,7 +67,9 @@ public class TextIntIntVertexOutputFormat extends
 		    	String id = vertex.getId().toString();
 		        String value = vertex.getValue().toString();
 		        int migrations = ((Partitioning)vertex).countMigrations;
-		        Text line = new Text(id + delimiter + value + delimiter + migrations);
+		        int initValue = ((Partitioning)vertex).initialValue;
+		        Text line = new Text(id + delimiter + initValue + delimiter +
+		          value + delimiter + migrations);
 				return new Text(line);
 		    }
 	 }
