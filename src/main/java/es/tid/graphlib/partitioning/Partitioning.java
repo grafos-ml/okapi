@@ -49,7 +49,7 @@ IntWritable, IntWritable, IntMessageWrapper> {
   private int migrate2partition = 0;
 
   public void compute(Iterable<IntMessageWrapper> messages) {
-
+    /* Halt Condition */
     if (getSuperstep() > ITERATIONS) {
       voteToHalt();
       return;
@@ -64,20 +64,13 @@ IntWritable, IntWritable, IntMessageWrapper> {
     /* Flag for checking if delta caching is enabled */
     boolean deltaFlag = getContext().getConfiguration().getBoolean(
       DELTA_CACHING, DELTA_CACHING_DEFAULT);
-  
-
-    //int load = 0;
-    //double weight=0d;
-    //int availability = 0;
-    //int demand = 0;
+    /* Generator of random numbers */
     Random randomGenerator = new Random();
     //double finalProbability = 0d;
 
     // Recompute capacity every time because it's not maintained.
     int CAPACITY = (int) (getTotalNumVertices() / numPartitions);
     CAPACITY = CAPACITY + (int)(CAPACITY * 0.2);
-    System.out.println("partitionID: " + getValue() +
-      " CAPACITY: " + CAPACITY);
 
     /* Superstep 0
      * - Initialize Vertex Value
@@ -85,7 +78,7 @@ IntWritable, IntWritable, IntMessageWrapper> {
      * - Send its partition ID to corresponding aggregator
      */
     if (getSuperstep() == 0) {
-      System.out.println("***** SS:" + getSuperstep() + ", vertexID: " + getId());
+      System.out.println("***** SS:" + getSuperstep() + ", vertexID: " + getId() + ", CAPACITY: " + CAPACITY);
       initValue(numPartitions);
       initialValue = getValue().get();
       /* Send to capacity aggregator a PLUS_ONE signal */
@@ -93,54 +86,40 @@ IntWritable, IntWritable, IntMessageWrapper> {
       advertisePartition();
       return;
     }
-
+    //System.out.println("partitionID: " + getValue());
 
     if (getSuperstep() % 2 == 1) {
       /* Odd Supersteps: Show interest to migrate to a partition */
       System.out.println("***** SS:" + getSuperstep() + ", vertexID: " + getId() +
-        ", PartitionID: " + getValue() +"REQUEST a migration");
+        ", PartitionID: " + getValue() +" REQUEST a migration");
       //countNeigh.clear();
+      /* Store in vertex edges the neighbors' Partition IDs */
       for (IntMessageWrapper message : messages) {
         System.out.println("  [RECEIVE] from " + message.getSourceId()
           + ", " + message.getMessage());
         setEdgeValue(message.getSourceId(), message.getMessage());
       }
       
+      /* Count neighbors in each partition --> store in a hashmap */
       /* HashMap<PartitionID, num_neighbours_in_PartitionID> */
       HashMap<Integer, Integer> countNeigh =
         new HashMap<Integer, Integer>();
       /* HashMap<PartitionID, weight_2migrage_2PartitionID> */
       HashMap<Integer, Double> weightedPartition =
         new HashMap<Integer, Double>();
-      
-     for (Edge<IntWritable, IntWritable> edge : getEdges()) {
-       Integer currCount = countNeigh.get(edge.getTargetVertexId().get());
-       if (currCount==null) {
-         countNeigh.put(edge.getTargetVertexId().get(), 1);
-         weightedPartition.put(edge.getTargetVertexId().get(), 0d);
-       } else {
-         countNeigh.put(edge.getTargetVertexId().get(), currCount+1);
-       }
-     }
-        /* Count number of neighbors in neighbor's partition */    
-     /*
-      if (!countNeigh.containsKey(message.getMessage())) {
-        countNeigh.put(message.getMessage(), new IntWritable(1));
-        System.out.println("countNeigh<ParID, count>:" +
-          countNeigh.toString());
-        weightedPartition.put(message.getMessage(),
-          new DoubleWritable(0d));
-      } else {
-        countNeigh.put(message.getMessage(),
-          new IntWritable(countNeigh.get(message.getMessage()).get()+1));
-        System.out.println("countNeigh<ParID, count>:" +
-          countNeigh.toString());
-      }
-      */
-       // EoF messages()
+
+      /* Count number of neighbors in neighbor's partition */
+      for (Edge<IntWritable, IntWritable> edge : getEdges()) {
+        Integer currCount = countNeigh.get(edge.getValue().get());
+        if (currCount==null) {
+          countNeigh.put(edge.getValue().get(), 1);
+          weightedPartition.put(edge.getValue().get(), 0d);
+        } else {
+          countNeigh.put(edge.getValue().get(), currCount+1);
+        }
+      } // EoF edges iteration
 
       /* Introduce random factor for migrating or not */
-      //randomGenerator = new Random();
       migrate2partition = 0;
       /* Allow migration only with certain probability */
       double prob = randomGenerator.nextDouble();
@@ -150,7 +129,7 @@ IntWritable, IntWritable, IntMessageWrapper> {
          * Calculate the weight of migration to each partition that has
          * neighbors
          */
-        for (Map.Entry<Integer, Double> partition : 
+        for (Map.Entry<Integer, Double> partition :
           weightedPartition.entrySet()) {
           int load = ((IntWritable)
             getAggregatedValue(AGGREGATOR_CAPACITY_PREFIX +
@@ -178,7 +157,7 @@ IntWritable, IntWritable, IntMessageWrapper> {
       }
 
       return;
-    } 
+    } // EoF Odd Supersteps 
 
     if (messages.iterator().hasNext()) {
       throw new RuntimeException(
@@ -293,7 +272,7 @@ IntWritable, IntWritable, IntMessageWrapper> {
     public void initialize() throws InstantiationException,
     IllegalAccessException {
       // Create aggregators - one for each partition
-      for (int i=0; i< getContext().getConfiguration().getInt(NUM_PARTITIONS,
+      for (int i=0; i<getContext().getConfiguration().getInt(NUM_PARTITIONS,
         NUM_PARTITIONS_DEFAULT); i++) {
         registerPersistentAggregator(AGGREGATOR_CAPACITY_PREFIX + i,
           IntSumAggregator.class);
