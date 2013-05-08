@@ -46,11 +46,18 @@ IntWritable, IntWritable, IntMessageWrapper> {
   // disk or a failure happens. 
   // To ensure it's maintained, we need to make it part of
   // the vertex value.
-  private int migrate2partition = 0;
-
+  private int migrate2partition = -1;
+  // XXX OPTIMIZATION XXX
+  // This is a similar case to the above.
+  // We can add this to the master compute or have another aggregator
+  // to check the number of stabilization rounds
+  private int stabilizationRounds = 0;
   public void compute(Iterable<IntMessageWrapper> messages) {
+
     /* Halt Condition */
-    if (getSuperstep() > ITERATIONS) {
+    if (stabilizationRounds == 30 || getSuperstep() > ITERATIONS) {
+      System.out.println("stabilizationRounds: " + stabilizationRounds
+        + ", getSuperstep(): " + getSuperstep());
       voteToHalt();
       return;
     }
@@ -92,6 +99,8 @@ IntWritable, IntWritable, IntMessageWrapper> {
       /* Odd Supersteps: Show interest to migrate to a partition */
       System.out.println("***** SS:" + getSuperstep() + ", vertexID: " + getId() +
         ", PartitionID: " + getValue() +" REQUEST a migration");
+      System.out.println("AGG_CAP[0]:" + getAggregatedValue(AGGREGATOR_CAPACITY_PREFIX + 0)
+        + ", AGG_CAP[1]: " + getAggregatedValue(AGGREGATOR_CAPACITY_PREFIX + 1));
       //countNeigh.clear();
       /* Store in vertex edges the neighbors' Partition IDs */
       for (IntMessageWrapper message : messages) {
@@ -120,11 +129,11 @@ IntWritable, IntWritable, IntMessageWrapper> {
       } // EoF edges iteration
 
       /* Introduce random factor for migrating or not */
-      migrate2partition = 0;
+      migrate2partition = -1;
       /* Allow migration only with certain probability */
       double prob = randomGenerator.nextDouble();
       System.out.println("prob: " + prob);
-      if ( prob < probability) {
+      if (prob < probability) {
         /*
          * Calculate the weight of migration to each partition that has
          * neighbors
@@ -165,9 +174,24 @@ IntWritable, IntWritable, IntMessageWrapper> {
     }
     
     /* Even Supersteps: Migrate to partition */
-    if (migrate2partition != getValue().get()) {
-      System.out.println("***** SS:" + getSuperstep() + ", vertexID: " + getId() +
-        ", from " + getValue() +" MIGRATE to: " + migrate2partition);
+    int noMigrations=0;
+    for (int i=0; i<numPartitions; i++) {
+      if (((IntWritable)getAggregatedValue(
+        AGGREGATOR_DEMAND_PREFIX+i)).get() == 0){
+        noMigrations++;
+      } else {
+        break;
+      }
+    }
+    if (noMigrations == numPartitions) {
+      stabilizationRounds++;
+    } else {
+      stabilizationRounds = 0;
+    }
+    System.out.println("StabilizationRounds = " + stabilizationRounds);
+    if (migrate2partition != getValue().get() && migrate2partition != -1) {
+      System.out.print("***** SS:" + getSuperstep() + ", vertexID: " + getId() +
+        ", from " + getValue() +" want to MIGRATE to: " + migrate2partition);
       int load = ((IntWritable)getAggregatedValue(
         AGGREGATOR_CAPACITY_PREFIX+migrate2partition)).get();
       int availability = CAPACITY - load;
@@ -176,8 +200,11 @@ IntWritable, IntWritable, IntMessageWrapper> {
           migrate2partition)).get();
       double finalProbability = (double) availability / demand;
       if (randomGenerator.nextDouble() < finalProbability) {
+        System.out.println(" --> SUCCESS! (availability/demand=" + finalProbability + ")");
         migrate(migrate2partition);
         advertisePartition();
+      } else {
+        System.out.println(" --> FAIL! (availability/demand=" + finalProbability + ")");
       }
     }
 
@@ -213,7 +240,7 @@ IntWritable, IntWritable, IntMessageWrapper> {
     // Remove vertex from current partition
     aggregate(AGGREGATOR_CAPACITY_PREFIX + getValue().get(), MINUS_ONE);
     // Add vertex to new partition
-    aggregate(AGGREGATOR_CAPACITY_PREFIX + migrate2partition, MINUS_ONE);
+    aggregate(AGGREGATOR_CAPACITY_PREFIX + migrate2partition, PLUS_ONE);
     countMigrations+=1;
     System.out.println("  [AGG_CAP_SEND] Migrate to " + migrate2partition);
     System.out.println("  [AGG_CAP_SEND] Remove from " + getValue().get());
@@ -237,7 +264,7 @@ IntWritable, IntWritable, IntMessageWrapper> {
       if (maxEntry == null ||
         entry.getValue() > maxEntry.getValue()) {
         if (maxEntry != null)
-          System.out.println("entry: " + entry.toString() + "> maxEntry: " + maxEntry.toString());
+          System.out.println("entry: " + entry.toString() + " > maxEntry: " + maxEntry.toString());
         else
           System.out.println("entry: " + entry.toString());
         maxEntry = entry;
@@ -261,7 +288,10 @@ IntWritable, IntWritable, IntMessageWrapper> {
    * @param numPartitions       Number of Partitions
    */
   public void initValue(int numPartitions) {
-    setValue(new IntWritable(getId().get() % numPartitions));
+    Random randomGenerator = new Random();
+    int partition = randomGenerator.nextInt(2);
+    setValue(new IntWritable(partition));
+    //setValue(new IntWritable(getId().get() % numPartitions));
   }
 
   /**
