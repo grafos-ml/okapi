@@ -3,7 +3,7 @@ package es.tid.graphlib.utils;
 import org.apache.giraph.utils.IntPair;
 
 /**
- * A pair of integers and the value on their edge
+ * A pair of integers and the value on their edge.
  */
 public class IntPairVal extends IntPair {
   /** Value between two elements */
@@ -11,7 +11,7 @@ public class IntPairVal extends IntPair {
 
   /**
    * Constructor.
-   * 
+   *
    * @param fst First element
    * @param snd Second element
    * @param val Edge Value
@@ -23,7 +23,7 @@ public class IntPairVal extends IntPair {
 
   /**
    * Get the value.
-   * 
+   *
    * @return The value
    */
   public int getValue() {
@@ -32,9 +32,8 @@ public class IntPairVal extends IntPair {
 
   /**
    * Set the value between two elements.
-   * 
-   * @param value
-   *          The value
+   *
+   * @param value Value
    */
   public void setValue(int value) {
     this.value = value;
