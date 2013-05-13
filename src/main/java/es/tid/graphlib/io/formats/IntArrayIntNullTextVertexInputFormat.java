@@ -62,7 +62,7 @@ public class IntArrayIntNullTextVertexInputFormat extends
 
     @Override
     protected IntArrayListWritable getValue(String[] tokens)
-        throws IOException {
+      throws IOException {
       return new SimpleTriangleClosingVertex.IntArrayListWritable();
     }
 

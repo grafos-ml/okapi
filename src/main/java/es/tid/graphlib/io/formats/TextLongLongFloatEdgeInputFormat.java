@@ -17,6 +17,9 @@
  */
 package es.tid.graphlib.io.formats;
 
+import java.io.IOException;
+import java.util.regex.Pattern;
+
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
 import org.apache.hadoop.io.FloatWritable;
@@ -26,9 +29,6 @@ import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 import es.tid.graphlib.utils.LongPairVal;
-
-import java.io.IOException;
-import java.util.regex.Pattern;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
@@ -73,7 +73,7 @@ public class TextLongLongFloatEdgeInputFormat extends
     }
 
     @Override
-    protected FloatWritable getValue(LongPairVal endpoints) 
+    protected FloatWritable getValue(LongPairVal endpoints)
       throws IOException {
       return new FloatWritable(endpoints.getValue());
     }
