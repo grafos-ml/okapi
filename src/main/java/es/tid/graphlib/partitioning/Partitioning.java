@@ -68,6 +68,7 @@ public class Partitioning extends Vertex<IntWritable,
   // to check the number of stabilization rounds
   /** A counter of consecutive rounds with no migrations */
   private int stabilizationRounds = 0;
+
   /**
    * Compute method
    * @param messages Messages received

@@ -35,17 +35,14 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 public class TextIntIntVertexOutputFormat extends
   TextVertexOutputFormat<IntWritable, IntWritable,
   IntWritable> {
-
   /** Specify the output delimiter */
   public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
   /** Default output delimiter */
   public static final String LINE_TOKENIZE_VALUE_DEFAULT = "   ";
-
   /**
    * Create Vertex Writer
    *
    * @param context Context
-   *
    * @return new object TextIntIntVertexWriter
    */
   public TextVertexWriter
@@ -72,7 +69,6 @@ public class TextIntIntVertexOutputFormat extends
     protected Text convertVertexToLine
     (Vertex<IntWritable, IntWritable, IntWritable, ?> vertex)
       throws IOException {
-
       String id = vertex.getId().toString();
       String value = vertex.getValue().toString();
       int migrations = ((Partitioning) vertex).getMigrationsCounter();
