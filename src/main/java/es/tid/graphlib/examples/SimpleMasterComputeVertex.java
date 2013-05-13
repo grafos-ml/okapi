@@ -19,8 +19,8 @@
 package es.tid.graphlib.examples;
 
 import org.apache.giraph.aggregators.DoubleOverwriteAggregator;
-import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.giraph.graph.Vertex;
+import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.giraph.worker.WorkerContext;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
@@ -31,12 +31,10 @@ import org.apache.log4j.Logger;
  * Demonstrates a computation with a centralized part implemented via a
  * MasterCompute.
  */
-public class SimpleMasterComputeVertex extends 
-  Vertex<LongWritable,DoubleWritable,FloatWritable,DoubleWritable> {
-  
+public class SimpleMasterComputeVertex extends
+  Vertex<LongWritable, DoubleWritable, FloatWritable, DoubleWritable> {
   /** Aggregator to get values from the master to the workers */
   public static final String SMC_AGG = "simplemastercompute.aggregator";
-  
   /** Logger */
   private static final Logger LOG =
       Logger.getLogger(SimpleMasterComputeVertex.class);
@@ -47,7 +45,7 @@ public class SimpleMasterComputeVertex extends
     double newValue = this.<DoubleWritable>getAggregatedValue(SMC_AGG).get();
     double newSum = oldSum + newValue;
     setValue(new DoubleWritable(newSum));
-    
+
     SimpleMasterComputeWorkerContext workerContext =
         (SimpleMasterComputeWorkerContext) getWorkerContext();
     workerContext.setFinalSum(newSum);
