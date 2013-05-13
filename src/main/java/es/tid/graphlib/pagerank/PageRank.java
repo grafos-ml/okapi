@@ -18,14 +18,18 @@ public class PageRank extends Vertex<LongWritable,
   /** Number of supersteps for this test */
   public static final int MAX_SUPERSTEPS = 30;
   /** Decimals */
-  static int DECIMALS = 4;
+  public static final int DECIMALS = 4;
   /** Tolerance */
-  static double TOLERANCE = 0.003;
+  public static final double TOLERANCE = 0.003;
   /** Initial value to be used for the L2Norm case */
-  DoubleWritable initialValue = new DoubleWritable();
+  private DoubleWritable initialValue = new DoubleWritable();
   /** L2Norm Error */
-  public double l2normError = 0d;
+  private double l2normError = 0d;
 
+  /**
+   * Compute method
+   * @param messages Messages received
+   */
   @Override
   public void compute(Iterable<DoubleWritable> messages) {
     /** Flag for checking if parameter for L2Norm is enabled */
@@ -54,8 +58,9 @@ public class PageRank extends Vertex<LongWritable,
       /** Compute L2Norm */
       if (l2normFlag) {
         l2normError = getL2Norm(initialValue, getValue());
-        System.out.println("**S: " + getSuperstep() + ", VertexId: " + getId()
-          + ", [" + initialValue + ", " + getValue() + "], " + l2normError);
+        /* System.out.println("**S: " + getSuperstep() + ", VertexId: " +
+          getId() + ", [" + initialValue + ", " + getValue() + "], " +
+            l2normError); */
       }
     }
 
@@ -75,7 +80,12 @@ public class PageRank extends Vertex<LongWritable,
     }
   } // EoF compute()
 
-  /*** Decimal Precision of latent vector values */
+  /**
+   * Decimal Precision of latent vector values
+   *
+   * @param value Value to be truncated
+   * @param x Number of decimals to be kept
+   */
   public void keepXdecimals(DoubleWritable value, int x) {
     double num = 1;
     for (int i = 0; i < x; i++) {
@@ -85,7 +95,13 @@ public class PageRank extends Vertex<LongWritable,
       (double) (Math.round(getValue().get() * num) / num)));
   }
 
-  /*** Calculate the L2Norm on the errors calculated by the current vertex */
+  /**
+   * Calculate the L2Norm on the initial and final value of vertex
+   *
+   * @param valOld Old vertex value
+   * @param valNew New vertex value
+   * @return result of L2Norm equation
+   * */
   public double getL2Norm(DoubleWritable valOld, DoubleWritable valNew) {
     return Math.sqrt(Math.pow(valOld.get() - valNew.get(), 2));
   }
