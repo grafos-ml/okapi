@@ -10,12 +10,10 @@ import org.apache.hadoop.io.Writable;
 
 /**
  * A Writable implementation for a HashMap element
- * 
- * @param <U>
- *          Type of the first element - HashMap
  */
 
 public class IntIntHashMapWritable implements Writable {
+  /** A HashMap with count of vertices per partition */
   private HashMap<IntWritable, IntWritable> verticesPerPartition;
 
   /** Simple Constructor */
@@ -23,13 +21,22 @@ public class IntIntHashMapWritable implements Writable {
     verticesPerPartition = new HashMap<IntWritable, IntWritable>();
   }
 
-  /** Constructor with addition of the first pair */
-  public IntIntHashMapWritable(IntWritable key, IntWritable value){
+  /**
+   * Constructor with addition of the first pair
+   *
+   * @param key Key of the first pair to be added
+   * @param value Value of the first pair to be added
+   */
+  public IntIntHashMapWritable(IntWritable key, IntWritable value) {
     verticesPerPartition = new HashMap<IntWritable, IntWritable>();
     verticesPerPartition.put(key, value);
   }
-  
-  /** Write bytes */
+
+  /**
+   * Write bytes
+   *
+   * @param output Output
+   */
   public void write(DataOutput output) throws IOException {
     output.writeInt(getSize());
     for (IntWritable key : verticesPerPartition.keySet()) {
@@ -38,7 +45,11 @@ public class IntIntHashMapWritable implements Writable {
     }
   }
 
-  /** Read bytes */
+  /**
+   * Read bytes
+   *
+   * @param input Input
+   */
   public void readFields(DataInput input) throws IOException {
     verticesPerPartition = new HashMap<IntWritable, IntWritable>();
     int size = input.readInt();
@@ -53,11 +64,9 @@ public class IntIntHashMapWritable implements Writable {
 
   /**
    * Add an element to the HashMap.
-   * 
-   * @param key
-   *          Key of the pair
-   * @param value
-   *          Value of the pair
+   *
+   * @param key Key of the new pair to be added
+   * @param value Value of the new pair to be added
    */
   public void setValue(IntWritable key,
     IntWritable value) {
@@ -65,10 +74,11 @@ public class IntIntHashMapWritable implements Writable {
   }
 
   /**
-   * Get value
-   * 
-   * @param key
-   * @return value
+   * Based on the Key, get the value
+   *
+   * @param key Key of the pair
+   *
+   * @return value corresponding to key
    */
   public IntWritable getValue(IntWritable key) {
     return verticesPerPartition.get(key);
@@ -76,8 +86,8 @@ public class IntIntHashMapWritable implements Writable {
 
   /**
    * Get the whole HashMap
-   * 
-   * @return HashMap
+   *
+   * @return HashMap all entries of HashMap
    */
   public HashMap<IntWritable, IntWritable> getAllValue() {
     return verticesPerPartition;
@@ -85,7 +95,7 @@ public class IntIntHashMapWritable implements Writable {
 
   /**
    * Get size of HashMap
-   * 
+   *
    * @return Number of elements in HashMap
    */
   public int getSize() {
@@ -94,7 +104,7 @@ public class IntIntHashMapWritable implements Writable {
 
   /**
    * Check if the HashMap is empty.
-   * 
+   *
    * @return True iff there are no pairs in the HashMap
    */
   public boolean isEmpty() {

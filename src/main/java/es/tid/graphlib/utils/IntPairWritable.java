@@ -10,23 +10,27 @@ import org.apache.hadoop.io.Writable;
 
 /**
  * A Writable implementation for a pair with 2 int elements
- * 
- * @param <U>
- *          Type of the first element - int
- * @param <V>
- *          Type of the second element - int
  */
 
 public class IntPairWritable implements Writable {
+  /** An object IntPair holding the 2 elements */
   private IntPair pair;
 
-  /** Write bytes */
+  /**
+   * Write bytes
+   *
+   * @param output Output
+   */
   public void write(DataOutput output) throws IOException {
     output.writeInt(pair.getFirst());
     output.writeInt(pair.getSecond());
   }
 
-  /** Read bytes */
+  /**
+   * Read bytes
+   *
+   * @param input Input
+   */
   public void readFields(DataInput input) throws IOException {
     pair.setFirst(input.readInt());
     pair.setSecond(input.readInt());
@@ -34,11 +38,9 @@ public class IntPairWritable implements Writable {
 
   /**
    * Set values for the pair.
-   * 
-   * @param fst
-   *          value for first element of pair
-   * @param snd
-   *          value for second element of pair
+   *
+   * @param fst Value for first element of pair
+   * @param snd Value for second element of pair
    */
   public void setPair(IntWritable fst, IntWritable snd) {
     pair.setFirst(fst.get());
@@ -47,7 +49,7 @@ public class IntPairWritable implements Writable {
 
   /**
    * Get second element if first element is the one wanted
-   * 
+   *
    * @param fst desired value for first element
    * @return second value of second element
    */
@@ -60,11 +62,10 @@ public class IntPairWritable implements Writable {
 
   /**
    * Get the pair
-   * 
+   *
    * @return Pair
    */
   public IntPair getPair() {
     return pair;
-    
   }
 }
