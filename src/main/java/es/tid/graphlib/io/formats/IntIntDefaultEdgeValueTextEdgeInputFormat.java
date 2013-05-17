@@ -14,11 +14,12 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
- * weighted graphs with int ids int values.
+ * weighted graphs with int ids int values. In this format however,
+ * the value of the edge is not expected in the input.
  *
  * Each line consists of: source_vertex, target_vertex
  */
-public class TextIntIntEdgeInputFormat extends
+public class IntIntDefaultEdgeValueTextEdgeInputFormat extends
     TextEdgeInputFormat<IntWritable, IntWritable> {
   /** Splitter for endpoints */
   private static final Pattern SEPARATOR = Pattern.compile("[\t ]");

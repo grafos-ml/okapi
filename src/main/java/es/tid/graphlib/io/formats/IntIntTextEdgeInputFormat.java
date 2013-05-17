@@ -21,14 +21,14 @@ import java.io.IOException;
 import java.util.regex.Pattern;
 
 import org.apache.giraph.io.EdgeReader;
+import org.apache.giraph.io.formats.IntNullTextEdgeInputFormat;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
-import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import es.tid.graphlib.utils.LongPairVal;
+import es.tid.graphlib.utils.IntPairVal;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
@@ -36,46 +36,45 @@ import es.tid.graphlib.utils.LongPairVal;
  *
  * Each line consists of: source_vertex, target_vertex
  */
-public class TextLongLongFloatEdgeInputFormat extends
-    TextEdgeInputFormat<LongWritable, FloatWritable> {
+public class IntIntTextEdgeInputFormat extends
+    TextEdgeInputFormat<IntWritable, IntWritable> {
   /** Splitter for endpoints */
   private static final Pattern SEPARATOR = Pattern.compile("[\t ]");
 
   @Override
-  public EdgeReader<LongWritable, FloatWritable> createEdgeReader(
+  public EdgeReader<IntWritable, IntWritable> createEdgeReader(
       InputSplit split, TaskAttemptContext context) throws IOException {
-    return new LongLongFloatTextEdgeReader();
+    return new IntIntTextEdgeReader();
   }
 
   /**
    * {@link org.apache.giraph.io.EdgeReader} associated with
-   * {@link LongLongDoubleTextEdgeInputFormat}.
+   * {@link IntNullTextEdgeInputFormat}.
    */
-  public class LongLongFloatTextEdgeReader extends
-      TextEdgeReaderFromEachLineProcessed<LongPairVal> {
+  public class IntIntTextEdgeReader extends
+      TextEdgeReaderFromEachLineProcessed<IntPairVal> {
     @Override
-    protected LongPairVal preprocessLine(Text line) throws IOException {
+    protected IntPairVal preprocessLine(Text line) throws IOException {
       String[] tokens = SEPARATOR.split(line.toString());
-      return new LongPairVal(Long.valueOf(tokens[0]),
-          Long.valueOf(tokens[1]), Float.valueOf(tokens[2]));
+      return new IntPairVal(Integer.valueOf(tokens[0]),
+          Integer.valueOf(tokens[1]), Integer.valueOf(tokens[2]));
     }
 
     @Override
-    protected LongWritable getSourceVertexId(LongPairVal endpoints)
+    protected IntWritable getSourceVertexId(IntPairVal endpoints)
       throws IOException {
-      return new LongWritable(endpoints.getFirst());
+      return new IntWritable(endpoints.getFirst());
     }
 
     @Override
-    protected LongWritable getTargetVertexId(LongPairVal endpoints)
+    protected IntWritable getTargetVertexId(IntPairVal endpoints)
       throws IOException {
-      return new LongWritable(endpoints.getSecond());
+      return new IntWritable(endpoints.getSecond());
     }
 
     @Override
-    protected FloatWritable getValue(LongPairVal endpoints)
-      throws IOException {
-      return new FloatWritable(endpoints.getValue());
+    protected IntWritable getValue(IntPairVal endpoints) throws IOException {
+      return new IntWritable(endpoints.getValue());
     }
   }
 }
