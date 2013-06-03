@@ -235,16 +235,10 @@ public class Partitioning extends Vertex<IntWritable,
    * Create message, fill it with data and send it to neighbors
    */
   public void advertisePartition() {
-    /* Send Message to all neighbors*/
-    for (Edge<IntWritable, IntWritable> edge : getEdges()) {
-      /* Create a message and wrap together the source id and the message */
-      IntMessageWrapper message = new IntMessageWrapper();
-      message.setSourceId(getId());
-      message.setMessage(getValue());
-      sendMessage(edge.getTargetVertexId(), message);
-      /*System.out.println("  [SEND] to " + edge.getTargetVertexId() +
-        " PartitionID: " + message.getMessage()); */
-    } // End of for each edge
+    IntMessageWrapper message = new IntMessageWrapper();
+    message.setSourceId(getId());
+    message.setMessage(getValue());
+    sendMessageToAllEdges(message);
   }
 
   /**
