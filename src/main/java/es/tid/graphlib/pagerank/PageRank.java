@@ -53,7 +53,7 @@ public class PageRank extends Vertex<LongWritable,
       }
       DoubleWritable vertexValue =
         new DoubleWritable((0.15f / getTotalNumVertices()) + 0.85f * sum);
-      setValue(vertexValue);
+      keepXdecimals(vertexValue, DECIMALS);
 
       /** Compute L2Norm */
       if (l2normFlag) {
