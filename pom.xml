@@ -9,7 +9,7 @@
   <url>http://maven.apache.org</url>
 
   <properties>
-    <giraph.version>0.2-SNAPSHOT</giraph.version>
+    <giraph.version>1.0.0</giraph.version>
     <hadoop.version>0.20.203.0</hadoop.version>
   </properties>
 

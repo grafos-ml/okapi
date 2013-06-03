@@ -15,8 +15,10 @@ import org.apache.hadoop.io.LongWritable;
 
 public class PageRank extends Vertex<LongWritable,
   DoubleWritable, FloatWritable, DoubleWritable> {
-  /** Number of supersteps for this test */
-  public static final int MAX_SUPERSTEPS = 30;
+  /** Default number of supersteps */
+  public static final int MAX_SUPERSTEPS_DEFAULT = 30;
+  /** Property name for number of supersteps */
+  public static final String MAX_SUPERSTEPS = "pagerank.max.supersteps";
   /** Decimals */
   public static final int DECIMALS = 4;
   /** Tolerance */
@@ -53,7 +55,7 @@ public class PageRank extends Vertex<LongWritable,
       }
       DoubleWritable vertexValue =
         new DoubleWritable((0.15f / getTotalNumVertices()) + 0.85f * sum);
-      setValue(vertexValue);
+      keepXdecimals(vertexValue, DECIMALS);
 
       /** Compute L2Norm */
       if (l2normFlag) {
@@ -66,14 +68,16 @@ public class PageRank extends Vertex<LongWritable,
 
     if (l2normFlag) {
       if (getSuperstep() == 0 || (l2normError > TOLERANCE &&
-          getSuperstep() < MAX_SUPERSTEPS)) {
+          getSuperstep() < getContext().getConfiguration().getInt(
+              MAX_SUPERSTEPS, MAX_SUPERSTEPS_DEFAULT))) {
         sendMessageToAllEdges(new DoubleWritable(getValue().get() /
           getNumEdges()));
       } else {
         voteToHalt();
       }
     } else {
-      if (getSuperstep() < MAX_SUPERSTEPS) {
+      if (getSuperstep() < getContext().getConfiguration().getInt(
+          MAX_SUPERSTEPS, MAX_SUPERSTEPS_DEFAULT)) {
         sendMessageToAllEdges(new DoubleWritable(getValue().get() /
           getNumEdges()));
       }
