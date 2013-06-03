@@ -83,7 +83,7 @@ public class TextIntIntVertexOutputFormat extends
         "initVal:" + delimiter + initValue + delimiter +
         "finVal:" + delimiter + value + delimiter +
         "migrations:" + delimiter + migrations + delimiter +
-        "localEdges/totalEdges:" + delimiter + localEdges + "/" +
+        "localEdges / totalEdges:" + delimiter + localEdges + " / " +
         vertex.getNumEdges());
       return new Text(line);
     }

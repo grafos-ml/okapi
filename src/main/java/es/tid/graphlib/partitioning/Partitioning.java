@@ -48,7 +48,7 @@ public class Partitioning extends Vertex<IntWritable,
   /** New object IntWritable with the value -1 */
   public static final IntWritable MINUS_ONE = new IntWritable(-1);
   /** Iterations */
-  public static final int ITERATIONS = 30;
+  public static final int ITERATIONS = 60;
   /** Counter of number of migrations */
   private int countMigrations = 0;
   /** Initial value of vertex - Partition Id the vertex was assigned to */
@@ -94,7 +94,7 @@ public class Partitioning extends Vertex<IntWritable,
 
     // Recompute capacity every time because it's not maintained.
     int totalCapacity = (int) (getTotalNumVertices() / numPartitions);
-    totalCapacity = totalCapacity + (int) (totalCapacity * 0.2);
+    totalCapacity = totalCapacity + (int) (totalCapacity * 0.2) + 1;
 
     /* Superstep 0
      * - Initialize Vertex Value
@@ -156,8 +156,13 @@ public class Partitioning extends Vertex<IntWritable,
          * Calculate the weight of migration to each partition that has
          * neighbors
          */
+        for (Map.Entry<Integer, Double> partition:
+          weightedPartition.entrySet()){
+          System.out.println("getKey:" + partition.getKey());
+        }
         for (Map.Entry<Integer, Double> partition :
           weightedPartition.entrySet()) {
+          System.out.println("I want the value from " + AGGREGATOR_CAPACITY_PREFIX + partition.getKey());
           int load = ((IntWritable)
             getAggregatedValue(AGGREGATOR_CAPACITY_PREFIX +
               partition.getKey())).get();
@@ -212,6 +217,8 @@ public class Partitioning extends Vertex<IntWritable,
     if (migrate2partition != getValue().get() && migrate2partition != -1) {
       /*System.out.print("***** SS:" + getSuperstep() + ", vertexID: " + getId() +
         ", from " + getValue() + " want to MIGRATE to: " + migrate2partition); */
+      System.out.println("I want to MIGRATE from " + AGGREGATOR_CAPACITY_PREFIX + getValue()
+          + " to " + AGGREGATOR_CAPACITY_PREFIX + migrate2partition);  
       int load = ((IntWritable) getAggregatedValue(
           AGGREGATOR_CAPACITY_PREFIX + migrate2partition)).get();
       int availability = totalCapacity - load;
@@ -302,9 +309,9 @@ public class Partitioning extends Vertex<IntWritable,
    */
   public void initValue(int numPartitions) {
     Random randomGenerator = new Random();
-    int partition = randomGenerator.nextInt(2);
-    setValue(new IntWritable(partition));
-    //setValue(new IntWritable(getId().get() % numPartitions));
+    //int partition = randomGenerator.nextInt(numPartitions);
+    //setValue(new IntWritable(partition));
+    setValue(new IntWritable(getId().get() % numPartitions));
   }
 
   /**
