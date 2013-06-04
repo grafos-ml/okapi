@@ -80,6 +80,8 @@ public class PageRank extends Vertex<LongWritable,
           MAX_SUPERSTEPS, MAX_SUPERSTEPS_DEFAULT)) {
         sendMessageToAllEdges(new DoubleWritable(getValue().get() /
           getNumEdges()));
+      } else {
+        voteToHalt();
       }
     }
   } // EoF compute()
@@ -91,12 +93,8 @@ public class PageRank extends Vertex<LongWritable,
    * @param x Number of decimals to be kept
    */
   public void keepXdecimals(DoubleWritable value, int x) {
-    double num = 1;
-    for (int i = 0; i < x; i++) {
-      num *= 10;
-    }
     setValue(new DoubleWritable(
-      (double) (Math.round(getValue().get() * num) / num)));
+        (double)(Math.round(value.get() * Math.pow(10,x)) / Math.pow(10,x))));
   }
 
   /**
