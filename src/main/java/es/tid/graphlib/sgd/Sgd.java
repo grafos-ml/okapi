@@ -35,16 +35,21 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
   public static final String HALT_FACTOR = "sgd.halt.factor";
   /** Default value for parameter choosing the halt factor */
   public static final String HALT_FACTOR_DEFAULT = "basic";
+  /** Keyword for parameter setting the number of iterations */
+  public static final String PARAM_ITERATIONS = "sgd.iterations";
+  /** Default value for parameter choosing the halt factor */
+  public static final int ITERATIONS_DEFAULT = 10;
+  /** Keyword for parameter setting the convergence tolerance parameter
+   *  depending on the version enabled; l2norm or rmse */
+  public static final String PARAM_TOLERANCE = "sgd.tolerance";
+  /** Default value for parameter choosing the halt factor */
+  public static final int TOLERANCE_DEFAULT = 1;
   /** Vector Size **/
   public static final int VECTOR_SIZE = 2;
   /** Regularization parameter */
   public static final double LAMBDA = 0.005;
   /** Learning rate */
   public static final double GAMMA = 0.01;
-  /** Number of supersteps */
-  public static final double ITERATIONS = 10;
-  /** Convergence Tolerance */
-  public static final double TOLERANCE = 0.0003;
   /** Max rating */
   public static final double MAX = 5;
   /** Min rating */
@@ -64,7 +69,8 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
   /** RMSE Error */
   private double rmseErr = 0d;
   /** Initial vector value to be used for the L2Norm case */
-  private DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
+  private DoubleArrayListWritable initialValue =
+    new DoubleArrayListWritable();
   /** Type of vertex 0 for user, 1 for item */
   private boolean item = false;
 
@@ -90,6 +96,12 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     /** Flag for checking if delta caching is enabled */
     boolean deltaFlag = getContext().getConfiguration().getBoolean(
       DELTA_CACHING, DELTA_CACHING_DEFAULT);
+    /** Set the number of iterations */
+    int iterations = getContext().getConfiguration().getInt(PARAM_ITERATIONS,
+      ITERATIONS_DEFAULT);
+    /** Set the Convergence Tolerance */
+    float tolerance = getContext().getConfiguration()
+      .getFloat(PARAM_TOLERANCE, TOLERANCE_DEFAULT);
 
     /* First superstep for users (superstep: 0) & items (superstep: 1) */
     if (getSuperstep() < 2) {
@@ -128,6 +140,8 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         // Remove the last value from message - it's there for the 1st round
         message.getMessage().remove(message.getMessage().size() - 1);
       }
+      /* If delta caching is enabled */
+      /* For the fist round of either users or items, save their values */
       if (deltaFlag) {
         /* Create table with neighbors latent values and ids */
         if (getSuperstep() == 1 || getSuperstep() == 2) {
@@ -135,6 +149,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
             message.getMessage());
         }
 
+        /* In the next rounds, update their values if necessary */
         if (getSuperstep() > 2) {
           if (updateNeighValues(getValue()
             .getNeighValue(message.getSourceId()), message.getMessage())) {
@@ -177,22 +192,24 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
           if (factorFlag.equals("rmse") || rmseFlag) {
             rmseErr += Math.pow(err, 2);
           }
-        }
+        } // Eof if (neighUpdated)
       }
-    }
-    // If basic factor specified
+    } // Eof if (deltaFlag > 0f && getSuperstep() > 0)
+
+    // If termination factor is set to basic - number of iterations
     if (factorFlag.equals("basic")) {
-      haltFactor = TOLERANCE + 1;
+      haltFactor = tolerance + 1;
     }
-    // If RMSE aggregator flag is true
+    /* If RMSE aggregator flag is true */
     if (rmseFlag) {
       this.aggregate(RMSE_AGG, new DoubleWritable(rmseErr));
     }
+    /* If termination factor is set to RMSE */
     if (factorFlag.equals("rmse")) {
       haltFactor = getRMSE(msgCounter);
       //System.out.println("myRMSD: " + haltFactor);
     }
-    // If termination factor is set to L2NOrm
+    /* If termination factor is set to L2NOrm */
     if (factorFlag.equals("l2norm")) {
       haltFactor = getL2Norm(initialValue, getValue().getLatentVector());
       // System.out.println("NormVector: sqrt((initial[0]-final[0])^2 " +
@@ -200,7 +217,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       // + err_factor);
     }
     if (getSuperstep() == 0 ||
-      (haltFactor > TOLERANCE && getSuperstep() < ITERATIONS)) {
+      (haltFactor > tolerance && getSuperstep() < iterations)) {
       sendMsgs();
     }
     // err_factor is used in the OutputFormat file. --> To print the error
@@ -240,7 +257,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    */
   public void runSgdAlgorithm(DoubleArrayListWritable vvertex) {
     /**
-     * user_vector = vertex_vector + 2*GAMMA*(real_value -
+     * vertex_vector = vertex_vector + 2*GAMMA*(real_value -
      * dot_product(vertex_vector,other_vertex_vector))*other_vertex_vector +
      * LAMBDA * vertex_vector
      */
@@ -301,26 +318,22 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
 
   /*** Send messages to neighbours */
   public void sendMsgs() {
-    /** Send to all neighbors a message */
-    for (Edge<IntWritable, IntWritable> edge : getEdges()) {
-      /** Create a message and wrap together the source id and the message */
-      MessageWrapper message = new MessageWrapper();
-      message.setSourceId(getId());
-      message.setMessage(getValue().getLatentVector());
-      // 1st superstep, users send rating to items
-      if (getSuperstep() == 0) {
+    /* Create a message and wrap together the source id and the message */
+    MessageWrapper message = new MessageWrapper();
+    message.setSourceId(getId());
+
+    if (getSuperstep() == 0) {
+      for (Edge<IntWritable, IntWritable> edge : getEdges()) {
         DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
           .getLatentVector());
         x.add(new DoubleWritable(edge.getValue().get()));
         message.setMessage(x);
+        sendMessage(edge.getTargetVertexId(), message);
       }
-      sendMessage(edge.getTargetVertexId(), message);
-      /*
-       * System.out.println("  [SEND] to " + edge.getTargetVertexId() +
-       * " (rating: " + edge.getValue() + ")" + " [" +
-       * getValue().getLatentVector() + "]");
-       */
-    } // End of for each edge
+    } else {
+      message.setMessage(getValue().getLatentVector());
+      sendMessageToAllEdges(message);
+    }
   }
 
   /**
@@ -446,8 +459,12 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     extends DefaultMasterCompute {
     @Override
     public void compute() {
+      /** Set the Convergence Tolerance */
+      float tolerance = getContext().getConfiguration()
+        .getFloat(PARAM_TOLERANCE, TOLERANCE_DEFAULT);
+      
       double numRatings = 0;
-      double totalRMSD = 0;
+      double totalRMSE = 0;
       if (getSuperstep() > 1) {
         // In superstep=1 only half edges are created (users to items)
         if (getSuperstep() == 2) {
@@ -455,17 +472,18 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         } else {
           numRatings = getTotalNumEdges() / 2;
         }
-        totalRMSD = Math.sqrt(((DoubleWritable)
+        totalRMSE = Math.sqrt(((DoubleWritable)
           getAggregatedValue(RMSE_AGG)).get() / numRatings);
 
         /* System.out.println("Superstep: " + getSuperstep() +
           ", [Aggregator] Added Values: " + getAggregatedValue(RMSE_AGG) +
             " / " + numRatings + " = " +
               ((DoubleWritable) getAggregatedValue(RMSE_AGG)).get() /
-                numRatings + " --> sqrt(): " + totalRMSD); */
-
+                numRatings + " --> sqrt(): " + totalRMSE); */
+        System.out.println("SS:" + getSuperstep() + ", Total RMSE: "
+          + totalRMSE);
         getAggregatedValue(RMSE_AGG);
-        if (totalRMSD < TOLERANCE) {
+        if (totalRMSE < tolerance) {
           //System.out.println("HALT!");
           haltComputation();
         }
