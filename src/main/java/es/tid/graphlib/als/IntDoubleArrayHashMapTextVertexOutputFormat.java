@@ -1,20 +1,4 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with this
- * work for additional information regarding copyright ownership. The ASF
- * licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
-package es.tid.graphlib.sgd;
+package es.tid.graphlib.als;
 
 import java.io.IOException;
 
@@ -33,25 +17,28 @@ import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
  *
  * Each line consists of: vertex id, vertex value and option edge value
  */
-public class TextIntDoubleArrayHashMapVertexOutputFormat
-  extends TextVertexOutputFormat
-  <IntWritable, DoubleArrayListHashMapWritable, IntWritable> {
+public class IntDoubleArrayHashMapTextVertexOutputFormat extends
+  TextVertexOutputFormat<IntWritable, DoubleArrayListHashMapWritable,
+  IntWritable> {
 
   /** Specify the output delimiter */
   public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
   /** Default output delimiter */
   public static final String LINE_TOKENIZE_VALUE_DEFAULT = "   ";
   /**
-   * Create Vertex Writer
-   *
+   * Create vertex writer
    * @param context Context
-   * @return new object TextIntIntVertexWriter
+   * @return a vertex writer
    */
-  public TextVertexWriter
-  createVertexWriter(TaskAttemptContext context) {
+  public TextVertexWriter createVertexWriter(TaskAttemptContext context) {
     return new TextIntDoubleArrayVertexWriter();
   }
-  /** Class TextIntIntVertexWriter */
+
+  /**
+   * A vertex writer that prints text with
+   * - Int Vertex Id
+   * - Double Array Vertex Value
+   */
   protected class TextIntDoubleArrayVertexWriter
       extends TextVertexWriterToEachLine {
     /** Saved delimiter */
@@ -67,16 +54,17 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat
     }
 
     @Override
-    protected Text convertVertexToLine(Vertex
-      <IntWritable, DoubleArrayListHashMapWritable, IntWritable, ?> vertex)
+    protected Text convertVertexToLine
+    (Vertex<IntWritable, DoubleArrayListHashMapWritable, IntWritable, ?>
+          vertex)
       throws IOException {
+
       boolean flagError = getContext().getConfiguration().getBoolean(
-        "sgd.printerr", false);
+        "als.printerr", false);
       boolean flagUpdates = getContext().getConfiguration().getBoolean(
         "als.printupdates", false);
-
       String type = "";
-      if (((Sgd) vertex).isItem()) {
+      if (((Als) vertex).isItem()) {
         type = "item";
       } else {
         type = "user";
@@ -86,14 +74,13 @@ public class TextIntDoubleArrayHashMapVertexOutputFormat
       String error = null;
       String updates = null;
       Text line = new Text(type + delimiter + id + delimiter + value);
-
       if (flagError) {
-        error = Double.toString(Math.abs(((Sgd) vertex).getHaltFactor()));
+        error = Double.toString(Math.abs(((Als) vertex).returnHaltFactor()));
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(error.getBytes(), 0, error.length());
       }
       if (flagUpdates) {
-        updates = Integer.toString(((Sgd) vertex).getUpdates());
+        updates = Integer.toString(((Als) vertex).getUpdates()); // .toString();
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(updates.getBytes(), 0, updates.length());
       }
