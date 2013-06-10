@@ -71,9 +71,9 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat
       <IntWritable, DoubleArrayListHashMapWritable, IntWritable, ?> vertex)
       throws IOException {
       boolean flagError = getContext().getConfiguration().getBoolean(
-        "sgd.printerr", false);
+        "sgd.print.error", false);
       boolean flagUpdates = getContext().getConfiguration().getBoolean(
-        "als.printupdates", false);
+        "sgd.print.updates", false);
 
       String type = "";
       if (((Sgd) vertex).isItem()) {

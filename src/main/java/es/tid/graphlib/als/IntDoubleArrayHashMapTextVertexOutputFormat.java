@@ -60,9 +60,9 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat extends
       throws IOException {
 
       boolean flagError = getContext().getConfiguration().getBoolean(
-        "als.printerr", false);
+        "als.print.error", false);
       boolean flagUpdates = getContext().getConfiguration().getBoolean(
-        "als.printupdates", false);
+        "als.print.updates", false);
       String type = "";
       if (((Als) vertex).isItem()) {
         type = "item";
@@ -74,6 +74,7 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat extends
       String error = null;
       String updates = null;
       Text line = new Text(type + delimiter + id + delimiter + value);
+
       if (flagError) {
         error = Double.toString(Math.abs(((Als) vertex).returnHaltFactor()));
         line.append(delimiter.getBytes(), 0, delimiter.length());
