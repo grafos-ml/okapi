@@ -28,7 +28,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import es.tid.graphlib.utils.IntPairVal;
+import es.tid.graphlib.utils.IntPairIntVal;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
@@ -52,28 +52,28 @@ public class IntIntTextEdgeInputFormat extends
    * {@link IntNullTextEdgeInputFormat}.
    */
   public class IntIntTextEdgeReader extends
-      TextEdgeReaderFromEachLineProcessed<IntPairVal> {
+      TextEdgeReaderFromEachLineProcessed<IntPairIntVal> {
     @Override
-    protected IntPairVal preprocessLine(Text line) throws IOException {
+    protected IntPairIntVal preprocessLine(Text line) throws IOException {
       String[] tokens = SEPARATOR.split(line.toString());
-      return new IntPairVal(Integer.valueOf(tokens[0]),
+      return new IntPairIntVal(Integer.valueOf(tokens[0]),
           Integer.valueOf(tokens[1]), Integer.valueOf(tokens[2]));
     }
 
     @Override
-    protected IntWritable getSourceVertexId(IntPairVal endpoints)
+    protected IntWritable getSourceVertexId(IntPairIntVal endpoints)
       throws IOException {
       return new IntWritable(endpoints.getFirst());
     }
 
     @Override
-    protected IntWritable getTargetVertexId(IntPairVal endpoints)
+    protected IntWritable getTargetVertexId(IntPairIntVal endpoints)
       throws IOException {
       return new IntWritable(endpoints.getSecond());
     }
 
     @Override
-    protected IntWritable getValue(IntPairVal endpoints) throws IOException {
+    protected IntWritable getValue(IntPairIntVal endpoints) throws IOException {
       return new IntWritable(endpoints.getValue());
     }
   }

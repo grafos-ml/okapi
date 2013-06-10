@@ -5,7 +5,7 @@ import org.apache.giraph.utils.IntPair;
 /**
  * A pair of integers and the value on their edge.
  */
-public class IntPairVal extends IntPair {
+public class IntPairIntVal extends IntPair {
   /** Value between two elements */
   private int value;
 
@@ -16,7 +16,7 @@ public class IntPairVal extends IntPair {
    * @param snd Second element
    * @param val Edge Value
    */
-  public IntPairVal(int fst, int snd, int val) {
+  public IntPairIntVal(int fst, int snd, int val) {
     super(fst, snd);
     value = val;
   }

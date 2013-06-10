@@ -34,7 +34,7 @@ import es.tid.graphlib.utils.DoubleArrayListWritable;
  *
  * Each line consists of: vertex id, vertex value and option edge value
  */
-public class TextIntDoubleArrayVertexOutputFormat extends
+public class IntDoubleArrayTextVertexOutputFormat extends
   TextVertexOutputFormat<IntWritable, DoubleArrayListWritable,
   IntWritable> {
 

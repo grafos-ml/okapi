@@ -23,7 +23,7 @@ import es.tid.graphlib.utils.MessageWrapper;
   description = "Minimizes the error in users preferences predictions")
 
 public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
-  IntWritable, MessageWrapper> {
+  DoubleWritable, MessageWrapper> {
   /** Keyword for parameter enabling delta caching */
   public static final String DELTA_CACHING = "sgd.delta.caching";
   /** Default value for parameter enabling delta caching */
@@ -152,10 +152,10 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       if (getSuperstep() == 1) {
         observed = message.getMessage().get(message.getMessage().size() - 1)
           .get();
-        DefaultEdge<IntWritable, IntWritable> edge =
-          new DefaultEdge<IntWritable, IntWritable>();
+        DefaultEdge<IntWritable, DoubleWritable> edge =
+          new DefaultEdge<IntWritable, DoubleWritable>();
         edge.setTargetVertexId(message.getSourceId());
-        edge.setValue(new IntWritable((int) observed));
+        edge.setValue(new DoubleWritable(observed));
         // System.out.println("   Adding edge:" + edge);
         addEdge(edge);
         /* Remove the last value from message
@@ -363,7 +363,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     message.setSourceId(getId());
 
     if (getSuperstep() == 0) {
-      for (Edge<IntWritable, IntWritable> edge : getEdges()) {
+      for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
         DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
           .getLatentVector());
         x.add(new DoubleWritable(edge.getValue().get()));

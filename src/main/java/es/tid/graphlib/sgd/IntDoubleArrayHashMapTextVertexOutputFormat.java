@@ -21,6 +21,7 @@ import java.io.IOException;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -35,7 +36,7 @@ import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
  */
 public class IntDoubleArrayHashMapTextVertexOutputFormat
   extends TextVertexOutputFormat
-  <IntWritable, DoubleArrayListHashMapWritable, IntWritable> {
+  <IntWritable, DoubleArrayListHashMapWritable, DoubleWritable> {
 
   /** Specify the output delimiter */
   public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
@@ -68,7 +69,7 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat
 
     @Override
     protected Text convertVertexToLine(Vertex
-      <IntWritable, DoubleArrayListHashMapWritable, IntWritable, ?> vertex)
+      <IntWritable, DoubleArrayListHashMapWritable, DoubleWritable, ?> vertex)
       throws IOException {
       boolean flagError = getContext().getConfiguration().getBoolean(
         "sgd.print.error", false);

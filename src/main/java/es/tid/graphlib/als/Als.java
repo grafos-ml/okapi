@@ -28,7 +28,7 @@ import es.tid.graphlib.utils.MessageWrapper;
       "It Minimizes the error in users preferences predictions")
 
 public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
-  IntWritable, MessageWrapper> {
+  DoubleWritable, MessageWrapper> {
   /** Keyword for enabling RMSE aggregator */
   public static final String RMSE_AGGREGATOR = "als.rmse.aggregator";
   /** Default boolean value of RMSE aggregator */
@@ -136,10 +136,10 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       if (getSuperstep() == 1) {
         observed = message.getMessage().get(message.getMessage().size() - 1)
           .get();
-        DefaultEdge<IntWritable, IntWritable> edge =
-          new DefaultEdge<IntWritable, IntWritable>();
+        DefaultEdge<IntWritable, DoubleWritable> edge =
+          new DefaultEdge<IntWritable, DoubleWritable>();
         edge.setTargetVertexId(message.getSourceId());
-        edge.setValue(new IntWritable((int) observed));
+        edge.setValue(new DoubleWritable(observed));
         addEdge(edge);
         /* Remove the last value from message
          * It's there only for the 1st round of items
@@ -363,7 +363,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    */
   public void sendMessage() {
     /* Send to all neighbors a message */
-    for (Edge<IntWritable, IntWritable> edge : getEdges()) {
+    for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
       /* Create a message and wrap together the source id and the message */
       MessageWrapper message = new MessageWrapper();
       message.setSourceId(getId());
