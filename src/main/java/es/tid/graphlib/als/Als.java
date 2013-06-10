@@ -547,17 +547,13 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
   public double defineFactor(String factorFlag, int msgCounter,
       DoubleArrayListWritable initialValue, float tolerance) {
     double factor = 0d;
-    switch (factorFlag) {
-    case "basic":
+    if (factorFlag.equals("basic")) {
       factor = tolerance + 1d;
-      break;
-    case "rmse":
+    } else if (factorFlag.equals("rmse")) {
       factor = getRMSE(msgCounter);
-      break;
-    case "l2norm":
+    } else if (factorFlag.equals("l2norm")) {
       factor = getL2Norm(initialValue, getValue().getLatentVector());
-      break;
-    default:
+    } else {
       throw new RuntimeException("BUG: halt factor " + factorFlag +
         " is not included in the recognized options");
     }
