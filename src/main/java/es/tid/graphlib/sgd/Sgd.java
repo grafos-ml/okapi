@@ -31,7 +31,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
   /** Keyword for parameter enabling the RMSE aggregator */
   public static final String RMSE_AGGREGATOR = "sgd.rmse.aggregator";
   /** Default value for parameter enabling the RMSE aggregator */
-  public static final boolean RMSE_AGGREGATOR_DEFAULT = false;
+  public static final float RMSE_AGGREGATOR_DEFAULT = 0f;
   /** Keyword for parameter choosing the halt factor */
   public static final String HALT_FACTOR = "sgd.halt.factor";
   /** Default value for parameter choosing the halt factor */
@@ -42,7 +42,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
   public static final int ITERATIONS_DEFAULT = 10;
   /** Keyword for parameter setting the convergence tolerance parameter
    *  depending on the version enabled; l2norm or rmse */
-  public static final String TOLERANCE_KEYWORD = "sgd.tolerance";
+  public static final String TOLERANCE_KEYWORD = "sgd.halting.tolerance";
   /** Default value for TOLERANCE */
   public static final float TOLERANCE_DEFAULT = 1;
   /** Keyword for parameter setting the Regularization parameter LAMBDA */
@@ -91,7 +91,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
      */
     int msgCounter = 0;
     /* Flag for checking if parameter for RMSE aggregator received */
-    boolean rmseFlag = getContext().getConfiguration().getBoolean(
+    float rmseTolerance = getContext().getConfiguration().getFloat(
       RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
     /*
      * Flag for checking which termination factor to use:
@@ -196,7 +196,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
           message.getMessage(),
           observed);
         /* If termination flag is set to RMSE or RMSE aggregator is enabled */
-        if (factorFlag.equals("rmse") || rmseFlag) {
+        if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
           rmseErr += Math.pow(err, 2);
         }
       }
@@ -225,7 +225,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
             vvertex.getValue(),
             observed);
           /* If termination flag is set to RMSE or RMSE aggregator is true */
-          if (factorFlag.equals("rmse") || rmseFlag) {
+          if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
             rmseErr += Math.pow(err, 2);
           }
         } /* Eof if (neighUpdated) */
@@ -237,7 +237,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       haltFactor = tolerance + 1;
     }
     /* If RMSE aggregator flag is true - send rmseErr to aggregator */
-    if (rmseFlag) {
+    if (rmseTolerance != 0f) {
       this.aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmseErr));
     }
     /* If termination factor is set to RMSE - set the RMSE parameter */
@@ -500,11 +500,8 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     @Override
     public void compute() {
       /* Set the Convergence Tolerance */
-      float tolerance = getContext().getConfiguration()
-        .getFloat(TOLERANCE_KEYWORD, TOLERANCE_DEFAULT);
-      /* Flag for checking if parameter for RMSE aggregator received */
-      boolean rmseFlag = getContext().getConfiguration().getBoolean(
-        RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
+      float rmseTolerance = getContext().getConfiguration()
+        .getFloat(RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
       double numRatings = 0;
       double totalRMSE = 0;
       if (getSuperstep() > 1) {
@@ -514,7 +511,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         } else {
           numRatings = getTotalNumEdges() / 2;
         }
-        if (rmseFlag) {
+        if (rmseTolerance != 0f) {
           totalRMSE = Math.sqrt(((DoubleWritable)
             getAggregatedValue(RMSE_AGGREGATOR)).get() / numRatings);
         /* System.out.println("Superstep: " + getSuperstep() +
@@ -526,7 +523,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
           + totalRMSE);
         //getAggregatedValue(RMSE_AGG);
         }
-        if (totalRMSE < tolerance) {
+        if (totalRMSE < rmseTolerance) {
           //System.out.println("HALT!");
           haltComputation();
         }
