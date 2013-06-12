@@ -463,15 +463,17 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       // Set the Convergence Tolerance
       float rmseTolerance = getContext().getConfiguration()
         .getFloat(RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
-      int numRatings = getContext().getConfiguration().
-        getInt(MESSAGE_COUNT_AGGREGATOR, MESSAGE_COUNT_AGGREGATOR_DEFAULT);
+      //int numRatings = getContext().getConfiguration().
+        //getInt(MESSAGE_COUNT_AGGREGATOR, MESSAGE_COUNT_AGGREGATOR_DEFAULT);
       double totalRMSE = 0;
       
       if (rmseTolerance != 0f) {
         totalRMSE = Math.sqrt(((DoubleWritable)
-          getAggregatedValue(RMSE_AGGREGATOR)).get() / numRatings);
+          getAggregatedValue(RMSE_AGGREGATOR)).get() / (double) 
+          ((IntWritable) getAggregatedValue(MESSAGE_COUNT_AGGREGATOR)).get());
         System.out.println("SS:" + getSuperstep() + ", Total RMSE: " +
-          totalRMSE);
+          totalRMSE + "= sqrt(" + getAggregatedValue(RMSE_AGGREGATOR) +
+          " / " + getAggregatedValue(MESSAGE_COUNT_AGGREGATOR) + ")");
       }
       if (totalRMSE < rmseTolerance) {
         haltComputation();
