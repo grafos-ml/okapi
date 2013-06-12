@@ -4,6 +4,7 @@ import java.util.Map.Entry;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
+import org.apache.giraph.aggregators.IntSumAggregator;
 import org.apache.giraph.edge.DefaultEdge;
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.Vertex;
@@ -32,6 +33,8 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
   public static final String RMSE_AGGREGATOR = "sgd.rmse.aggregator";
   /** Default value for parameter enabling the RMSE aggregator */
   public static final float RMSE_AGGREGATOR_DEFAULT = 0f;
+  public static final String MESSAGE_COUNT_AGGREGATOR = "sgd.msg.count.aggregator";
+  public static final int MESSAGE_COUNT_AGGREGATOR_DEFAULT = 0;
   /** Keyword for parameter choosing the halt factor */
   public static final String HALT_FACTOR = "sgd.halt.factor";
   /** Default value for parameter choosing the halt factor */
@@ -219,6 +222,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     // If RMSE aggregator flag is true - send rmseErr to aggregator
     if (rmseTolerance != 0f) {
       this.aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmseErr));
+      this.aggregate(MESSAGE_COUNT_AGGREGATOR, new DoubleWritable(msgCounter));
     }
     // If termination factor is set to RMSE - set the RMSE parameter
     if (factorFlag.equals("rmse")) {
@@ -459,31 +463,26 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       // Set the Convergence Tolerance
       float rmseTolerance = getContext().getConfiguration()
         .getFloat(RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
-      double numRatings = 0;
+      int numRatings = getContext().getConfiguration().
+        getInt(MESSAGE_COUNT_AGGREGATOR, MESSAGE_COUNT_AGGREGATOR_DEFAULT);
       double totalRMSE = 0;
-      if (getSuperstep() > 1) {
-        // In superstep=1 only half edges are created (users to items)
-        if (getSuperstep() == 2) {
-          numRatings = getTotalNumEdges();
-        } else {
-          numRatings = getTotalNumEdges() / 2;
-        }
-        if (rmseTolerance != 0f) {
-          totalRMSE = Math.sqrt(((DoubleWritable)
-            getAggregatedValue(RMSE_AGGREGATOR)).get() / numRatings);
-          System.out.println("SS:" + getSuperstep() + ", Total RMSE: " +
-            totalRMSE);
-        }
-        if (totalRMSE < rmseTolerance) {
-          haltComputation();
-        }
-      } // END OF IF CLAUSE - superstep > 1
+      
+      if (rmseTolerance != 0f) {
+        totalRMSE = Math.sqrt(((DoubleWritable)
+          getAggregatedValue(RMSE_AGGREGATOR)).get() / numRatings);
+        System.out.println("SS:" + getSuperstep() + ", Total RMSE: " +
+          totalRMSE);
+      }
+      if (totalRMSE < rmseTolerance) {
+        haltComputation();
+      }
     } // END OF compute()
 
     @Override
     public void initialize() throws InstantiationException,
       IllegalAccessException {
       registerAggregator(RMSE_AGGREGATOR, DoubleSumAggregator.class);
+      registerAggregator(MESSAGE_COUNT_AGGREGATOR, IntSumAggregator.class);
     }
   }
 }
