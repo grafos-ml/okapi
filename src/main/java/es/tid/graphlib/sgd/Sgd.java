@@ -222,7 +222,7 @@ public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     // If RMSE aggregator flag is true - send rmseErr to aggregator
     if (rmseTolerance != 0f) {
       this.aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmseErr));
-      this.aggregate(MESSAGE_COUNT_AGGREGATOR, new DoubleWritable(msgCounter));
+      this.aggregate(MESSAGE_COUNT_AGGREGATOR, new IntWritable(msgCounter));
     }
     // If termination factor is set to RMSE - set the RMSE parameter
     if (factorFlag.equals("rmse")) {
