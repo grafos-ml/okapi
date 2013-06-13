@@ -69,6 +69,8 @@ DoubleWritable, MessageWrapper> {
   private int updatesNum = 0;
   /** Type of vertex 0 for user, 1 for item - used in the Output Format*/
   private boolean isItem = false;
+  /** Initial vector value to be used for the L2Norm case */
+  DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
 
   /**
    * Compute method
@@ -77,9 +79,6 @@ DoubleWritable, MessageWrapper> {
   public void compute(Iterable<MessageWrapper> messages) {   
     /** Error between predicted and observed rating */
     double err = 0d;
-    /** Initial vector value to be used for the L2Norm case */
-    DoubleArrayListWritable initialValue =
-      new DoubleArrayListWritable();
     /*
      * Counter of messages received
      * This is different from getNumEdges() because a
@@ -168,17 +167,20 @@ DoubleWritable, MessageWrapper> {
       if (!isDeltaEnabled) {
         /* Calculate error */
         double observed = (double) getEdgeValue(message.getSourceId()).get();
+        //System.out.print("S: " + getSuperstep());
         err = getError(getValue().getLatentVector(),
-          message.getMessage(),
-          observed);
+          message.getMessage(), observed);
+        //System.out.print(", err1: " + err);
         // Change the Vertex Latent Vector based on SGD equation
         runSgdAlgorithm(message.getMessage(), lambda, gamma, err);
         err = getError(getValue().getLatentVector(),
           message.getMessage(),
           observed);
-        // If termination flag is set to RMSE or RMSE aggregator is enabled
+        //System.out.println(", err2: " + err);
+        // If termination flag is set to RMSE OR RMSE aggregator is enabled
         if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
           rmseErr += Math.pow(err, 2);
+          //System.out.println("--- rmse: " + rmseErr);
         }
       } // END OF IF CLAUSE - delta caching is disabled
     } // END OF LOOP - for each message
@@ -186,6 +188,7 @@ DoubleWritable, MessageWrapper> {
     // If delta caching is enabled
     // Go through the edges and execute the SGD computation
     if (isDeltaEnabled) {
+      //System.out.println("***S:" + getSuperstep() + ", vertex:" + getId());
       // FOR LOOP - for each edge
       for (Entry<IntWritable, DoubleArrayListWritable> vvertex : getValue()
         .getAllNeighValue().entrySet()) {
@@ -200,12 +203,14 @@ DoubleWritable, MessageWrapper> {
           // Change the Vertex Latent Vector based on SGD equation
           runSgdAlgorithm(vvertex.getValue(), lambda, gamma, err);
           err = getError(getValue().getLatentVector(),
-            vvertex.getValue(),
-            observed);
+            vvertex.getValue(), observed);
+          //System.out.println(", getV:" + getValue().getLatentVector() +
+            //"init: " + initialValue);
         } // END OF IF CLAUSE - (neighUpdated)
         // If termination flag is set to RMSE or RMSE aggregator is true
         if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
           rmseErr += Math.pow(err, 2);
+          //System.out.print(", rmse:" + rmseErr);
         }
       }  // END OF LOOP - for each edge
     } // END OF IF CLAUSE - (deltaFlag > 0f && getSuperstep() > 0)
@@ -225,6 +230,8 @@ DoubleWritable, MessageWrapper> {
     // If termination factor is set to L2NOrm - set the L2NORM parameter
     if (factorFlag.equals("l2norm")) {
       haltFactor = getL2Norm(initialValue, getValue().getLatentVector());
+      //System.out.println(", l2norm: " + haltFactor + " = initialValue:" +
+      //initialValue + " - latestVal: " + getValue().getLatentVector());
     }
     if (getSuperstep() == 0 ||
       (haltFactor > tolerance && getSuperstep() < iterations)) {
@@ -257,8 +264,6 @@ DoubleWritable, MessageWrapper> {
         ((double) (getId().get() + i) % 100d) / 100d));
     }
     setValue(value);
-
-
   }
 
   /**
@@ -354,7 +359,10 @@ DoubleWritable, MessageWrapper> {
     double result = 0;
     for (int i = 0; i < valOld.size(); i++) {
       result += Math.pow(valOld.get(i).get() - valNew.get(i).get(), 2);
+      //System.out.print("(" + valOld.get(i).get() + " - " +
+      //valNew.get(i).get() + ")^2 = " + result);
     }
+    //System.out.println(", square:" + Math.sqrt(result));
     return Math.sqrt(result);
   }
 
