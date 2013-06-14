@@ -31,8 +31,8 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
   DoubleWritable, MessageWrapper> {
   /** Keyword for enabling RMSE aggregator */
   public static final String RMSE_AGGREGATOR = "als.rmse.aggregator";
-  /** Default boolean value of RMSE aggregator */
-  public static final boolean RMSE_AGGREGATOR_DEFAULT = false;
+  /** Default value of RMSE aggregator tolerance */
+  public static final float RMSE_AGGREGATOR_DEFAULT = 0f;
   /** Keyword for specifying the halt factor */
   public static final String HALT_FACTOR = "als.halt.factor";
   /** Default factor for halting execution */
@@ -69,7 +69,15 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
   /** RMSE Error */
   private double rmseErr = 0d;
   /** Type of vertex: true for item, false for item */
-  private boolean item = false;
+  private boolean isItem = false;
+  /** Initial vector value to be used for the L2Norm case */
+  DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
+  /**
+   * Counter of messages received
+   * This is different from getNumEdges() because a
+   * neighbor may not send a message
+   */
+  int msgCounter = 0;
 
   /**
    * Compute method
@@ -77,16 +85,10 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    * @param messages Messages received
    */
   public void compute(Iterable<MessageWrapper> messages) {
-    /*
-     * Counter of messages received
-     * This is different from getNumEdges() because a
-     * neighbor may not send a message
-     */
-    int msgCounter = 0;
     /* Error = observed - predicted */
     double err = 0d;
     /* Flag for checking if parameter for RMSE aggregator received */
-    boolean rmseFlag = getContext().getConfiguration().getBoolean(
+    float rmseTolerance = getContext().getConfiguration().getFloat(
       RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
     /* Set the number of iterations */
     int iterations = getContext().getConfiguration().getInt(ITERATIONS_KEYWORD,
@@ -100,8 +102,6 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     /* Set the size of the Latent Vector*/
     int vectorSize = getContext().getConfiguration()
       .getInt(VECTOR_SIZE_KEYWORD, VECTOR_SIZE_DEFAULT);
-    /* Initial vector value to be used for the L2Norm case */
-    DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
     /*
      * Flag for checking which termination factor to use:
      * basic, rmse, l2norm
@@ -112,10 +112,12 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     /* First superstep for users (superstep 0) & items (superstep 1) */
     if (getSuperstep() < 2) {
       initLatentVector(vectorSize, initialValue);
+      /* For L2Norm */
+      initialValue = getValue().getLatentVector();
     }
     /* Set flag for items - used in the Output Format */
     if (getSuperstep() == 1) {
-      item = true;
+      isItem = true;
     }
     /* System.out.println("*******  Vertex: " + getId() + ", superstep:" +
       getSuperstep() + ", item:" + item +
@@ -187,7 +189,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
           getValue().getLatentVector() + " vv: " + vvertex.getKey());*/
         //vvertex.getValue().print();
         /* If termination flag is set to RMSE or RMSE aggregator is true */
-        if (factorFlag.equals("rmse") || rmseFlag) {
+        if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
           rmseErr += Math.pow(err, 2);
         }
       }
@@ -197,7 +199,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       defineFactor(factorFlag, msgCounter, initialValue, tolerance);
 
     /* If RMSE aggregator flag is true */
-    if (rmseFlag) {
+    if (rmseTolerance != 0f) {
       this.aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmseErr));
     }
 
@@ -219,7 +221,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    *
    * @return initialValue Vertex value initialized
    */
-  public DoubleArrayListWritable
+  public void
   initLatentVector(int vectorSize, DoubleArrayListWritable initialValue) {
     DoubleArrayListHashMapWritable value =
       new DoubleArrayListHashMapWritable();
@@ -228,9 +230,6 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         ((double) (getId().get() + i) % 100d) / 100d));
     }
     setValue(value);
-    /* For L2Norm */
-    initialValue = getValue().getLatentVector();
-    return initialValue;
   }
 
   /***
@@ -345,17 +344,17 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    */
   public boolean updateNeighValues(int vectorSize, DoubleArrayListWritable curVal,
     DoubleArrayListWritable latestVal) {
-    boolean updated = false;
+    boolean isUpdated = false;
     for (int i = 0; i < vectorSize; i++) {
       if (latestVal.get(i) != curVal.get(i)) {
         curVal.set(i, latestVal.get(i));
-        updated = true;
+        isUpdated = true;
       } /*else {
         System.out.println("[COMPARE]" + curVal.get(i) + ", " +
           latestVal.get(i));
       } */
     }
-    return updated;
+    return isUpdated;
   }
 
   /**
@@ -521,7 +520,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    * @return boolean value if the current vertex behaves as an item
    */
   public boolean isItem() {
-    return item;
+    return isItem;
   }
 
   /**

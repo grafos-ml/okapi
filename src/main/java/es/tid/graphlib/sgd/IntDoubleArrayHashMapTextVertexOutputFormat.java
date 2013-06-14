@@ -71,10 +71,12 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat
     protected Text convertVertexToLine(Vertex
       <IntWritable, DoubleArrayListHashMapWritable, DoubleWritable, ?> vertex)
       throws IOException {
-      boolean flagError = getContext().getConfiguration().getBoolean(
+      boolean isErrorFlag = getContext().getConfiguration().getBoolean(
         "sgd.print.error", false);
-      boolean flagUpdates = getContext().getConfiguration().getBoolean(
+      boolean isUpdatesFlag = getContext().getConfiguration().getBoolean(
         "sgd.print.updates", false);
+      boolean isMessagesFlag = getContext().getConfiguration().getBoolean(
+        "sgd.print.messages", false);
 
       String type = "";
       if (((Sgd) vertex).isItem()) {
@@ -86,17 +88,23 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat
       String value = vertex.getValue().getLatentVector().toString();
       String error = null;
       String updates = null;
+      String messages = null;
       Text line = new Text(type + delimiter + id + delimiter + value);
 
-      if (flagError) {
+      if (isErrorFlag) {
         error = Double.toString(Math.abs(((Sgd) vertex).getHaltFactor()));
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(error.getBytes(), 0, error.length());
       }
-      if (flagUpdates) {
+      if (isUpdatesFlag) {
         updates = Integer.toString(((Sgd) vertex).getUpdates());
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(updates.getBytes(), 0, updates.length());
+      }
+      if (isMessagesFlag) {
+        messages = Integer.toString(((Sgd) vertex).getMessages());
+        line.append(delimiter.getBytes(), 0, delimiter.length());
+        line.append(messages.getBytes(), 0, messages.length());
       }
       return new Text(line);
     }

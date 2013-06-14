@@ -28,7 +28,7 @@ DoubleWritable, MessageWrapper> {
   public static final String DELTA_CACHING = "sgd.delta.caching";
   /** Default value for parameter enabling delta caching */
   public static final boolean DELTA_CACHING_DEFAULT = false;
-  /** Keyword for parameter enabling the RMSE aggregator */
+  /** Keyword for RMSE aggregator tolerance */
   public static final String RMSE_AGGREGATOR = "sgd.rmse.aggregator";
   /** Default value for parameter enabling the RMSE aggregator */
   public static final float RMSE_AGGREGATOR_DEFAULT = 0f;
@@ -71,7 +71,13 @@ DoubleWritable, MessageWrapper> {
   private boolean isItem = false;
   /** Initial vector value to be used for the L2Norm case */
   DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
-
+  /**
+   * Counter of messages received
+   * This is different from getNumEdges() because a
+   * neighbor may not send a message
+   */
+  private int messagesNum = 0;
+  
   /**
    * Compute method
    * @param messages Messages received
@@ -79,12 +85,7 @@ DoubleWritable, MessageWrapper> {
   public void compute(Iterable<MessageWrapper> messages) {   
     /** Error between predicted and observed rating */
     double err = 0d;
-    /*
-     * Counter of messages received
-     * This is different from getNumEdges() because a
-     * neighbor may not send a message
-     */
-    int msgCounter = 0;
+
     /* Flag for checking if parameter for RMSE aggregator received */
     float rmseTolerance = getContext().getConfiguration().getFloat(
       RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
@@ -132,7 +133,7 @@ DoubleWritable, MessageWrapper> {
 
     // FOR LOOP - for each message
     for (MessageWrapper message : messages) {
-      msgCounter++;
+      messagesNum++;
       // First superstep for items:
       // 1. Create outgoing edges of items
       // 2. Store the rating given from users in the outgoing edges
@@ -225,7 +226,7 @@ DoubleWritable, MessageWrapper> {
     }
     // If termination factor is set to RMSE - set the RMSE parameter
     if (factorFlag.equals("rmse")) {
-      haltFactor = getRMSE(rmseErr, msgCounter);
+      haltFactor = getRMSE(rmseErr);
     }
     // If termination factor is set to L2NOrm - set the L2NORM parameter
     if (factorFlag.equals("l2norm")) {
@@ -235,7 +236,7 @@ DoubleWritable, MessageWrapper> {
     }
     if (getSuperstep() == 0 ||
       (haltFactor > tolerance && getSuperstep() < iterations)) {
-      sendMsgs();
+      sendMessage();
     }
     // haltFactor is used in the OutputFormat file. --> To print the error
     if (factorFlag.equals("basic")) {
@@ -318,12 +319,13 @@ DoubleWritable, MessageWrapper> {
   }
 
   /*** Send messages to neighbours */
-  public void sendMsgs() {
+  public void sendMessage() {
     // Create a message and wrap together the source id and the message
     MessageWrapper message = new MessageWrapper();
     message.setSourceId(getId());
 
     if (getSuperstep() == 0) {
+      System.out.println("S: " + getSuperstep() + "vertex " + getId() +"sends!");
       for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
         DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
           .getLatentVector());
@@ -332,6 +334,7 @@ DoubleWritable, MessageWrapper> {
         sendMessage(edge.getTargetVertexId(), message);
       }
     } else {
+      System.out.println("S: " + getSuperstep() + "vertex " + getId() + "sends!");
       message.setMessage(getValue().getLatentVector());
       sendMessageToAllEdges(message);
     }
@@ -343,8 +346,8 @@ DoubleWritable, MessageWrapper> {
    * @param msgCounter Count of messages received
    * @return RMSE result
    */
-  public double getRMSE(double rmseErr, int msgCounter) {
-    return Math.sqrt(rmseErr / (double)msgCounter);
+  public double getRMSE(double rmseErr) {
+    return Math.sqrt(rmseErr / (double) messagesNum);
   }
 
   /**
@@ -359,10 +362,10 @@ DoubleWritable, MessageWrapper> {
     double result = 0;
     for (int i = 0; i < valOld.size(); i++) {
       result += Math.pow(valOld.get(i).get() - valNew.get(i).get(), 2);
-      //System.out.print("(" + valOld.get(i).get() + " - " +
-      //valNew.get(i).get() + ")^2 = " + result);
+      System.out.print("[l2norm] (" + valOld.get(i).get() + " - " +
+      valNew.get(i).get() + ")^2 = " + result);
     }
-    //System.out.println(", square:" + Math.sqrt(result));
+    System.out.println(", square:" + Math.sqrt(result));
     return Math.sqrt(result);
   }
 
@@ -439,12 +442,21 @@ DoubleWritable, MessageWrapper> {
   /**
    * Return amount of vertex updates
    *
-   * @return nupdates
+   * @return updatesNum
    * */
   public int getUpdates() {
     return updatesNum;
   }
 
+  /**
+   * Return amount messages received
+   *
+   * @return messagesNum
+   * */
+  public int getMessages() {
+    return messagesNum;
+  }
+  
   /**
    * Return amount of vertex updates
    *
