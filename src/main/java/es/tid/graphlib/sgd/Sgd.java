@@ -484,9 +484,9 @@ DoubleWritable, MessageWrapper> {
           totalRMSE + " = sqrt(" + getAggregatedValue(RMSE_AGGREGATOR) +
           " / " + numRatings + ")");
       }
-      //if (totalRMSE < rmseTolerance) {
-        //haltComputation();
-      //}
+      if (totalRMSE < rmseTolerance) {
+        haltComputation();
+      }
     } // END OF compute()
 
     @Override
