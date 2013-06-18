@@ -270,7 +270,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
 
     // Update current vertex latent vector
     updateLatentVector(vectorSize, uMatrix);
-    incUpdatesNum(updatesNum);
+    updatesNum++;;
   }
 
   /**
@@ -281,13 +281,6 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     return haltFactor;
   }
 
-  /** Increase the number of updates
-   *
-   * @param updatesNum counter of updates
-   */
-  public void incUpdatesNum(int updatesNum) {
-    updatesNum++;
-  }
   /**
    * Update current vertex latent vector
    *
@@ -299,6 +292,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       val.add(new DoubleWritable(value.get(i)));
       keepXdecimals(val, DECIMALS);
       getValue().setLatentVector(val);
+      System.out.println("v:" + getValue().getLatentVector());
     }
   }
 
@@ -461,8 +455,6 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
 
   /**
    * Return amount of vertex updates
-   *
-   * @param updatesNum Counter of updates
    *
    * @return updatesNum
    */
