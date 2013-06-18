@@ -40,7 +40,7 @@ DoubleWritable, MessageWrapper> {
    *  depending on the version enabled; l2norm or rmse */
   public static final String TOLERANCE_KEYWORD = "sgd.halting.tolerance";
   /** Default value for TOLERANCE */
-  public static final float TOLERANCE_DEFAULT = 1;
+  public static final float TOLERANCE_DEFAULT = 1f;
   /** Keyword for parameter setting the number of iterations */
   public static final String ITERATIONS_KEYWORD = "sgd.iterations";
   /** Default value for ITERATIONS */
@@ -152,7 +152,7 @@ DoubleWritable, MessageWrapper> {
         // Remove the last value from message
         // It's there only for the 1st round of items
         message.getMessage().remove(message.getMessage().size() - 1);
-      } /* END OF IF CLAUSE - superstep==1 */
+      } // END OF IF CLAUSE - superstep==1
 
       // IF (delta caching is enabled) THEN
       // For the 1st superstep of either user or item: initialize their values
@@ -170,7 +170,7 @@ DoubleWritable, MessageWrapper> {
 
       // If delta caching is NOT enabled
       if (!isDeltaEnabled) {
-        /* Calculate error */
+        // Calculate error
         double observed = (double) getEdgeValue(message.getSourceId()).get();
         err = getError(getValue().getLatentVector(),
           message.getMessage(), observed);
@@ -212,22 +212,14 @@ DoubleWritable, MessageWrapper> {
       }  // END OF LOOP - for each edge
     } // END OF IF CLAUSE - (isDeltaEnabled)
 
-    // If halt factor is set to basic - set number of iterations + 1
-    if (factorFlag.equals("basic")) {
-      haltFactor = tolerance + 1;
-    }
+    haltFactor =
+    	      defineFactor(factorFlag, initialValue, tolerance, rmseErr);
+
     // If RMSE aggregator flag is true - send rmseErr to aggregator
     if (rmseTolerance != 0f) {
       this.aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmseErr));
     }
-    // If termination factor is set to RMSE - set the RMSE parameter
-    if (factorFlag.equals("rmse")) {
-      haltFactor = getRMSE(rmseErr);
-    }
-    // If termination factor is set to L2NOrm - set the L2NORM parameter
-    if (factorFlag.equals("l2norm")) {
-      haltFactor = getL2Norm(initialValue, getValue().getLatentVector());
-    }
+   
     if (getSuperstep() == 0 ||
       (haltFactor > tolerance && getSuperstep() < iterations)) {
       sendMessage();
@@ -317,7 +309,7 @@ DoubleWritable, MessageWrapper> {
     // Create a message and wrap together the source id and the message
     MessageWrapper message = new MessageWrapper();
     message.setSourceId(getId());
-
+    // At superstep 0, users send rating to items
     if (getSuperstep() == 0) {
       for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
         DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
@@ -453,6 +445,31 @@ DoubleWritable, MessageWrapper> {
    * */
   public double getHaltFactor() {
     return haltFactor;
+  }
+
+  /**
+   * Define whether the halt factor is "basic", "rmse" or "l2norm"
+   *
+   * @param factorFlag  Halt factor
+   * @param msgCounter  Number of messages received
+   * @param initialValue Vertex initial value
+   *
+   * @return factor number of halting barrier
+   */
+  public double defineFactor(String factorFlag,
+      DoubleArrayListWritable initialValue, float tolerance, double rmseErr) {
+    double factor = 0d;
+    if (factorFlag.equals("basic")) {
+      factor = tolerance + 1d;
+    } else if (factorFlag.equals("rmse")) {
+      factor = getRMSE(rmseErr);
+    } else if (factorFlag.equals("l2norm")) {
+      factor = getL2Norm(initialValue, getValue().getLatentVector());
+    } else {
+      throw new RuntimeException("BUG: halt factor " + factorFlag +
+        " is not included in the recognized options");
+    }
+    return factor;
   }
 
   /**

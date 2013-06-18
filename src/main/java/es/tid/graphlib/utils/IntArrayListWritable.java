@@ -29,14 +29,33 @@ public class IntArrayListWritable
    * @return 0 value
    */
   public int compareTo(IntArrayListWritable message) {
-    /*
-     * DoubleArrayListWritable msg = new DoubleArrayListWritable; msg = this;
-     *
-     * int i=0; while (i<message.size()){ if
-     * (msg.toArray().equals(message.toArray())) return 0; if
-     * (msg[i]>message[i]) return 1; i++; }
-     */
-    return 0;
+	  if (message==null) {
+		  return 1;
+	  }
+	  if (this.size()<message.size()) {
+		  return -1;
+	  }
+	  if (this.size()>message.size()) {
+		  return 1;
+	  }
+	  for (int i=0; i<this.size(); i++) {
+		  if (this.get(i)==null && message.get(i)==null) {
+			  continue;
+		  }
+	      if (this.get(i)==null) {
+	    	  return -1;
+	      }
+	      if (message.get(i)==null) {
+	    	  return 1;
+	      }
+	      if (this.get(i).get()<message.get(i).get()) {
+	    	  return -1;
+	      }
+	      if (this.get(i).get()>message.get(i).get()) {
+	    	  return 1;
+	      }
+	  }
+	  return 0;
   }
 
   @Override

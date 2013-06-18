@@ -78,13 +78,6 @@ public class DoubleArrayListWritable
         return 1;
       }
     }
-    /*
-     * DoubleArrayListWritable msg = new DoubleArrayListWritable; msg = this;
-     *
-     * int i=0; while (i<message.size()){ if
-     * (msg.toArray().equals(message.toArray())) return 0; if
-     * (msg[i]>message[i]) return 1; i++; }
-     */
     return 0;
   }
 }

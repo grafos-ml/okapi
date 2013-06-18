@@ -10,6 +10,7 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
+import es.tid.graphlib.sgd.Sgd;
 import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
 
 /**
@@ -60,10 +61,13 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat extends
           vertex)
       throws IOException {
 
-      boolean flagError = getContext().getConfiguration().getBoolean(
+      boolean isErrorFlag = getContext().getConfiguration().getBoolean(
         "als.print.error", false);
-      boolean flagUpdates = getContext().getConfiguration().getBoolean(
+      boolean isUpdatesFlag = getContext().getConfiguration().getBoolean(
         "als.print.updates", false);
+      boolean isMessagesFlag = getContext().getConfiguration().getBoolean(
+    	        "als.print.messages", false);
+
       String type = "";
       if (((Als) vertex).isItem()) {
         type = "item";
@@ -74,17 +78,23 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat extends
       String value = vertex.getValue().getLatentVector().toString();
       String error = null;
       String updates = null;
+      String messages = null;
       Text line = new Text(type + delimiter + id + delimiter + value);
 
-      if (flagError) {
+      if (isErrorFlag) {
         error = Double.toString(Math.abs(((Als) vertex).returnHaltFactor()));
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(error.getBytes(), 0, error.length());
       }
-      if (flagUpdates) {
+      if (isUpdatesFlag) {
         updates = Integer.toString(((Als) vertex).getUpdates()); // .toString();
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(updates.getBytes(), 0, updates.length());
+      }
+      if (isMessagesFlag) {
+        messages = Integer.toString(((Als) vertex).getMessages());
+        line.append(delimiter.getBytes(), 0, delimiter.length());
+        line.append(messages.getBytes(), 0, messages.length());
       }
       return new Text(line);
     }
