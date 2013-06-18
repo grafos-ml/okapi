@@ -156,7 +156,7 @@ DoubleWritable, MessageWrapper> {
 
       // IF (delta caching is enabled) THEN
       // For the 1st superstep of either user or item: initialize their values
-      // For any superstep > 0:
+      // For the rest supersteps:
       // update their values based on the message received
       if (isDeltaEnabled) {
         DoubleArrayListWritable currVal =

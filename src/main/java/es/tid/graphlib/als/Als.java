@@ -113,8 +113,8 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     // First superstep for users (superstep 0) & items (superstep 1)
     // Initialize vertex latent vector
     if (getSuperstep() < 2) {
-      initLatentVector(vectorSize, initialValue);
-      /* For L2Norm */
+      initLatentVector(vectorSize);
+      // For L2Norm
       initialValue = getValue().getLatentVector();
     }
     // Set flag for items - used in the Output Format
@@ -144,8 +144,9 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         message.getMessage().remove(message.getMessage().size() - 1);
       } // END OF IF CLAUSE - superstep==1
 
-      // For the first superstep of either users or items, save their values
-      // Create table with neighbors latent values and IDs
+      // For the 1st superstep of either users or items, initialize their values
+      // For the rest supersteps:
+      // update their values based on the message received
       DoubleArrayListWritable currVal =
     		  getValue().getNeighValue(message.getSourceId());
       DoubleArrayListWritable newVal = message.getMessage();
@@ -155,7 +156,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       }
     } // END OF LOOP - for each message
 
-   // if (getSuperstep() > 0) {
+   if (getSuperstep() > 0) {
       // 1st FOR LOOP - for each edge
       /*for (Entry<IntWritable, DoubleArrayListWritable> vvertex : getValue()
         .getAllNeighValue().entrySet()) {
@@ -169,8 +170,8 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       // Used if RMSE version or RMSE aggregator is enabled
       rmseErr = 0d;
       // 2nd FOR LOOP - for each edge
-      for (Entry<IntWritable, DoubleArrayListWritable> vvertex : getValue()
-        .getAllNeighValue().entrySet()) {
+      for (Entry<IntWritable, DoubleArrayListWritable> vvertex :
+        getValue().getAllNeighValue().entrySet()) {
         double observed = (double) getEdgeValue(vvertex.getKey()).get();
         err = getError(getValue().getLatentVector(), vvertex.getValue(),
           observed);
@@ -179,7 +180,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
           rmseErr += Math.pow(err, 2);
         }
       }
-   // } // END OF IF CLAUSE - Superstep > 0
+   } // END OF IF CLAUSE - Superstep > 0
 
     haltFactor =
       defineFactor(factorFlag, initialValue, tolerance, rmseErr);
@@ -208,7 +209,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    * @return initialValue Vertex value initialized
    */
   public void
-  initLatentVector(int vectorSize, DoubleArrayListWritable initialValue) {
+  initLatentVector(int vectorSize) {
     DoubleArrayListHashMapWritable value =
       new DoubleArrayListHashMapWritable();
     for (int i = 0; i < vectorSize; i++) {
@@ -235,8 +236,8 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     double[] curVec = new double[vectorSize];
     DoubleMatrix ratings = new DoubleMatrix(getNumEdges());
     // FOR LOOP - for each edge
-    for (Entry<IntWritable, DoubleArrayListWritable> vvertex : getValue()
-      .getAllNeighValue().entrySet()) {
+    for (Entry<IntWritable, DoubleArrayListWritable> vvertex :
+      getValue().getAllNeighValue().entrySet()) {
       // Store the latent vector of the current neighbor
       for (int i = 0; i < vectorSize; i++) {
         curVec[i] = vvertex.getValue().get(i).get();
