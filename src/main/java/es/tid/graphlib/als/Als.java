@@ -511,8 +511,8 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     @Override
     public void compute() {
       // Set the Convergence Tolerance
-      float tolerance = getContext().getConfiguration()
-        .getFloat(TOLERANCE_KEYWORD, TOLERANCE_DEFAULT);
+      float rmseTolerance = getContext().getConfiguration()
+        .getFloat(RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
       double numRatings = 0;
       double totalRMSE = 0;
       if (getSuperstep() > 1) {
@@ -522,15 +522,15 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         } else {
           numRatings = getTotalNumEdges() / 2;
         }
-        totalRMSE = Math.sqrt(((DoubleWritable)
-          getAggregatedValue(RMSE_AGGREGATOR)).get() / numRatings);
+        if (rmseTolerance != 0f) {
+          totalRMSE = Math.sqrt(((DoubleWritable)
+        	getAggregatedValue(RMSE_AGGREGATOR)).get() / numRatings);
 
         System.out.println("SS:" + getSuperstep() + ", Total RMSE: " +
                 totalRMSE + " = sqrt(" + getAggregatedValue(RMSE_AGGREGATOR) +
                 " / " + numRatings + ")");
-        
-        getAggregatedValue(RMSE_AGGREGATOR);
-        if (totalRMSE < tolerance) {
+        }
+        if (totalRMSE < rmseTolerance) {
           haltComputation();
         }
       }
