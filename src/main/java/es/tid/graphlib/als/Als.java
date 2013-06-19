@@ -109,13 +109,14 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       .getInt(VECTOR_SIZE_KEYWORD, VECTOR_SIZE_DEFAULT);
     /* Flag becomes true if at least one neighbour latent vector gets updated */
     boolean isNeighUpdated = false;
-    
+
     // First superstep for users (superstep 0) & items (superstep 1)
     // Initialize vertex latent vector
     if (getSuperstep() < 2) {
       initLatentVector(vectorSize);
       // For L2Norm
       initialValue = getValue().getLatentVector();
+      System.out.print("S: " + getSuperstep() + ", id:" + getId() + ", val:" + getValue().getLatentVector());
     }
     // Set flag for items - used in the Output Format
     if (getSuperstep() == 1) {
@@ -155,8 +156,13 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     	  isNeighUpdated = true;
       }
     } // END OF LOOP - for each message
-
-   if (getSuperstep() > 0) {
+    System.out.println("neighbours: " + getValue().getAllNeighValue().size());
+    System.out.println(getValue().getAllNeighValue());
+    /*for (Entry<IntWritable, DoubleArrayListWritable> vvertex :
+      getValue().getAllNeighValue().entrySet()) {
+      System.out.print("S: " + getSuperstep() + "id:" + getId());
+    }*/
+    if (getSuperstep() > 0) {
       // 1st FOR LOOP - for each edge
       /*for (Entry<IntWritable, DoubleArrayListWritable> vvertex : getValue()
         .getAllNeighValue().entrySet()) {
@@ -175,10 +181,12 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         double observed = (double) getEdgeValue(vvertex.getKey()).get();
         err = getError(getValue().getLatentVector(), vvertex.getValue(),
           observed);
+        System.out.println("---> Err:" + err);
         // If termination flag is set to RMSE or RMSE aggregator is true
         if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
           rmseErr += Math.pow(err, 2);
         }
+        System.out.println("<--> rmse: " + rmseErr);
       }
    } // END OF IF CLAUSE - Superstep > 0
 
@@ -219,47 +227,60 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     setValue(value);
   }
 
-  /***
-   * Update Vertex Latent Vector based on ALS equation Amat = MiIi * t(MiIi) +
-   * LAMBDA * Nui * E Vmat = MiIi * t(R(i,Ii)) Amat * Umat = Vmat <==> solve
-   * Umat
+  /**
+   * Modify Vertex Latent Vector based on ALS equation
    *
-   * where MiIi: movies feature matrix rated by user i (matNeighVectors)
-   * t(MiIi): transpose of MiIi (matNeighVectorsTrans) Nui: number of ratings
-   * of user i (getNumEdges()) E: identity matrix (matId) R(i,Ii): ratings of
-   * movies rated by user i
+   * @param vectorSize Latent Vector Size
+   * @param lambda regularization parameter
    */
   public void runAlsAlgorithm(int vectorSize, float lambda) {
+    /**
+     * Update Vertex Latent Vector based on ALS equation
+     * Amat = MiIi * t(MiIi) + LAMBDA * Nui * E
+     * Vmat = MiIi * t(R(i,Ii))
+     * Amat * Umat = Vmat <==> solve Umat
+     *
+     * where MiIi: movies feature matrix rated by user i (matNeighVectors)
+     * t(MiIi): transpose of MiIi (matNeighVectorsTrans)
+     * Nui: number of ratings of user i (getNumEdges())
+     * E: identity matrix (matId) R(i,Ii): ratings of movies rated by user i
+     */
     int j = 0;
     DoubleMatrix matNeighVectors =
-      new DoubleMatrix(vectorSize, getNumEdges());
-    double[] curVec = new double[vectorSize];
+      new DoubleMatrix(vectorSize, getNumEdges()); 
     DoubleMatrix ratings = new DoubleMatrix(getNumEdges());
     // FOR LOOP - for each edge
     for (Entry<IntWritable, DoubleArrayListWritable> vvertex :
       getValue().getAllNeighValue().entrySet()) {
       // Store the latent vector of the current neighbor
+      double[] curVec = new double[vectorSize];
       for (int i = 0; i < vectorSize; i++) {
         curVec[i] = vvertex.getValue().get(i).get();
       }
       matNeighVectors.putColumn(j, new DoubleMatrix(curVec));
-
       // Store the rating related with the current neighbor
       ratings.put(j, (double) getEdgeValue(vvertex.getKey()).get());
       j++;
     } /// END OF LOOP - for each edge
-
+    System.out.println("*****Neigh + Ratins");
+    matNeighVectors.print();
+    ratings.print();
     // Amat = MiIi * t(MiIi) + LAMBDA * getNumEdges() * matId
     DoubleMatrix matNeighVectorsTrans = matNeighVectors.transpose();
     DoubleMatrix matMul = matNeighVectors.mmul(matNeighVectorsTrans);
-
-    DoubleMatrix matId = new DoubleMatrix();
+    System.out.println("*****Transpose + matMul + matId");
+    DoubleMatrix matId = DoubleMatrix.eye(vectorSize);
     double reg = lambda * getNumEdges();
-    matId = matId.eye(vectorSize);
+    //matId = matId.eye(vectorSize);
+    matNeighVectorsTrans.print();
+    matMul.print();
+    matId.print();
     DoubleMatrix aMatrix = matMul.add(matId.mul(reg));
     // Vmat = MiIi * t(R(i,Ii))
     DoubleMatrix vMatrix = matNeighVectors.mmul(ratings);
-
+    System.out.println("*****reg: " + reg + " + (matMul + matId*reg=aMatrix) + (Neigh*Ratings)");
+    aMatrix.print();
+    vMatrix.print();
     // Amat * Umat = Vmat <==> solve Umat Convert Amat and Vmat into type:
     // DenseMatrix in order to use the QRDecomposition method from Mahout
     DenseMatrix aDenseMatrix =
@@ -268,7 +289,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       convertDoubleMatrix2Matrix(vMatrix, vectorSize, 1);
     Vector uMatrix =
       new QRDecomposition(aDenseMatrix).solve(vDenseMatrix).viewColumn(0);
-
+    System.out.println("*****value: " + uMatrix);
     // Update current vertex latent vector
     updateLatentVector(vectorSize, uMatrix);
     updatesNum++;;
@@ -291,10 +312,9 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     DoubleArrayListWritable val = new DoubleArrayListWritable();
     for (int i = 0; i < vectorSize; i++) {
       val.add(new DoubleWritable(value.get(i)));
-      keepXdecimals(val, DECIMALS);
-      getValue().setLatentVector(val);
-      System.out.println("v:" + getValue().getLatentVector());
     }
+    keepXdecimals(val, DECIMALS);
+    getValue().setLatentVector(val);
   }
 
   /**
