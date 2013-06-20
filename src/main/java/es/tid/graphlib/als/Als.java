@@ -10,10 +10,8 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
-import org.apache.mahout.math.DenseMatrix;
-import org.apache.mahout.math.QRDecomposition;
-import org.apache.mahout.math.Vector;
 import org.jblas.DoubleMatrix;
+import org.jblas.Solve;
 
 import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
 import es.tid.graphlib.utils.DoubleArrayListWritable;
@@ -116,7 +114,6 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       initLatentVector(vectorSize);
       // For L2Norm
       initialValue = getValue().getLatentVector();
-      System.out.print("S: " + getSuperstep() + ", id:" + getId() + ", val:" + getValue().getLatentVector());
     }
     // Set flag for items - used in the Output Format
     if (getSuperstep() == 1) {
@@ -156,8 +153,6 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     	  isNeighUpdated = true;
       }
     } // END OF LOOP - for each message
-    System.out.println("neighbours: " + getValue().getAllNeighValue().size());
-    System.out.println(getValue().getAllNeighValue());
     /*for (Entry<IntWritable, DoubleArrayListWritable> vvertex :
       getValue().getAllNeighValue().entrySet()) {
       System.out.print("S: " + getSuperstep() + "id:" + getId());
@@ -181,12 +176,10 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         double observed = (double) getEdgeValue(vvertex.getKey()).get();
         err = getError(getValue().getLatentVector(), vvertex.getValue(),
           observed);
-        System.out.println("---> Err:" + err);
         // If termination flag is set to RMSE or RMSE aggregator is true
         if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
           rmseErr += Math.pow(err, 2);
         }
-        System.out.println("<--> rmse: " + rmseErr);
       }
    } // END OF IF CLAUSE - Superstep > 0
 
@@ -262,36 +255,20 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
       ratings.put(j, (double) getEdgeValue(vvertex.getKey()).get());
       j++;
     } /// END OF LOOP - for each edge
-    System.out.println("*****Neigh + Ratins");
-    matNeighVectors.print();
-    ratings.print();
     // Amat = MiIi * t(MiIi) + LAMBDA * getNumEdges() * matId
     DoubleMatrix matNeighVectorsTrans = matNeighVectors.transpose();
     DoubleMatrix matMul = matNeighVectors.mmul(matNeighVectorsTrans);
-    System.out.println("*****Transpose + matMul + matId");
     DoubleMatrix matId = DoubleMatrix.eye(vectorSize);
     double reg = lambda * getNumEdges();
-    //matId = matId.eye(vectorSize);
-    matNeighVectorsTrans.print();
-    matMul.print();
-    matId.print();
-    DoubleMatrix aMatrix = matMul.add(matId.mul(reg));
     // Vmat = MiIi * t(R(i,Ii))
+    DoubleMatrix aMatrix = matMul.add(matId.mul(reg));
     DoubleMatrix vMatrix = matNeighVectors.mmul(ratings);
-    System.out.println("*****reg: " + reg + " + (matMul + matId*reg=aMatrix) + (Neigh*Ratings)");
-    aMatrix.print();
-    vMatrix.print();
-    // Amat * Umat = Vmat <==> solve Umat Convert Amat and Vmat into type:
-    // DenseMatrix in order to use the QRDecomposition method from Mahout
-    DenseMatrix aDenseMatrix =
-      convertDoubleMatrix2Matrix(aMatrix, vectorSize, vectorSize);
-    DenseMatrix vDenseMatrix =
-      convertDoubleMatrix2Matrix(vMatrix, vectorSize, 1);
-    Vector uMatrix =
-      new QRDecomposition(aDenseMatrix).solve(vDenseMatrix).viewColumn(0);
-    System.out.println("*****value: " + uMatrix);
+    DoubleMatrix uMatrix = new DoubleMatrix();
+    uMatrix = Solve.solve(aMatrix, vMatrix);
+
     // Update current vertex latent vector
     updateLatentVector(vectorSize, uMatrix);
+    
     updatesNum++;;
   }
 
@@ -308,13 +285,14 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    *
    * @param value Vertex latent vector
    */
-  public void updateLatentVector(int vectorSize, Vector value) {
+  public void updateLatentVector(int vectorSize, DoubleMatrix value) {
     DoubleArrayListWritable val = new DoubleArrayListWritable();
     for (int i = 0; i < vectorSize; i++) {
       val.add(new DoubleWritable(value.get(i)));
+      getValue().getLatentVector().set(i, new DoubleWritable(value.get(i)));
     }
     keepXdecimals(val, DECIMALS);
-    getValue().setLatentVector(val);
+    //getValue().setLatentVector(val);
   }
 
   /**
@@ -436,6 +414,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    *
    * @return DenseMatrix
    ***/
+  /*
   public DenseMatrix convertDoubleMatrix2Matrix(DoubleMatrix matrix,
       int xDimension, int yDimension) {
     double[][] amatDouble = new double[xDimension][yDimension];
@@ -446,7 +425,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     }
     return new DenseMatrix(amatDouble);
   }
-
+*/
   /**
    * Convert a DoubleArrayListWritable (from graphlib library) to DoubleMatrix
    * (from jblas library)
@@ -535,6 +514,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         } else {
           numRatings = getTotalNumEdges() / 2;
         }
+      }
         if (rmseTolerance != 0f) {
           totalRMSE = Math.sqrt(((DoubleWritable)
         	getAggregatedValue(RMSE_AGGREGATOR)).get() / numRatings);
@@ -546,7 +526,6 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
         if (totalRMSE < rmseTolerance) {
           haltComputation();
         }
-      }
     } // END OF compute()
 
     @Override
