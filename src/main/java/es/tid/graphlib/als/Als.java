@@ -69,7 +69,7 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    * Keep it outside the compute() method
    * value has to preserved throughout the supersteps
    */
-  DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
+  DoubleArrayListWritable initialValue;
   /**
    * Counter of messages received
    * This is different from getNumEdges() because a
@@ -113,16 +113,16 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     if (getSuperstep() < 2) {
       initLatentVector(vectorSize);
       // For L2Norm
-      initialValue = getValue().getLatentVector();
+      initialValue = new DoubleArrayListWritable(getValue().getLatentVector());
     }
     // Set flag for items - used in the Output Format
     if (getSuperstep() == 1) {
       isItem = true;
     }
-    
+
     // Used if RMSE version or RMSE aggregator is enabled
     double rmseErr = 0d;
-    
+
     // FOR LOOP - for each message
     for (MessageWrapper message : messages) {
       messagesNum++;
@@ -153,24 +153,13 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
     	  isNeighUpdated = true;
       }
     } // END OF LOOP - for each message
-    /*for (Entry<IntWritable, DoubleArrayListWritable> vvertex :
-      getValue().getAllNeighValue().entrySet()) {
-      System.out.print("S: " + getSuperstep() + "id:" + getId());
-    }*/
+
     if (getSuperstep() > 0) {
-      // 1st FOR LOOP - for each edge
-      /*for (Entry<IntWritable, DoubleArrayListWritable> vvertex : getValue()
-        .getAllNeighValue().entrySet()) {
-        // Calculate error
-        double observed = (double) getEdgeValue(vvertex.getKey()).get();
-        err = getError(getValue().getLatentVector(), vvertex.getValue(),
-          observed);
-      }*/  // END OF LOOP - for each edge
       // Execute ALS computation
       runAlsAlgorithm(vectorSize, lambda);
       // Used if RMSE version or RMSE aggregator is enabled
       rmseErr = 0d;
-      // 2nd FOR LOOP - for each edge
+      // FOR LOOP - for each edge
       for (Entry<IntWritable, DoubleArrayListWritable> vvertex :
         getValue().getAllNeighValue().entrySet()) {
         double observed = (double) getEdgeValue(vvertex.getKey()).get();

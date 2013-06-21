@@ -74,7 +74,7 @@ DoubleWritable, MessageWrapper> {
    * Keep it outside the compute() method
    * value has to preserved throughout the supersteps
    */
-  DoubleArrayListWritable initialValue = new DoubleArrayListWritable();
+  DoubleArrayListWritable initialValue;
   /**
    * Counter of messages received
    * This is different from getNumEdges() because a
@@ -125,7 +125,7 @@ DoubleWritable, MessageWrapper> {
     if (getSuperstep() < 2) {
       initLatentVector(vectorSize);
       // For L2Norm
-      initialValue = getValue().getLatentVector();
+      initialValue = new DoubleArrayListWritable(getValue().getLatentVector());
     }
     // Set flag for items - used in the Output Format
     if (getSuperstep() == 1) {
