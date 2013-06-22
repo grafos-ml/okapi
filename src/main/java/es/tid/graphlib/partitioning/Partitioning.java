@@ -35,6 +35,15 @@ public class Partitioning extends Vertex<IntWritable,
   public static final String NUM_PARTITIONS = "partitioning.num.partition";
   /** Default value for parameter regarding number of partitions */
   public static final int NUM_PARTITIONS_DEFAULT = 1;
+  /** Keyword for parameter setting the number of iterations */
+  public static final String ITERATIONS_KEYWORD = "partitioning.iterations";
+  /** Default value for ITERATIONS */
+  public static final int ITERATIONS_DEFAULT = 10;
+  /** Keyword for parameter setting the number of stabilization rounds */
+  public static final String STABILIZATION_KEYWORD =
+    "partitioning.stabilization";
+  /** Default value for stabilization rounds */
+  public static final int STABILIZATION_DEFAULT = 30;
   /** Keyword for parameter enabling delta caching */
   public static final String DELTA_CACHING = "partitioning.delta.caching";
   /** Default value for parameter enabling delta caching */
@@ -43,12 +52,12 @@ public class Partitioning extends Vertex<IntWritable,
   public static final String AGGREGATOR_CAPACITY_PREFIX = "AGG_CAP_";
   /** String prefix for aggregators summing the partitions demand */
   public static final String AGGREGATOR_DEMAND_PREFIX = "AGG_DEM_";
+  /** Name of aggregator counting the local edges */
+  public static final String AGGREGATOR_COUNT_LOCAL_EDGES = "AGG_COUNT";
   /** New object IntWritable with the value 1 */
   public static final IntWritable PLUS_ONE = new IntWritable(1);
   /** New object IntWritable with the value -1 */
   public static final IntWritable MINUS_ONE = new IntWritable(-1);
-  /** Iterations */
-  public static final int ITERATIONS = 60;
   /** Counter of number of migrations */
   private int countMigrations = 0;
   /** Initial value of vertex - Partition Id the vertex was assigned to */
@@ -74,9 +83,13 @@ public class Partitioning extends Vertex<IntWritable,
    * @param messages Messages received
    */
   public void compute(Iterable<IntMessageWrapper> messages) {
+    int iterations = getContext().getConfiguration().
+      getInt(ITERATIONS_KEYWORD, ITERATIONS_DEFAULT);
+    int stabilization = getContext().getConfiguration().
+      getInt(STABILIZATION_KEYWORD, STABILIZATION_DEFAULT);
 
     /* Halt Condition */
-    if (stabilizationRounds == 30 || getSuperstep() > ITERATIONS) {
+    if (stabilizationRounds == stabilization || getSuperstep() > iterations) {
       /*System.out.println("stabilizationRounds: " + stabilizationRounds +
         ", getSuperstep(): " + getSuperstep());*/
       voteToHalt();
@@ -158,11 +171,11 @@ public class Partitioning extends Vertex<IntWritable,
          */
         for (Map.Entry<Integer, Double> partition:
           weightedPartition.entrySet()){
-          System.out.println("getKey:" + partition.getKey());
+          //System.out.println("getKey:" + partition.getKey());
         }
         for (Map.Entry<Integer, Double> partition :
           weightedPartition.entrySet()) {
-          System.out.println("I want the value from " + AGGREGATOR_CAPACITY_PREFIX + partition.getKey());
+          //System.out.println("I want the value from " + AGGREGATOR_CAPACITY_PREFIX + partition.getKey());
           int load = ((IntWritable)
             getAggregatedValue(AGGREGATOR_CAPACITY_PREFIX +
               partition.getKey())).get();
@@ -184,12 +197,7 @@ public class Partitioning extends Vertex<IntWritable,
           /*System.out.println("  [AGG_DEM_SEND] I want to migrate to " +
             migrate2partition); */
         }
-      } else {
-        /*System.out.println("No migration this time! (probability small)");*/
-        //XXX Can the vertex voteToHalt() at this point?
-        //voteToHalt();
       }
-
       return;
     } // EoF Odd Supersteps
 
@@ -217,8 +225,8 @@ public class Partitioning extends Vertex<IntWritable,
     if (migrate2partition != getValue().get() && migrate2partition != -1) {
       /*System.out.print("***** SS:" + getSuperstep() + ", vertexID: " + getId() +
         ", from " + getValue() + " want to MIGRATE to: " + migrate2partition); */
-      System.out.println("I want to MIGRATE from " + AGGREGATOR_CAPACITY_PREFIX + getValue()
-          + " to " + AGGREGATOR_CAPACITY_PREFIX + migrate2partition);  
+      /*System.out.println("I want to MIGRATE from " + AGGREGATOR_CAPACITY_PREFIX + getValue()
+          + " to " + AGGREGATOR_CAPACITY_PREFIX + migrate2partition);*/  
       int load = ((IntWritable) getAggregatedValue(
           AGGREGATOR_CAPACITY_PREFIX + migrate2partition)).get();
       int availability = totalCapacity - load;
@@ -236,6 +244,13 @@ public class Partitioning extends Vertex<IntWritable,
           finalProbability + ")"); */
       }
     }
+    int localEdges = 0;
+    for (Edge<IntWritable, IntWritable> edge : getEdges()) {
+      if (edge.getValue().get() == getValue().get()) {
+        localEdges++;
+      }
+    }
+    aggregate(AGGREGATOR_COUNT_LOCAL_EDGES, new IntWritable(localEdges));
   } // EoF compute()
 
   /**
@@ -349,6 +364,12 @@ public class Partitioning extends Vertex<IntWritable,
    */
   public static class MasterCompute extends DefaultMasterCompute {
     @Override
+    public void compute() {
+      System.out.println("S: " + getSuperstep() + " Local/Total: " +
+        getAggregatedValue(AGGREGATOR_COUNT_LOCAL_EDGES) + " / " +
+        getTotalNumEdges());
+    }
+    @Override
     public void initialize() throws InstantiationException,
     IllegalAccessException {
       // Create aggregators - one for each partition
@@ -359,6 +380,7 @@ public class Partitioning extends Vertex<IntWritable,
           IntSumAggregator.class);
         registerAggregator(AGGREGATOR_DEMAND_PREFIX + i,
           IntSumAggregator.class);
+        registerAggregator(AGGREGATOR_COUNT_LOCAL_EDGES, IntSumAggregator.class);
       }
     } // EoF initialize()
   } // EoF class MasterCompute{}
