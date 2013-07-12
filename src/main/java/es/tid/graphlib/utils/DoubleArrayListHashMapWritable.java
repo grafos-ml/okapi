@@ -10,8 +10,9 @@ import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Writable;
 
 /**
- * A Writable implementation for 2 elements First element: sourceValue Second
- * element: neighValues
+ * A Writable implementation for 2 elements
+ * First element: sourceValue
+ * Second element: neighValues
  */
 
 public class DoubleArrayListHashMapWritable implements Writable {

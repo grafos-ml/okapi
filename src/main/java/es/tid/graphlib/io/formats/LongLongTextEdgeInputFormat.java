@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
-import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -36,28 +36,28 @@ import es.tid.graphlib.utils.LongPairVal;
  *
  * Each line consists of: source_vertex, target_vertex
  */
-public class LongFloatTextEdgeInputFormat extends
-    TextEdgeInputFormat<LongWritable, FloatWritable> {
+public class LongLongTextEdgeInputFormat extends
+    TextEdgeInputFormat<LongWritable, DoubleWritable> {
   /** Splitter for endpoints */
   private static final Pattern SEPARATOR = Pattern.compile("[\t ]");
 
   @Override
-  public EdgeReader<LongWritable, FloatWritable> createEdgeReader(
+  public EdgeReader<LongWritable, DoubleWritable> createEdgeReader(
       InputSplit split, TaskAttemptContext context) throws IOException {
-    return new LongLongFloatTextEdgeReader();
+    return new LongLongDoubleTextEdgeReader();
   }
 
   /**
    * {@link org.apache.giraph.io.EdgeReader} associated with
    * {@link LongLongDoubleTextEdgeInputFormat}.
    */
-  public class LongLongFloatTextEdgeReader extends
+  public class LongLongDoubleTextEdgeReader extends
       TextEdgeReaderFromEachLineProcessed<LongPairVal> {
     @Override
     protected LongPairVal preprocessLine(Text line) throws IOException {
       String[] tokens = SEPARATOR.split(line.toString());
       return new LongPairVal(Long.valueOf(tokens[0]),
-          Long.valueOf(tokens[1]), Float.valueOf(tokens[2]));
+          Long.valueOf(tokens[1]), Double.valueOf(tokens[2]));
     }
 
     @Override
@@ -73,9 +73,9 @@ public class LongFloatTextEdgeInputFormat extends
     }
 
     @Override
-    protected FloatWritable getValue(LongPairVal endpoints)
+    protected DoubleWritable getValue(LongPairVal endpoints)
       throws IOException {
-      return new FloatWritable(endpoints.getValue());
+      return new DoubleWritable(endpoints.getValue());
     }
   }
 }
