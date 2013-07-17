@@ -51,8 +51,6 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
   /** Comparator to sort clusters in the list based on their score */
   private final ClusterScoreComparator scoreComparator =
     new ClusterScoreComparator();
-  /** Boundary Edge Score Factor [0,1] - user-defined */
-  private double boundaryEdgeScoreFactor;
 
   /**
    * Compute method
@@ -70,8 +68,8 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
     int clusterCapacity =
       getContext().getConfiguration().getInt(CLUSTER_CAPACITY_KEYWORD,
         CLUSTER_CAPACITY_DEFAULT);
-    // Set the boundary edge score factor
-    boundaryEdgeScoreFactor =
+    // Boundary Edge Score Factor [0,1] - user-defined
+    double boundaryEdgeScoreFactor =
       getContext().getConfiguration().getFloat(SCORE_FACTOR_KEYWORD,
         SCORE_FACTOR_DEFAULT);
 
@@ -95,6 +93,7 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
         MessageWrapper message = new MessageWrapper();
         message.setSourceId(getId());
         message.setMessage(getValue());
+
         sendMessage(edge.getTargetVertexId(), message);
         //System.out.println("send " + message.getMessage().toString() +
         //" to " + edge.getTargetVertexId());
@@ -132,10 +131,10 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
           cluster.verticesList.size() < clusterCapacity) {
           SemiCluster newCluster = new SemiCluster(cluster);
           newCluster.addVertex(this, boundaryEdgeScoreFactor);
-          tempList.add(newCluster);
+          boolean added = tempList.add(newCluster);
           //tempList.addCluster(newCluster);
           System.out.println("Cluster: " + cluster.verticesList.toString() +
-            ", newCluster: " + newCluster.toString() +
+            ", newCluster: " + newCluster.toString() + "added: " + added +
             ", tempList: " + tempList.toString());
         }
       } // END OF WHILE LOOP - (for each cluster)
@@ -151,11 +150,14 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
       }
     }
     System.out.println("---S: " + getSuperstep() + ", id: " + getId() +
-      ", clusterList: " + getValue() + ", clusterList size: " + getValue().size());
+      ", clusterList: " + getValue());
 
     MessageWrapper message = new MessageWrapper();
     message.setSourceId(getId());
     message.setMessage(getValue());
+    for (SemiCluster c: message.getMessage()) {
+      System.out.println(c.toString());
+    }
     sendMessageToAllEdges(message);
     voteToHalt();
   } // END OF Compute()
@@ -182,7 +184,7 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
       } else if (o1.score > o2.score) {
         return -1;
       } else {
-        if (!o1.verticesList.containsAll(o2.verticesList)) {
+        if (!o1.equals(o2)) {
           return 1;
         }
       }
@@ -335,11 +337,17 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
     private HashSet<LongWritable> verticesList;
     /** Score of current semi cluster */
     private double score;
+    /** Inner Score */
+    private double innerScore;
+    /** Boundary Score */
+    private double boundaryScore;
 
     /** Constructor: Create a new empty Cluster */
     public SemiCluster() {
       verticesList = new HashSet<LongWritable>();
       score = 1d;
+      innerScore = 0d;
+      boundaryScore = 0d;
     }
 
     /**
@@ -351,6 +359,8 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
       verticesList = new HashSet<LongWritable>();
       verticesList.addAll(cluster.verticesList);
       score = cluster.score;
+      innerScore = cluster.innerScore;
+      boundaryScore = cluster.boundaryScore;
     }
 
     /**
@@ -362,11 +372,12 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
     vertex, double boundaryEdgeScoreFactor) {
       long vertexId = vertex.getId().get();
       if (verticesList.add(new LongWritable(vertexId))) {
-        score = computeScore(vertex, boundaryEdgeScoreFactor);
-        score = keepXdecimals(score, DECIMALS);
+          this.computeScore(vertex, boundaryEdgeScoreFactor);
+          score = keepXdecimals(score, DECIMALS);
+          innerScore = keepXdecimals(innerScore, DECIMALS);
+          boundaryScore = keepXdecimals(boundaryScore, DECIMALS);
       }
     }
-
     /**
      * Get size of semi cluster list.
      *
@@ -383,23 +394,31 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
      *
      * @return the new score of the cluster
      */
-    private double computeScore(Vertex<LongWritable, ?, DoubleWritable, ?>
+    private void computeScore(Vertex<LongWritable, ?, DoubleWritable, ?>
     vertex, double boundaryEdgeScoreFactor) {
+      /*for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
+        System.out.println("v:" + vertex.getId() + ", target:" +
+          edge.getTargetVertexId() + ", edgeValue:" + edge.getValue());
+      }*/
       if (getSize() == 1) {
-        return 1d;
-      }
-      double innerScore = 0d;
-      double boundaryScore = 0d;
-      for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
-        double targetVertexId = edge.getTargetVertexId().get();
-        if (verticesList.contains(targetVertexId)) {
-          innerScore += edge.getValue().get();
-        } else {
+        score = 1d;
+        for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
           boundaryScore += edge.getValue().get();
         }
+      } else {
+        for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
+          if (verticesList.contains(edge.getTargetVertexId())) {
+            innerScore += edge.getValue().get();
+            boundaryScore -= edge.getValue().get();
+          } else {
+            boundaryScore += edge.getValue().get();
+          }
+        }
+        System.out.println("inner: " + innerScore + " - (boundary: " +
+          boundaryScore + " * " + boundaryEdgeScoreFactor + ") / size:" + getSize());
+        score = (innerScore - (boundaryEdgeScoreFactor * boundaryScore)) /
+          (getSize() * (getSize() - 1) / 2);
       }
-      return (innerScore - (boundaryEdgeScoreFactor * boundaryScore)) /
-        (getSize() * (getSize() - 1) / 2);
     } // End of computeScore()
 
     /**
@@ -476,7 +495,7 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
         builder.append(v.toString());
         builder.append(" ");
       }
-      builder.append(" | " + score + " ]");
+      builder.append(" | " + score + ", " + innerScore + ", " + boundaryScore + " ]");
       return builder.toString();
     }
 
@@ -503,6 +522,9 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
         e.readFields(input);
         verticesList.add(e);
       }
+      score = input.readDouble();
+      innerScore = input.readDouble();
+      boundaryScore = input.readDouble();
     }
 
     @Override
@@ -511,6 +533,9 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
       for (LongWritable vertex: verticesList) {
         vertex.write(output);
       }
+      output.writeDouble(score);
+      output.writeDouble(innerScore);
+      output.writeDouble(boundaryScore);
     }
   } // End of SemiCluster Child Class
 } // End of SemiClustering Parent Class
