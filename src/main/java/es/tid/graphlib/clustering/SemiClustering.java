@@ -26,7 +26,7 @@ import es.tid.graphlib.clustering.SemiClustering.SemiClusterTreeSetWritable;
   description = "It puts vertices into clusters")
 
 public class SemiClustering extends Vertex<LongWritable,
-SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
+SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
 
   /** Keyword for parameter setting the number of iterations */
   public static final String ITERATIONS_KEYWORD = "semi.iterations";
@@ -56,7 +56,7 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
    * Compute method
    * @param messages Messages received
    */
-  public void compute(Iterable<MessageWrapper> messages) {
+  public void compute(Iterable<SemiClusterTreeSetWritable> messages) {
     // Set the number of iterations
     int iterations = getContext().getConfiguration().getInt(ITERATIONS_KEYWORD,
       ITERATIONS_DEFAULT);
@@ -90,9 +90,8 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
         ", clusterList: " + getValue());
       //sendMessageToAllEdges(getValue());
       for (Edge<LongWritable, DoubleWritable> edge : getEdges()) {
-        MessageWrapper message = new MessageWrapper();
-        message.setSourceId(getId());
-        message.setMessage(getValue());
+        SemiClusterTreeSetWritable message = new SemiClusterTreeSetWritable();
+        message.addAll(getValue());
 
         sendMessage(edge.getTargetVertexId(), message);
         //System.out.println("send " + message.getMessage().toString() +
@@ -119,10 +118,10 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
     tempList.addAll(getValue());
 
     // FOR LOOP - for each message/list
-    for (MessageWrapper  message : messages) {
+    for (SemiClusterTreeSetWritable  message : messages) {
       System.out.println("S:" + getSuperstep() + ", id:" + getId() +
-        ", message received " + message.getMessage().toString());
-      for (SemiCluster cluster: message.getMessage()) {
+        ", message received " + message.toString());
+      for (SemiCluster cluster: message) {
       //Iterator<SemiCluster> clusterIter = message.iterator();
       // WHILE LOOP - for each cluster in the message/list
       //while (clusterIter.hasNext()) {
@@ -152,10 +151,9 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
     System.out.println("---S: " + getSuperstep() + ", id: " + getId() +
       ", clusterList: " + getValue());
 
-    MessageWrapper message = new MessageWrapper();
-    message.setSourceId(getId());
-    message.setMessage(getValue());
-    for (SemiCluster c: message.getMessage()) {
+    SemiClusterTreeSetWritable message = new SemiClusterTreeSetWritable();
+    message.addAll(getValue());
+    for (SemiCluster c: message) {
       System.out.println(c.toString());
     }
     sendMessageToAllEdges(message);
