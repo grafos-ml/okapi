@@ -165,6 +165,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
         double predicted = 
           predictRating(message.getMessage(),
             message.getBaselineEstimate().get());
+        System.out.println("SS:" + getSuperstep() + ", predicted: " + predicted);
         err = observed - predicted;
         computeValue(lambda, gamma, err, message.getMessage());
         relativeValuesSum = dotAddition(relativeValuesSum,
@@ -174,6 +175,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
         double predicted = 
           predictRating(message.getMessage(),
             message.getBaselineEstimate().get(), message.getRelativeValue());
+        System.out.println("SS:" + getSuperstep() + ", predicted: " + predicted);
         err = observed - predicted;
         computeValue(lambda, gamma, err, message.getMessage(),
           message.getRelativeValue());
@@ -345,9 +347,23 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     part1 = numMatrixProduct(getNumEdges(), getValue().getRelativeValue());
     part2 = dotAddition(getValue().getLatentVector(), part1);
     double part3 = dotProduct(vvertex, part2);
-    double rating = ((DoubleWritable)
-      getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() +
-      getValue().getBaselineEstimate().get() + otherBaselineEstimate + part3; 
+    double numEdges=0d;
+    if (getSuperstep() < 2) {
+      numEdges = getTotalNumEdges();
+    } else {
+      numEdges = getTotalNumEdges() / (double) 2;
+    }
+    double avgRatings = ((DoubleWritable)
+      getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() / numEdges;
+    /*System.out.println("--avgRatings= " + avgRatings + ", total:" +
+      ((DoubleWritable)
+        getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() + ", edges: " +
+      numEdges);*/
+    double rating = avgRatings + getValue().getBaselineEstimate().get() +
+      otherBaselineEstimate + part3;
+    /*System.out.println("--item: " + ", numEdges * y_i:" + getTotalNumEdges() + " * " + getValue().getRelativeValue() +
+      ", averallRAtings:" + avgRatings +
+      ", bu: " + getValue().getBaselineEstimate() + ",bi: " + otherBaselineEstimate);*/
     return rating;
   }
 
@@ -366,9 +382,19 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     part1 = numMatrixProduct(relativeValues.size(), relativeValues);
     part2 = dotAddition(vvertex, part1);
     double part3 = dotProduct(getValue().getLatentVector(), part2);
-    double rating = ((DoubleWritable)
-      getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() +
-      getValue().getBaselineEstimate().get() + otherBaselineEstimate + part3;
+    double numEdges=0d;
+    if (getSuperstep() < 2) {
+      numEdges = getTotalNumEdges();
+    } else {
+      numEdges = getTotalNumEdges() / (double) 2;
+    }
+    double avgRatings = ((DoubleWritable)
+      getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() / numEdges;
+    double rating = avgRatings + getValue().getBaselineEstimate().get() +
+      otherBaselineEstimate + part3;
+    /*System.out.println("--item: " + ", numEdges * y_i:" + getNumEdges() + " * " + getValue().getRelativeValue() +
+      ", averallRAtings(" + numEdges + "):" + avgRatings +
+      ",bi: " + getValue().getBaselineEstimate() + ", bu: " + otherBaselineEstimate);*/
     return rating;
   }
   /**
@@ -605,18 +631,18 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
       // Set the Convergence Tolerance
       float rmseTolerance = getContext().getConfiguration()
         .getFloat(RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
-      double numRatings=0;
-      double totalRMSE = 0;
-      double avgRatings = 0;
+      double numRatings = 0d;
+      double totalRMSE = 0d;
+      double totalRatings = 0d;
 
       if (getSuperstep() > 1) {
         // In superstep=1 only half edges are created (users to items)
         if (getSuperstep() == 2) {
           numRatings = getTotalNumEdges();
-          avgRatings = ((DoubleWritable)
-            getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() / numRatings;
-          System.out.println("SS:" + getSuperstep() + ", avgRatings: " +
-            avgRatings);
+          totalRatings = ((DoubleWritable)
+            getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get();
+          System.out.println("SS:" + getSuperstep() + ", totalRatings: " +
+            totalRatings);
         } else {
           numRatings = getTotalNumEdges() / 2;
         }
