@@ -122,7 +122,6 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
       for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
         sum += edge.getValue().get();
       }
-      System.out.println("RatingsSum: " + sum);
       this.aggregate(OVERALL_RATING_AGGREGATOR, new DoubleWritable(sum));
     }
     // Set flag for items - used in the Output Format
@@ -364,9 +363,6 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     double otherBaselineEstimate, DoubleArrayListWritable relativeValues){
     DoubleArrayListWritable part1 = new DoubleArrayListWritable();
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
-    System.out.println("SS: " + getSuperstep() + ", id: " + getId()
-      + ", vvertex.size: "+ vvertex.size() +
-      " = relativeValues: " + relativeValues.size());
     part1 = numMatrixProduct(relativeValues.size(), relativeValues);
     part2 = dotAddition(vvertex, part1);
     double part3 = dotProduct(getValue().getLatentVector(), part2);
