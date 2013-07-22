@@ -80,7 +80,9 @@ public class SvdMessageWrapper extends MessageWrapper {
   @Override
   public void readFields(DataInput input) throws IOException {
     super.readFields(input);
+    baselineEstimate = new DoubleWritable();
     baselineEstimate.readFields(input);
+    relativeValue = new DoubleArrayListWritable();
     relativeValue.readFields(input);
   }
 

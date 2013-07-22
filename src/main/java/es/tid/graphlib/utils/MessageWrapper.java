@@ -95,7 +95,6 @@ public class MessageWrapper implements WritableComparable<MessageWrapper> {
   @Override
   public void readFields(DataInput input) throws IOException {
     sourceId = new IntWritable();
-    toString();
     sourceId.readFields(input);
     message = new DoubleArrayListWritable();
     message.readFields(input);
@@ -108,7 +107,6 @@ public class MessageWrapper implements WritableComparable<MessageWrapper> {
    */
   @Override
   public void write(DataOutput output) throws IOException {
-
     if (sourceId == null) {
       throw new IllegalStateException("write: Null destination vertex index");
     }
