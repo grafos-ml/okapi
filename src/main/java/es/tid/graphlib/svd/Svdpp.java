@@ -18,69 +18,74 @@ import es.tid.graphlib.utils.DoubleArrayListWritable;
   name = "SVD++",
   description = "Minimizes the error in users preferences predictions")
 
-public class Svd extends Vertex<IntWritable,
+public class Svdpp extends Vertex<IntWritable,
 DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
+  /** Name of aggregator that aggregates all ratings. */
   public static final String OVERALL_RATING_AGGREGATOR =
     "OVERALL_RATING_AGGREGATOR";
-  /** Keyword for RMSE aggregator tolerance */
+  /** Keyword for RMSE aggregator tolerance. */
   public static final String RMSE_AGGREGATOR = "svd.rmse.aggregator";
-  /** Default value for parameter enabling the RMSE aggregator */
+  /** Default value for parameter enabling the RMSE aggregator. */
   public static final float RMSE_AGGREGATOR_DEFAULT = 0f;
-  /** Keyword for parameter choosing the halt factor */
+  /** Keyword for parameter choosing the halt factor. */
   public static final String HALT_FACTOR = "svd.halt.factor";
-  /** Default value for parameter choosing the halt factor */
+  /** Default value for parameter choosing the halt factor. */
   public static final String HALT_FACTOR_DEFAULT = "basic";
-  /** Keyword for parameter setting the convergence tolerance parameter
+  /** Keyword for parameter setting the convergence tolerance parameter.
    *  depending on the version enabled; l2norm or rmse */
   public static final String TOLERANCE_KEYWORD = "svd.halting.tolerance";
-  /** Default value for TOLERANCE */
+  /** Default value for TOLERANCE. */
   public static final float TOLERANCE_DEFAULT = 1f;
-  /** Keyword for parameter setting the number of iterations */
+  /** Keyword for parameter setting the number of iterations. */
   public static final String ITERATIONS_KEYWORD = "svd.iterations";
-  /** Default value for ITERATIONS */
+  /** Default value for ITERATIONS. */
   public static final int ITERATIONS_DEFAULT = 10;
-  /** Keyword for parameter setting the Regularization parameter LAMBDA */
+  /** Keyword for parameter setting the regularization parameter LAMBDA. */
   public static final String LAMBDA_KEYWORD = "svd.lambda";
-  /** Default value for LABDA */
+  /** Default value for LABDA. */
   public static final float LAMBDA_DEFAULT = 0.01f;
-  /** Keyword for parameter setting the learning rate GAMMA */
+  /** Keyword for parameter setting the learning rate GAMMA. */
   public static final String GAMMA_KEYWORD = "svd.gamma";
-  /** Default value for GAMMA */
+  /** Default value for GAMMA. */
   public static final float GAMMA_DEFAULT = 0.005f;
-  /** Keyword for parameter setting the Latent Vector Size */
+  /** Keyword for parameter setting the Latent Vector Size. */
   public static final String VECTOR_SIZE_KEYWORD = "svd.vector.size";
-  /** Default value for GAMMA */
+  /** Default value for GAMMA. */
   public static final int VECTOR_SIZE_DEFAULT = 2;
-  /** Max rating */
+  /** Max rating. */
   public static final double MAX = 5;
-  /** Min rating */
+  /** Min rating. */
   public static final double MIN = 0;
-  /** Decimals */
+  /** Decimals. */
   public static final int DECIMALS = 4;
-  /** Factor Error: it may be RMSD or L2NORM on initial&final vector */
+  /** Number used in the initialization of values. */
+  public static final double HUNDRED = 100;
+  /** Number used in the keepXdecimals method. */
+  public static final int TEN = 10;
+  /** Factor Error: it may be RMSD or L2NORM on initial&final vector. */
   private double haltFactor = 0d;
-  /** Number of updates - used in the Output Format */
+  /** Number of updates - used in the Output Format. */
   private int updatesNum = 0;
-  /** Type of vertex 0 for user, 1 for item - used in the Output Format*/
+  /** Type of vertex 0 for user, 1 for item - used in the Output Format. */
   private boolean isItem = false;
   /**
-   * Initial vector value to be used for the L2Norm case
+   * Initial vector value to be used for the L2Norm case.
    * Keep it outside the compute() method
    * value has to preserved throughout the supersteps
    */
-  DoubleArrayListWritable initialValue;
+  private DoubleArrayListWritable initialValue;
   /**
-   * Counter of messages received
+   * Counter of messages received.
    * This is different from getNumEdges() because a
    * neighbor may not send a message
    */
   private int messagesNum = 0;
-  
+
   /**
-   * Compute method
+   * Compute method.
    * @param messages Messages received
    */
-  public void compute(Iterable<SvdMessageWrapper> messages) {   
+  public final void compute(final Iterable<SvdMessageWrapper> messages) {
     /** Error between predicted and observed rating */
     double err = 0d;
 
@@ -91,23 +96,23 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
      * Flag for checking which termination factor to use:
      * basic, rmse, l2norm
      */
-    String factorFlag = getContext().getConfiguration().get(HALT_FACTOR,
-      HALT_FACTOR_DEFAULT);
+    String factorFlag = getContext().getConfiguration().get(
+      HALT_FACTOR, HALT_FACTOR_DEFAULT);
     /* Set the number of iterations */
-    int iterations = getContext().getConfiguration().getInt(ITERATIONS_KEYWORD,
-      ITERATIONS_DEFAULT);
+    int iterations = getContext().getConfiguration().getInt(
+      ITERATIONS_KEYWORD, ITERATIONS_DEFAULT);
     /* Set the Convergence Tolerance */
-    float tolerance = getContext().getConfiguration()
-      .getFloat(TOLERANCE_KEYWORD, TOLERANCE_DEFAULT);
+    float tolerance = getContext().getConfiguration().getFloat(
+      TOLERANCE_KEYWORD, TOLERANCE_DEFAULT);
     /* Set the Regularization Parameter LAMBDA */
-    float lambda = getContext().getConfiguration()
-      .getFloat(LAMBDA_KEYWORD, LAMBDA_DEFAULT);
+    float lambda = getContext().getConfiguration().getFloat(
+      LAMBDA_KEYWORD, LAMBDA_DEFAULT);
     /* Set the Learning Rate GAMMA */
-    float gamma = getContext().getConfiguration()
-      .getFloat(GAMMA_KEYWORD, GAMMA_DEFAULT);
+    float gamma = getContext().getConfiguration().getFloat(
+      GAMMA_KEYWORD, GAMMA_DEFAULT);
     /* Set the size of the Latent Vector*/
-    int vectorSize = getContext().getConfiguration()
-      .getInt(VECTOR_SIZE_KEYWORD, VECTOR_SIZE_DEFAULT);
+    int vectorSize = getContext().getConfiguration().getInt(
+      VECTOR_SIZE_KEYWORD, VECTOR_SIZE_DEFAULT);
 
     // First superstep for users (superstep 0) & items (superstep 1)
     // Initialize vertex latent vector and baseline estimate
@@ -118,7 +123,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     }
     // Send sum of ratings to aggregator
     if (getSuperstep() == 0) {
-      double sum=0;
+      double sum = 0;
       for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
         sum += edge.getValue().get();
       }
@@ -134,7 +139,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
 
     // Used for user - to calculate the sum of y_i
     DoubleArrayListWritable relativeValuesSum = new DoubleArrayListWritable();
-    for (int i=0; i < vectorSize; i++) {
+    for (int i = 0; i < vectorSize; i++) {
       relativeValuesSum.add(i, new DoubleWritable(0d));
     }
     // FOR LOOP - for each message
@@ -144,8 +149,8 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
       // 1. Create outgoing edges of items
       // 2. Store the rating given from users in the outgoing edges
       if (getSuperstep() == 1) {
-        double observed = message.getMessage().get(message.getMessage().size() - 1)
-          .get();
+        double observed = message.getMessage().get(
+          message.getMessage().size() - 1).get();
         DefaultEdge<IntWritable, DoubleWritable> edge =
           new DefaultEdge<IntWritable, DoubleWritable>();
         edge.setTargetVertexId(message.getSourceId());
@@ -160,9 +165,9 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
       double observed = (double) getEdgeValue(message.getSourceId()).get();
       computeBaseline(lambda, gamma, err);
       // Change the Vertex Latent Vector based on SVD equation
-      if (!isItem()){
+      if (!isItem()) {
         // Users - supersteps 0, 2, 4, 6, ...
-        double predicted = 
+        double predicted =
           predictRating(message.getMessage(),
             message.getBaselineEstimate().get());
         System.out.println("SS:" + getSuperstep() + ", predicted: " + predicted);
@@ -172,9 +177,10 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
           message.getRelativeValue());
       } else {
         // Items - supersteps 1, 3, 5, 7, ...
-        double predicted = 
+        double predicted =
           predictRating(message.getMessage(),
-            message.getBaselineEstimate().get(), message.getRelativeValue());
+            message.getBaselineEstimate().get(), message.getRelativeValue(),
+            message.getNumEdges());
         System.out.println("SS:" + getSuperstep() + ", predicted: " + predicted);
         err = observed - predicted;
         computeValue(lambda, gamma, err, message.getMessage(),
@@ -191,15 +197,15 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
       getValue().setRelativeValue(relativeValuesSum);
     }
     haltFactor =
-    	      defineFactor(factorFlag, initialValue, tolerance, rmseErr);
+      defineFactor(factorFlag, initialValue, tolerance, rmseErr);
 
     // If RMSE aggregator flag is true - send rmseErr to aggregator
     if (rmseTolerance != 0f) {
       this.aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmseErr));
     }
-   
-    if (getSuperstep() == 0 ||
-      (haltFactor > tolerance && getSuperstep() < iterations)) {
+
+    if (getSuperstep() == 0
+      || (haltFactor > tolerance && getSuperstep() < iterations)) {
       sendMessage();
     }
     // haltFactor is used in the OutputFormat file. --> To print the error
@@ -210,62 +216,66 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   } // END OF compute()
 
   /**
-   * Return type of current vertex
+   * Return type of current vertex.
    *
    * @return item
    */
-  public boolean isItem() {
+  public final boolean isItem() {
     return isItem;
   }
 
-  /** Initialize Vertex Latent Vector
+  /** Initialize Vertex Latent Vector.
+   *
    * @param vectorSize Latent Vector Size
    */
-  public void initValue(int vectorSize) {
+  public final void initValue(final int vectorSize) {
     DoubleArrayListHashMapDoubleWritable value =
       new DoubleArrayListHashMapDoubleWritable();
     // Initialize Latent Vector
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
-        ((double) (getId().get() + i) % 100d) / 100d));
+        ((double) (getId().get() + i) % HUNDRED) / HUNDRED));
     }
     // Initialize Baseline Estimate
     value.setBaselineEstimate(new DoubleWritable(
-      (getId().get() % 100d) / 100d));
+      (getId().get() % HUNDRED) / HUNDRED));
     // Initialize Relative Value
     for (int i = 0; i < vectorSize; i++) {
       value.setRelativeValue(i, new DoubleWritable(
-        ((double) (getId().get() + i) % 100d) / 100d));
+        ((double) (getId().get() + i) % HUNDRED) / HUNDRED));
     }
     setValue(value);
   }
 
   /**
-   * Compute the baseline
+   * Compute the baseline.
    * b = b + gamma * (error - lambda * b)
    *
-   * @param labmda Regularization parameter
+   * @param lambda Regularization parameter
    * @param gamma Learning rate
    * @param err error between predicted and actual rating
    */
-  
-  public void computeBaseline(float lambda, float gamma, double err) {
+
+  public final void computeBaseline(final float lambda, final float gamma,
+    final double err) {
     getValue().setBaselineEstimate(new DoubleWritable(
-      getValue().getBaselineEstimate().get() +
-      gamma * ( err - lambda * getValue().getBaselineEstimate().get())));
+      getValue().getBaselineEstimate().get()
+      + gamma * (err - lambda * getValue().getBaselineEstimate().get())));
   }
 
   /**
-   * Compute Relative Value
+   * Compute Relative Value.
    * y_j = y_j + gamma * (err * numAllEdges * q_i - lambda * y_i)
    *
-   * @param labmda Regularization parameter
+   * @param lambda Regularization parameter
    * @param gamma Learning rate
    * @param err error between predicted and actual rating
+   * @param vvertex Other vertex latent vector
    */
-  
-  public void computeRelativeValue(float lambda, float gamma, double err,
-    DoubleArrayListWritable vvertex) {
+
+  public final void computeRelativeValue(final float lambda,
+    final float gamma, final double err,
+    final DoubleArrayListWritable vvertex) {
     DoubleArrayListWritable part1 = new DoubleArrayListWritable();
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
     DoubleArrayListWritable part3 = new DoubleArrayListWritable();
@@ -273,20 +283,21 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     part1 = numMatrixProduct(err * getNumEdges(), vvertex);
     part2 = numMatrixProduct(lambda, getValue().getRelativeValue());
     part3 = numMatrixProduct(gamma, dotSub(part1, part2));
-    getValue().setRelativeValue(dotAddition(getValue().getRelativeValue(), part3));
+    getValue().setRelativeValue(dotAddition(
+      getValue().getRelativeValue(), part3));
   }
 
   /**
-   * Compute the user's value
+   * Compute the user's value.
    * pu = pu + gamma * (error * qi - lamda * pu)
    *
-   * @param labmda Regularization parameter
+   * @param lambda Regularization parameter
    * @param gamma Learning rate
    * @param err Error between predicted and actual rating
-   * @param qi Other vertex latent vector
+   * @param vvertex Other vertex latent vector
    */
-  public void computeValue(float lambda, float gamma, double err,
-    DoubleArrayListWritable vvertex) {
+  public final void computeValue(final float lambda, final float gamma,
+    final double err, final DoubleArrayListWritable vvertex) {
     DoubleArrayListWritable part1 = new DoubleArrayListWritable();
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
     DoubleArrayListWritable part3 = new DoubleArrayListWritable();
@@ -302,16 +313,18 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   }
 
   /**
-   * Compute the item's value
+   * Compute the item's value.
    * qi = qi + gamma * (error * (pu + numAllEdges * sum(y_j)) - lamda * qi)
    *
-   * @param labmda Regularization parameter
+   * @param lambda Regularization parameter
    * @param gamma Learning rate
    * @param err Error between predicted and actual rating
-   * @param qi Other vertex latent vector
+   * @param vvertex Other vertex latent vector
+   * @param relativeValues Relative Values
    */
-  public void computeValue(float lambda, float gamma, double err,
-    DoubleArrayListWritable vvertex, DoubleArrayListWritable relativeValues) {
+  public final void computeValue(final float lambda, final float gamma,
+    final double err, final DoubleArrayListWritable vvertex,
+    final DoubleArrayListWritable relativeValues) {
 
     DoubleArrayListWritable part1a = new DoubleArrayListWritable();
     DoubleArrayListWritable part1b = new DoubleArrayListWritable();
@@ -332,22 +345,25 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   }
 
   /**
-   * Compute Predicted Rating when vertex is a user
+   * Compute Predicted Rating when vertex is a user.
    *
    * r_ui = b_ui + dotProduct(q_i * (p_u + numEdges * sum(y_i)))
    * where b_ui = m + b_u + b_i
+   *
    * @param vvertex Neighbor's Latent Vector
-   * @param otherBaselineEstimate
+   * @param otherBaselineEstimate Item's Baseline Estimate
+   *
+   * @return rating Predicted rating
    */
-  public double predictRating(DoubleArrayListWritable vvertex,
-    double otherBaselineEstimate){
+  public final double predictRating(final DoubleArrayListWritable vvertex,
+    final double otherBaselineEstimate) {
     DoubleArrayListWritable part1 = new DoubleArrayListWritable();
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
 
     part1 = numMatrixProduct(getNumEdges(), getValue().getRelativeValue());
     part2 = dotAddition(getValue().getLatentVector(), part1);
     double part3 = dotProduct(vvertex, part2);
-    double numEdges=0d;
+    double numEdges = 0d;
     if (getSuperstep() < 2) {
       numEdges = getTotalNumEdges();
     } else {
@@ -359,30 +375,35 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
       ((DoubleWritable)
         getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() + ", edges: " +
       numEdges);*/
-    double rating = avgRatings + getValue().getBaselineEstimate().get() +
-      otherBaselineEstimate + part3;
-    /*System.out.println("--item: " + ", numEdges * y_i:" + getTotalNumEdges() + " * " + getValue().getRelativeValue() +
-      ", averallRAtings:" + avgRatings +
-      ", bu: " + getValue().getBaselineEstimate() + ",bi: " + otherBaselineEstimate);*/
+    double rating = avgRatings + getValue().getBaselineEstimate().get()
+      + otherBaselineEstimate + part3;
     return rating;
   }
 
   /**
-   * Compute Predicted Rating when vertex is an item
+   * Compute Predicted Rating when vertex is an item.
    *
    * r_ui = b_ui + dotProduct(q_i * (p_u + numEdges * sum(y_i)))
    * where b_ui = m + b_u + b_i
+   *
    * @param vvertex Neighbor's Latent Vector
-   * @param otherBaselineEstimate
+   * @param otherBaselineEstimate User's Baseline Estimate
+   * @param relativeValues Relative Values
+   * @param numUserEdges Number of neighbors of user rated this item
+   *
+   * @return rating Predicted rating
    */
-  public double predictRating(DoubleArrayListWritable vvertex,
-    double otherBaselineEstimate, DoubleArrayListWritable relativeValues){
-    DoubleArrayListWritable part1 = new DoubleArrayListWritable();
-    DoubleArrayListWritable part2 = new DoubleArrayListWritable();
-    part1 = numMatrixProduct(relativeValues.size(), relativeValues);
+  public final double predictRating(final DoubleArrayListWritable vvertex,
+    final double otherBaselineEstimate,
+    final DoubleArrayListWritable relativeValues,
+    final IntWritable numUserEdges) {
+    DoubleArrayListWritable part1;
+    DoubleArrayListWritable part2;
+
+    part1 = numMatrixProduct((double) numUserEdges.get(), relativeValues);
     part2 = dotAddition(vvertex, part1);
     double part3 = dotProduct(getValue().getLatentVector(), part2);
-    double numEdges=0d;
+    double numEdges = 0d;
     if (getSuperstep() < 2) {
       numEdges = getTotalNumEdges();
     } else {
@@ -390,38 +411,40 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     }
     double avgRatings = ((DoubleWritable)
       getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() / numEdges;
-    double rating = avgRatings + getValue().getBaselineEstimate().get() +
-      otherBaselineEstimate + part3;
-    /*System.out.println("--item: " + ", numEdges * y_i:" + getNumEdges() + " * " + getValue().getRelativeValue() +
-      ", averallRAtings(" + numEdges + "):" + avgRatings +
-      ",bi: " + getValue().getBaselineEstimate() + ", bu: " + otherBaselineEstimate);*/
+    double rating = avgRatings + getValue().getBaselineEstimate().get()
+      + otherBaselineEstimate + part3;
     return rating;
   }
   /**
-   * Decimal Precision of latent vector values
+   * Decimal Precision of latent vector values.
    *
    * @param value Value to be truncated
    * @param x Number of decimals to keep
    */
-  public void keepXdecimals(DoubleArrayListWritable value, int x) {
-    double num = 1;
-    for (int i = 0; i < x; i++) {
-      num *= 10;
-    }
+  public final void keepXdecimals(final DoubleArrayListWritable value,
+    final int x) {
     for (int i = 0; i < value.size(); i++) {
       value.set(i,
         new DoubleWritable(
-          (double) (Math.round(value.get(i).get() * num) / num)));
+          (double) (Math.round(value.get(i).get() * Math.pow(TEN, x - 1))
+            / Math.pow(TEN, x - 1))));
     }
   }
 
-  /*** Send messages to neighbours */
-  public void sendMessage() {
+  /**
+   * Send messages to neighbors.
+   */
+  public final void sendMessage() {
     // Create a message and wrap together the source id and the message
     SvdMessageWrapper message = new SvdMessageWrapper();
     message.setSourceId(getId());
     message.setBaselineEstimate(getValue().getBaselineEstimate());
     message.setRelativeValue(getValue().getRelativeValue());
+    if (!isItem()) {
+      message.setNumEdges(new IntWritable(getNumEdges()));
+    } else {
+      message.setNumEdges(new IntWritable(0));
+    }
     // At superstep 0, users send rating to items
     if (getSuperstep() == 0) {
       for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
@@ -438,24 +461,24 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   }
 
   /**
-   * Calculate the RMSE on the errors calculated by the current vertex
+   * Calculate the RMSE on the errors calculated by the current vertex.
    *
-   * @param msgCounter Count of messages received
+   * @param rmseErr RMSE error
    * @return RMSE result
    */
-  public double getRMSE(double rmseErr) {
+  public final double getRMSE(final double rmseErr) {
     return Math.sqrt(rmseErr / (double) messagesNum);
   }
 
   /**
-   * Calculate the L2Norm on the initial and final value of vertex
+   * Calculate the L2Norm on the initial and final value of vertex.
    *
    * @param valOld Old value
    * @param valNew New value
    * @return result of L2Norm equation
    * */
-  public double getL2Norm(DoubleArrayListWritable valOld,
-    DoubleArrayListWritable valNew) {
+  public final double getL2Norm(final DoubleArrayListWritable valOld,
+    final DoubleArrayListWritable valNew) {
     double result = 0;
     for (int i = 0; i < valOld.size(); i++) {
       result += Math.pow(valOld.get(i).get() - valNew.get(i).get(), 2);
@@ -464,32 +487,14 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   }
 
   /**
-   * Calculate the error: e=observed-predicted
+   * Calculate the dot product of 2 vectors: vectorA * vectorB.
    *
-   * @param vectorSize Latent Vector Size
-   * @param vectorA Vector A
-   * @param vectorB Vector B
-   * @param observed Observed value
-   * @return Result from deducting observed value from predicted
-   */
-  /*public double getError(DoubleArrayListWritable vectorA,
-    DoubleArrayListWritable vectorB, double observed) {
-    double predicted = dotProduct(vectorA, vectorB);
-    predicted = Math.min(predicted, MAX);
-    predicted = Math.max(predicted, MIN);
-    return predicted - observed;
-  }*/
-
-  /**
-   * Calculate the dot product of 2 vectors: vector1*vector2
-   *
-   * @param vectorSize Latent Vector Size
    * @param vectorA Vector A
    * @param vectorB Vector B
    * @return Result from dot product of 2 vectors
    */
-  public double dotProduct(DoubleArrayListWritable vectorA,
-    DoubleArrayListWritable vectorB) {
+  public final double dotProduct(final DoubleArrayListWritable vectorA,
+    final DoubleArrayListWritable vectorB) {
     double result = 0d;
     for (int i = 0; i < vectorA.size(); i++) {
       result += vectorA.get(i).get() * vectorB.get(i).get();
@@ -498,70 +503,66 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   }
 
   /**
-   * Calculate the dot addition of 2 vectors: vectorA+vectorB
+   * Calculate the dot addition of 2 vectors: vectorA + vectorB.
    *
-   * @param vectorSize Latent Vector Size
    * @param vectorA Vector A
    * @param vectorB Vector B
    * @return result Result from dot addition of the two vectors
    */
-  public DoubleArrayListWritable dotAddition(
-    DoubleArrayListWritable vectorA,
-    DoubleArrayListWritable vectorB) {
+  public final DoubleArrayListWritable dotAddition(
+    final DoubleArrayListWritable vectorA,
+    final DoubleArrayListWritable vectorB) {
     DoubleArrayListWritable result = new DoubleArrayListWritable();
     for (int i = 0; i < vectorA.size(); i++) {
-      result.add(new DoubleWritable
-        (vectorA.get(i).get() + vectorB.get(i).get()));
+      result.add(new DoubleWritable(
+        vectorA.get(i).get() + vectorB.get(i).get()));
     }
     return result;
   }
 
   /**
-   * Calculate the dot addition of 2 vectors: vectorA+vectorB
+   * Calculate the dot addition of 2 vectors: vectorA + vectorB.
    *
-   * @param vectorSize Latent Vector Size
    * @param vectorA Vector A
    * @param vectorB Vector B
    * @return result Result from dot addition of the two vectors
    */
-  public DoubleArrayListWritable dotSub(
-    DoubleArrayListWritable vectorA,
-    DoubleArrayListWritable vectorB) {
+  public final DoubleArrayListWritable dotSub(
+    final DoubleArrayListWritable vectorA,
+    final DoubleArrayListWritable vectorB) {
     DoubleArrayListWritable result = new DoubleArrayListWritable();
     for (int i = 0; i < vectorA.size(); i++) {
-      result.add(new DoubleWritable
-        (vectorA.get(i).get() - vectorB.get(i).get()));
+      result.add(new DoubleWritable(
+        vectorA.get(i).get() - vectorB.get(i).get()));
     }
     return result;
   }
 
   /**
-   * Calculate the product num*matirx
+   * Calculate the product num * matirx.
    *
-   * @param vectorSize Latent Vector Size
    * @param num Number to be multiplied with matrix
    * @param matrix Matrix to be multiplied with number
    * @return result Result from multiplication
    */
-  public DoubleArrayListWritable numMatrixProduct(
-    double num, DoubleArrayListWritable matrix) {
+  public final DoubleArrayListWritable numMatrixProduct(
+    final double num, final DoubleArrayListWritable matrix) {
     DoubleArrayListWritable result = new DoubleArrayListWritable();
     for (int i = 0; i < matrix.size(); i++) {
       result.add(new DoubleWritable(num * matrix.get(i).get()));
     }
     return result;
   }
-  
+
   /**
-   * Calculate the product num*matirx
+   * Calculate the product num * matirx.
    *
-   * @param vectorSize Latent Vector Size
    * @param num Number to be multiplied with matrix
    * @param matrix Matrix to be multiplied with number
    * @return result Result from multiplication
    */
-  public DoubleArrayListWritable numMatrixAddition(
-    double num, DoubleArrayListWritable matrix) {
+  public final DoubleArrayListWritable numMatrixAddition(
+    final double num, final DoubleArrayListWritable matrix) {
     DoubleArrayListWritable result = new DoubleArrayListWritable();
     for (int i = 0; i < matrix.size(); i++) {
       result.add(new DoubleWritable(num + matrix.get(i).get()));
@@ -570,53 +571,55 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   }
 
   /**
-   * Return amount of vertex updates
+   * Return amount of vertex updates.
    *
    * @return updatesNum
    * */
-  public int getUpdates() {
+  public final int getUpdates() {
     return updatesNum;
   }
 
   /**
-   * Return amount messages received
+   * Return amount messages received.
    *
    * @return messagesNum
    * */
-  public int getMessages() {
+  public final int getMessages() {
     return messagesNum;
   }
-  
+
   /**
-   * Return amount of vertex updates
+   * Return amount of vertex updates.
    *
    * @return haltFactor
    * */
-  public double getHaltFactor() {
+  public final double getHaltFactor() {
     return haltFactor;
   }
 
   /**
-   * Define whether the halt factor is "basic", "rmse" or "l2norm"
+   * Define whether the halt factor is "basic", "rmse" or "l2norm".
    *
    * @param factorFlag  Halt factor
-   * @param msgCounter  Number of messages received
-   * @param initialValue Vertex initial value
+   * @param pInitialValue Vertex initial value
+   * @param pTolerance Tolerance
+   * @param rmseErr RMSE error
    *
    * @return factor number of halting barrier
    */
-  public double defineFactor(String factorFlag,
-      DoubleArrayListWritable initialValue, float tolerance, double rmseErr) {
+  public final double defineFactor(final String factorFlag,
+      final DoubleArrayListWritable pInitialValue, final float pTolerance,
+      final double rmseErr) {
     double factor = 0d;
     if (factorFlag.equals("basic")) {
-      factor = tolerance + 1d;
+      factor = pTolerance + 1d;
     } else if (factorFlag.equals("rmse")) {
       factor = getRMSE(rmseErr);
     } else if (factorFlag.equals("l2norm")) {
-      factor = getL2Norm(initialValue, getValue().getLatentVector());
+      factor = getL2Norm(pInitialValue, getValue().getLatentVector());
     } else {
-      throw new RuntimeException("BUG: halt factor " + factorFlag +
-        " is not included in the recognized options");
+      throw new RuntimeException("BUG: halt factor " + factorFlag
+        + " is not included in the recognized options");
     }
     return factor;
   }
@@ -627,7 +630,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   public static class MasterCompute
   extends DefaultMasterCompute {
     @Override
-    public void compute() {
+    public final void compute() {
       // Set the Convergence Tolerance
       float rmseTolerance = getContext().getConfiguration()
         .getFloat(RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
@@ -641,8 +644,8 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
           numRatings = getTotalNumEdges();
           totalRatings = ((DoubleWritable)
             getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get();
-          System.out.println("SS:" + getSuperstep() + ", totalRatings: " +
-            totalRatings);
+          System.out.println("SS:" + getSuperstep() + ", totalRatings: "
+            + totalRatings);
         } else {
           numRatings = getTotalNumEdges() / 2;
         }
@@ -651,9 +654,9 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
         totalRMSE = Math.sqrt(((DoubleWritable)
           getAggregatedValue(RMSE_AGGREGATOR)).get() / numRatings);
 
-        System.out.println("SS:" + getSuperstep() + ", Total RMSE: " +
-          totalRMSE + " = sqrt(" + getAggregatedValue(RMSE_AGGREGATOR) +
-          " / " + numRatings + ")");
+        System.out.println("SS:" + getSuperstep() + ", Total RMSE: "
+        + totalRMSE + " = sqrt(" + getAggregatedValue(RMSE_AGGREGATOR)
+        + " / " + numRatings + ")");
       }
       if (totalRMSE < rmseTolerance) {
         haltComputation();
@@ -661,10 +664,11 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     } // END OF compute()
 
     @Override
-    public void initialize() throws InstantiationException,
+    public final void initialize() throws InstantiationException,
     IllegalAccessException {
       registerAggregator(RMSE_AGGREGATOR, DoubleSumAggregator.class);
-      registerPersistentAggregator(OVERALL_RATING_AGGREGATOR, DoubleSumAggregator.class);
+      registerPersistentAggregator(OVERALL_RATING_AGGREGATOR,
+       DoubleSumAggregator.class);
     }
   }
 }
