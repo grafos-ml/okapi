@@ -360,7 +360,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     DoubleArrayListWritable part1 = new DoubleArrayListWritable();
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
 
-    part1 = numMatrixProduct(getNumEdges(), getValue().getRelativeValue());
+    part1 = numMatrixProduct(1/Math.sqrt(getNumEdges()), getValue().getRelativeValue());
     part2 = dotAddition(getValue().getLatentVector(), part1);
     double part3 = dotProduct(vvertex, part2);
     double numEdges = 0d;
@@ -400,7 +400,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     DoubleArrayListWritable part1;
     DoubleArrayListWritable part2;
 
-    part1 = numMatrixProduct((double) numUserEdges.get(), relativeValues);
+    part1 = numMatrixProduct(1/Math.sqrt(numUserEdges.get()), relativeValues);
     part2 = dotAddition(vvertex, part1);
     double part3 = dotProduct(getValue().getLatentVector(), part2);
     double numEdges = 0d;
