@@ -83,13 +83,14 @@ DoubleWritable, MessageWrapper> {
     // and items.
     if (getSuperstep() == 0) {
       initLatentVector(vectorSize);
-      initialValue = getValue();
     }
     
     // Item vertices do not do anything on the first superstep
     if (getSuperstep() == 0 && getId().toString().startsWith(ITEM_ID_PREFIX)) {
       return;
     }
+    
+    initialValue = getValue();
 
     for (MessageWrapper message : messages) {
       // Calculate error
