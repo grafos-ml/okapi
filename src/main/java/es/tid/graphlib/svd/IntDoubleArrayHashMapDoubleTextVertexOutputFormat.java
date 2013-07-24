@@ -1,19 +1,3 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements. See the NOTICE file distributed with this
- * work for additional information regarding copyright ownership. The ASF
- * licenses this file to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
- * License for the specific language governing permissions and limitations
- * under the License.
- */
 package es.tid.graphlib.svd;
 
 import java.io.IOException;
@@ -36,28 +20,28 @@ public class IntDoubleArrayHashMapDoubleTextVertexOutputFormat
   extends TextVertexOutputFormat
   <IntWritable, DoubleArrayListHashMapDoubleWritable, DoubleWritable> {
 
-  /** Specify the output delimiter */
+  /** Specify the output delimiter. */
   public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
-  /** Default output delimiter */
+  /** Default output delimiter. */
   public static final String LINE_TOKENIZE_VALUE_DEFAULT = "   ";
   /**
-   * Create Vertex Writer
+   * Create Vertex Writer.
    *
    * @param context Context
    * @return new object TextIntIntVertexWriter
    */
-  public TextVertexWriter
-  createVertexWriter(TaskAttemptContext context) {
+  public final TextVertexWriter
+  createVertexWriter(final TaskAttemptContext context) {
     return new TextIntDoubleArrayVertexWriter();
   }
-  /** Class TextIntIntVertexWriter */
+  /** Class TextIntIntVertexWriter. */
   protected class TextIntDoubleArrayVertexWriter
       extends TextVertexWriterToEachLine {
-    /** Saved delimiter */
+    /** Saved delimiter. */
     private String delimiter;
 
     @Override
-    public void initialize(TaskAttemptContext context)
+    public final void initialize(final TaskAttemptContext context)
       throws IOException, InterruptedException {
       super.initialize(context);
       Configuration conf = context.getConfiguration();
@@ -66,8 +50,9 @@ public class IntDoubleArrayHashMapDoubleTextVertexOutputFormat
     }
 
     @Override
-    protected Text convertVertexToLine(Vertex
-      <IntWritable, DoubleArrayListHashMapDoubleWritable, DoubleWritable, ?> vertex)
+    protected final Text convertVertexToLine(final Vertex
+      <IntWritable, DoubleArrayListHashMapDoubleWritable, DoubleWritable, ?>
+      vertex)
       throws IOException {
       boolean isErrorFlag = getContext().getConfiguration().getBoolean(
         "svd.print.error", false);
@@ -77,7 +62,7 @@ public class IntDoubleArrayHashMapDoubleTextVertexOutputFormat
         "svd.print.messages", false);
 
       String type = "";
-      if (((Svd) vertex).isItem()) {
+      if (((Svdpp) vertex).isItem()) {
         type = "item";
       } else {
         type = "user";
@@ -90,17 +75,17 @@ public class IntDoubleArrayHashMapDoubleTextVertexOutputFormat
       Text line = new Text(type + delimiter + id + delimiter + value);
 
       if (isErrorFlag) {
-        error = Double.toString(Math.abs(((Svd) vertex).getHaltFactor()));
+        error = Double.toString(Math.abs(((Svdpp) vertex).getHaltFactor()));
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(error.getBytes(), 0, error.length());
       }
       if (isUpdatesFlag) {
-        updates = Integer.toString(((Svd) vertex).getUpdates());
+        updates = Integer.toString(((Svdpp) vertex).getUpdates());
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(updates.getBytes(), 0, updates.length());
       }
       if (isMessagesFlag) {
-        messages = Integer.toString(((Svd) vertex).getMessages());
+        messages = Integer.toString(((Svdpp) vertex).getMessages());
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(messages.getBytes(), 0, messages.length());
       }

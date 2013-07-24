@@ -10,7 +10,7 @@ import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
 import es.tid.graphlib.utils.DoubleArrayListWritable;
 
 /**
- * A Writable extension of the DoubleArrayListHashMapWritable
+ * A Writable extension of the DoubleArrayListHashMapWritable.
  *
  * It inherits 2 elements
  * First element: sourceValue
@@ -23,11 +23,12 @@ import es.tid.graphlib.utils.DoubleArrayListWritable;
 
 public class DoubleArrayListHashMapDoubleWritable
 extends DoubleArrayListHashMapWritable {
-  /** Observed Deviation */
+  /** Observed Deviation. */
   private DoubleWritable baselineEstimate;
+  /** Relative Value. */
   private DoubleArrayListWritable relativeValue;
 
-  /** Constructor */
+  /** Constructor. */
   public DoubleArrayListHashMapDoubleWritable() {
     super();
     baselineEstimate = new DoubleWritable();
@@ -35,11 +36,12 @@ extends DoubleArrayListHashMapWritable {
   }
 
   /**
-   * Write bytes
+   * Write bytes.
    *
    * @param output Output
+   * @throws IOException for the output
    */
-  public void write(DataOutput output) throws IOException {
+  public final void write(final DataOutput output) throws IOException {
     super.write(output);
     baselineEstimate.write(output);
     output.writeInt(getSize());
@@ -47,11 +49,12 @@ extends DoubleArrayListHashMapWritable {
   }
 
   /**
-   * Read bytes
+   * Read bytes.
    *
    * @param input Input
+   * @throws IOException for the input
    */
-  public void readFields(DataInput input) throws IOException {
+  public final void readFields(final DataInput input) throws IOException {
     super.readFields(input);
     baselineEstimate = new DoubleWritable();
     relativeValue = new DoubleArrayListWritable();
@@ -60,49 +63,50 @@ extends DoubleArrayListHashMapWritable {
   }
 
   /**
-   * Set baseline estimate
+   * Set baseline estimate.
    *
    * @param value Baseline estimate
    */
-  public void setBaselineEstimate(DoubleWritable value) {
+  public final void setBaselineEstimate(final DoubleWritable value) {
     baselineEstimate = value;
   }
-  
+
 
   /**
-   * Get baseline estimate
+   * Get baseline estimate.
    *
    * @return Vertex Baseline Estimate
    */
-  public DoubleWritable getBaselineEstimate() {
+  public final DoubleWritable getBaselineEstimate() {
     return baselineEstimate;
   }
 
   /**
-   * Set array relative value
+   * Set array relative value.
    *
    * @param value Relative Value
    */
-  public void setRelativeValue(DoubleArrayListWritable value) {
+  public final void setRelativeValue(final DoubleArrayListWritable value) {
     relativeValue = value;
   }
 
   /**
-   * Set array relative value
+   * Set array relative value.
    *
    * @param index Index of the vertex Latent vector
    * @param value Relative Value
    */
-  public void setRelativeValue(int index, DoubleWritable value) {
-    relativeValue.add(index,value);
+  public final void setRelativeValue(final int index,
+    final DoubleWritable value) {
+    relativeValue.add(index, value);
   }
 
   /**
-   * Get relative value
+   * Get relative value.
    *
    * @return Vertex Relative Value
    */
-  public DoubleArrayListWritable getRelativeValue() {
+  public final DoubleArrayListWritable getRelativeValue() {
     return relativeValue;
   }
 }

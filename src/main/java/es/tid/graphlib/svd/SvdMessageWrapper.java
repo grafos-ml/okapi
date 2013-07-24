@@ -12,12 +12,14 @@ import es.tid.graphlib.utils.MessageWrapper;
 
 /** This class provides the wrapper for the sending message.*/
 public class SvdMessageWrapper extends MessageWrapper {
-  /** Baseline Estimate */
+  /** Baseline Estimate. */
   private DoubleWritable baselineEstimate;
-  /** Relative Value */
+  /** Relative Value. */
   private DoubleArrayListWritable relativeValue;
+  /** Number of user's  neighbours (outgoing edges). */
+  private IntWritable numEdges;
 
-  /** Constructor */
+  /** Constructor. */
   public SvdMessageWrapper() {
     super();
   }
@@ -26,90 +28,121 @@ public class SvdMessageWrapper extends MessageWrapper {
    * Constructor.
    * @param sourceId Vertex Source Id
    * @param message Message
-   * @param relativeValue Relative Value
+   * @param pBaselineEstimate Baseline Estimate
+   * @param pRelativeValue Relative Value
+   * @param pNumEdges Number of Edges
    */
-  public SvdMessageWrapper(IntWritable sourceId,
-      DoubleArrayListWritable message, DoubleWritable baselineEstimate,
-      DoubleArrayListWritable relativeValue) {
+  public SvdMessageWrapper(final IntWritable sourceId,
+      final DoubleArrayListWritable message,
+      final DoubleWritable pBaselineEstimate,
+      final DoubleArrayListWritable pRelativeValue,
+      final IntWritable pNumEdges) {
     super(sourceId, message);
-    this.baselineEstimate = baselineEstimate;
-    this.relativeValue = relativeValue;
+    baselineEstimate = pBaselineEstimate;
+    relativeValue = pRelativeValue;
+    numEdges = pNumEdges;
   }
 
   /**
-   * Return Baseline Estimate
+   * Return Baseline Estimate.
    *
    * @return baselineEstimate Baseline
    */
-  public DoubleWritable getBaselineEstimate() {
+  public final DoubleWritable getBaselineEstimate() {
     return baselineEstimate;
   }
 
   /**
-   * Set Baseline Estimate
+   * Set Baseline Estimate.
    *
-   * @param baselineEstimate
+   * @param pBaselineEstimate Baseline Estimate
    */
-  public void setBaselineEstimate(DoubleWritable baselineEstimate) {
-    this.baselineEstimate = baselineEstimate;
+  public final void setBaselineEstimate(
+    final DoubleWritable pBaselineEstimate) {
+    this.baselineEstimate = pBaselineEstimate;
   }
 
   /**
-   * Return Relative Value
+   * Set Relative Value.
+   *
+   * @param pRelativeValue Relative value
+   */
+  public final void setRelativeValue(
+    final DoubleArrayListWritable pRelativeValue) {
+    this.relativeValue = pRelativeValue;
+  }
+
+  /**
+   * Return Relative Value.
    *
    * @return relative Value Relative Value
    */
-  public DoubleArrayListWritable getRelativeValue() {
+  public final DoubleArrayListWritable getRelativeValue() {
     return relativeValue;
   }
 
   /**
-   * Set Relative Value
+   * Set number of user's neighbors.
    *
-   * @param relativeValue Relative value
+   * @param pNumEdges Number of edges
    */
-  public void setRelativeValue(DoubleArrayListWritable relativeValue) {
-    this.relativeValue = relativeValue;
+  public final void setNumEdges(final IntWritable pNumEdges) {
+    numEdges = pNumEdges;
   }
 
   /**
-   * Read Fields
+   * Return user's neighbors.
+   *
+   * @return numEdges Number of edges
+   */
+  public final IntWritable getNumEdges() {
+    return numEdges;
+  }
+
+  /**
+   * Read Fields.
    *
    * @param input Input
+   * @throws IOException for input
    */
   @Override
-  public void readFields(DataInput input) throws IOException {
+  public final void readFields(final DataInput input) throws IOException {
     super.readFields(input);
     baselineEstimate = new DoubleWritable();
     baselineEstimate.readFields(input);
     relativeValue = new DoubleArrayListWritable();
     relativeValue.readFields(input);
+    numEdges = new IntWritable();
+    numEdges.readFields(input);
   }
 
   /**
-   * Write Fields
+   * Write Fields.
    *
    * @param output Output
+   * @throws IOException for output
    */
   @Override
-  public void write(DataOutput output) throws IOException {
+  public final void write(final DataOutput output) throws IOException {
     super.write(output);
     baselineEstimate.write(output);
     relativeValue.write(output);
+    numEdges.write(output);
   }
 
   /**
-   * Return Message to the form of a String
+   * Return Message to the form of a String.
    *
    * @return String object
    */
   @Override
-  public String toString() {
-    return "MessageWrapper{" +
-      ", sourceId=" + super.getSourceId() +
-      ", message=" + super.getMessage() +
-      ", baseline=" + baselineEstimate +
-      ", relative=" + relativeValue +
-      '}';
+  public final String toString() {
+    return "MessageWrapper{"
+      + ", sourceId=" + super.getSourceId()
+      + ", message=" + super.getMessage()
+      + ", baseline=" + baselineEstimate
+      + ", relative=" + relativeValue
+      + ", numEdges=" + numEdges
+      + '}';
   }
 }
