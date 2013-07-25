@@ -23,55 +23,58 @@ import es.tid.graphlib.clustering.SemiClustering.SemiClusterTreeSetWritable;
  */
 @Algorithm(
   name = "Semi Clustering",
-  description = "It puts vertices into clusters")
+  description = "Put vertices into clusters.")
 
 public class SemiClustering extends Vertex<LongWritable,
 SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
 
-  /** Keyword for parameter setting the number of iterations */
+  /** Keyword for parameter setting the number of iterations. */
   public static final String ITERATIONS_KEYWORD = "semi.iterations";
-  /** Default value for ITERATIONS */
+  /** Default value for ITERATIONS. */
   public static final int ITERATIONS_DEFAULT = 10;
-  /** Keyword for parameter setting the Maximum number of Semi-Clusters */
+  /** Keyword for parameter setting the Maximum number of Semi-Clusters. */
   public static final String CLUSTER_LIST_CAPACITY_KEYWORD =
     "semi.clusters.max";
-  /** Default value for Maximum Number of Semi-Clusters */
+  /** Default value for Maximum Number of Semi-Clusters. */
   public static final int CLUSTER_LIST_CAPACITY_DEFAULT = 2;
-  /** Keyword for parameter setting the Maximum No of vertices in a cluster */
+  /** Keyword for parameter setting the Maximum No of vertices in a cluster. */
   public static final String CLUSTER_CAPACITY_KEYWORD =
     "semi.cluster.capacity";
-  /** Default value for CAPACITY */
+  /** Default value for CAPACITY. */
   public static final int CLUSTER_CAPACITY_DEFAULT = 4;
-  /** Keyword for parameter setting the Boundary Edge Score Factor */
+  /** Keyword for parameter setting the Boundary Edge Score Factor. */
   public static final String SCORE_FACTOR_KEYWORD = "semi.score.factor";
-  /** Default value for Boundary Edge Score Factor */
+  /** Default value for Boundary Edge Score Factor. */
   public static final float SCORE_FACTOR_DEFAULT = 0.5f;
-  /** Decimals for the value of score */
+  /** Decimals for the value of score. */
   public static final int DECIMALS = 4;
-  /** Comparator to sort clusters in the list based on their score */
+  /** Number used in the keepXdecimals method. */
+  public static final int TEN = 10;
+  /** Comparator to sort clusters in the list based on their score. */
   private final ClusterScoreComparator scoreComparator =
     new ClusterScoreComparator();
 
   /**
-   * Compute method
+   * Compute method.
    * @param messages Messages received
    */
-  public void compute(Iterable<SemiClusterTreeSetWritable> messages) {
+  public final void compute(
+    final Iterable<SemiClusterTreeSetWritable> messages) {
     // Set the number of iterations
-    int iterations = getContext().getConfiguration().getInt(ITERATIONS_KEYWORD,
-      ITERATIONS_DEFAULT);
+    int iterations = getContext().getConfiguration().getInt(
+      ITERATIONS_KEYWORD, ITERATIONS_DEFAULT);
     // Set the maximum number of clusters
     int clusterListCapacity =
-      getContext().getConfiguration().getInt(CLUSTER_LIST_CAPACITY_KEYWORD,
-        CLUSTER_LIST_CAPACITY_DEFAULT);
+      getContext().getConfiguration().getInt(
+        CLUSTER_LIST_CAPACITY_KEYWORD, CLUSTER_LIST_CAPACITY_DEFAULT);
     // Set the number of iterations
     int clusterCapacity =
-      getContext().getConfiguration().getInt(CLUSTER_CAPACITY_KEYWORD,
-        CLUSTER_CAPACITY_DEFAULT);
+      getContext().getConfiguration().getInt(
+        CLUSTER_CAPACITY_KEYWORD, CLUSTER_CAPACITY_DEFAULT);
     // Boundary Edge Score Factor [0,1] - user-defined
     double boundaryEdgeScoreFactor =
-      getContext().getConfiguration().getFloat(SCORE_FACTOR_KEYWORD,
-        SCORE_FACTOR_DEFAULT);
+      getContext().getConfiguration().getFloat(
+        SCORE_FACTOR_KEYWORD, SCORE_FACTOR_DEFAULT);
 
     // In the first superstep:
     // 1. Create an empty list of clusters
@@ -86,8 +89,8 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       myCluster.addVertex(this, boundaryEdgeScoreFactor);
       clusterList.add(myCluster);
       setValue(clusterList);
-      System.out.println("---S: " + getSuperstep() + ", id: " + getId() +
-        ", clusterList: " + getValue());
+      System.out.println("---S: " + getSuperstep() + ", id: " + getId()
+        + ", clusterList: " + getValue());
       //sendMessageToAllEdges(getValue());
       for (Edge<LongWritable, DoubleWritable> edge : getEdges()) {
         SemiClusterTreeSetWritable message = new SemiClusterTreeSetWritable();
@@ -119,22 +122,22 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
 
     // FOR LOOP - for each message/list
     for (SemiClusterTreeSetWritable  message : messages) {
-      System.out.println("S:" + getSuperstep() + ", id:" + getId() +
-        ", message received " + message.toString());
+      System.out.println("S:" + getSuperstep() + ", id:" + getId()
+        + ", message received " + message.toString());
       for (SemiCluster cluster: message) {
       //Iterator<SemiCluster> clusterIter = message.iterator();
       // WHILE LOOP - for each cluster in the message/list
       //while (clusterIter.hasNext()) {
         //SemiCluster cluster = new SemiCluster(clusterIter.next());
-        if (!cluster.verticesList.contains(getId()) &&
-          cluster.verticesList.size() < clusterCapacity) {
+        if (!cluster.verticesList.contains(getId())
+          && cluster.verticesList.size() < clusterCapacity) {
           SemiCluster newCluster = new SemiCluster(cluster);
           newCluster.addVertex(this, boundaryEdgeScoreFactor);
           boolean added = tempList.add(newCluster);
           //tempList.addCluster(newCluster);
-          System.out.println("Cluster: " + cluster.verticesList.toString() +
-            ", newCluster: " + newCluster.toString() + "added: " + added +
-            ", tempList: " + tempList.toString());
+          System.out.println("Cluster: " + cluster.verticesList.toString()
+            + ", newCluster: " + newCluster.toString() + "added: " + added
+            + ", tempList: " + tempList.toString());
         }
       } // END OF WHILE LOOP - (for each cluster)
     } // END OF FOR LOOP - (for each message/list)
@@ -148,8 +151,8 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
         setValue(value);
       }
     }
-    System.out.println("---S: " + getSuperstep() + ", id: " + getId() +
-      ", clusterList: " + getValue());
+    System.out.println("---S: " + getSuperstep() + ", id: " + getId()
+      + ", clusterList: " + getValue());
 
     SemiClusterTreeSetWritable message = new SemiClusterTreeSetWritable();
     message.addAll(getValue());
@@ -164,19 +167,19 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
    ***************************************************************************
    ***************************************************************************
    */
-  /** Utility class for facilitating the  sorting of the cluster list */
+  /** Utility class for facilitating the  sorting of the cluster list. */
   private class ClusterScoreComparator implements Comparator<SemiCluster> {
     @Override
-    /** 
-     * Compare two objects for order. 
+    /**
+     * Compare two objects for order.
      * @param o1 the first object
      * @param o2 the second object
      *
      * @return -1 if score for object1 is smaller than score of object2,
      * 1 if score for object2 is smaller than score of object1
      * or 0 if both scores are the same
-     */ 
-    public int compare(SemiCluster o1, SemiCluster o2) {
+     */
+    public int compare(final SemiCluster o1, final SemiCluster o2) {
       if (o1.score < o2.score) {
         return 1;
       } else if (o1.score > o2.score) {
@@ -194,12 +197,18 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
    ***************************************************************************
    */
   /**
-   * Utility class for delivering the array of clusters THIS vertex belongs to
+   * Utility class for delivering the array of clusters
+   * THIS vertex belongs to.
    */
   public static class SemiClusterTreeSetWritable extends TreeSet<SemiCluster>
   implements WritableComparable<SemiClusterTreeSetWritable> {
     /**
-     * Default Constructor
+     * Serialization Number.
+     */
+    private static final long serialVersionUID = 2187166892916963064L;
+
+    /**
+     * Default Constructor.
      */
     public SemiClusterTreeSetWritable() {
       super();
@@ -207,24 +216,25 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
     }
 
     /**
-     * Constructor
+     * Constructor.
      *
      * @param c Comparator object to sort clusterList with the score
      */
-    public SemiClusterTreeSetWritable(ClusterScoreComparator c) {
+    public SemiClusterTreeSetWritable(final ClusterScoreComparator c) {
       super(c);
       //clusterList = new TreeSet<SemiCluster>();
     }
 
-    /** Add a semi cluster in the list of clusters
+    /** Add a semi cluster in the list of clusters.
      *
      * @param c Semi cluster to be added
      */
-    void addCluster(SemiCluster c) {
+    final void addCluster(final SemiCluster c) {
       add(c);
     }
 
-    /** CompareTo
+    /**
+     * CompareTo method.
      * Two lists of semi clusters are the same when:
      * --> they have the same number of clusters
      * --> all their clusters are the same, i.e. contain the same vertices
@@ -234,7 +244,7 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
      *
      * @return return 0 if two lists are the same
      */
-    public int compareTo(SemiClusterTreeSetWritable other) {
+    public final int compareTo(final SemiClusterTreeSetWritable other) {
       if (this.size() < other.size()) {
         return -1;
       }
@@ -251,35 +261,14 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       return 0;
     }
 
-    /** Equals
-     * Two lists of semi clusters are equal when:
-     * --> they have the same number of clusters
-     * --> all their clusters are the same, i.e. contain the same vertices
-     * For each cluster, check if it exists in the other list of semi clusters
+    /**
+     * Read Fields.
      *
-     * @param other A list with clusters to be compared if it is equal
-     * with the current list
-     *
-     * @return return true if two lists are equal, otherwise false
+     * @param input Input to be read.
+     * @throws IOException for IO.
      */
-/*
-    public boolean equals2(SemiClusterTreeSetWritable other) {
-      if (this.size() < other.size() || this.size() > other.size()) {
-        return false;
-      }
-      Iterator<SemiCluster> iterator1 = this.iterator();
-      Iterator<SemiCluster> iterator2 = other.iterator();
-      while (iterator1.hasNext()) {
-        if (!iterator1.next().equals(iterator2.next())) {
-          return false;
-        }
-      }
-      return true;
-    }
-*/
-
     @Override
-    public void readFields(DataInput input) throws IOException {
+    public final void readFields(final DataInput input) throws IOException {
       //clusterList = new TreeSet<SemiCluster>();
       int size = input.readInt();
       for (int i = 0; i < size; i++) {
@@ -289,29 +278,27 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       }
     }
 
+    /**
+     * Write Fields.
+     *
+     * @param output Output to be written.
+     * @throws IOException for IO.
+     */
     @Override
-    public void write(DataOutput output) throws IOException {
+    public final void write(final DataOutput output) throws IOException {
       output.writeInt(size());
       for (SemiCluster c : this) {
         c.write(output);
       }
     }
-/*
+
+    /**
+     * Convert object to String object.
+     *
+     * @return String object.
+     */
     @Override
-    public String toString() {
-      StringBuilder builder = new StringBuilder();
-      for (SemiCluster c: this) {
-        builder.append("[ ");
-        for (LongWritable v: c.verticesList) {
-          builder.append(v.toString());
-          builder.append(' ');
-        }
-        builder.append(" ] ");
-      }
-      return builder.toString();
-    }*/
-    @Override
-    public String toString() {
+    public final String toString() {
       StringBuilder builder = new StringBuilder();
       for (SemiCluster v: this) {
         builder.append(v.toString() + " ");
@@ -326,21 +313,21 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
   ****************************************************************************
   */
   /**
-   * Class SemiCluster
+   * Class SemiCluster.
    */
   public static class SemiCluster
     implements Writable, Comparable<SemiCluster> {
 
-    /** List of Vertices belonged to current semi cluster */
+    /** List of Vertices belonged to current semi cluster. */
     private HashSet<LongWritable> verticesList;
-    /** Score of current semi cluster */
+    /** Score of current semi cluster. */
     private double score;
-    /** Inner Score */
+    /** Inner Score. */
     private double innerScore;
-    /** Boundary Score */
+    /** Boundary Score. */
     private double boundaryScore;
 
-    /** Constructor: Create a new empty Cluster */
+    /** Constructor: Create a new empty Cluster. */
     public SemiCluster() {
       verticesList = new HashSet<LongWritable>();
       score = 1d;
@@ -349,11 +336,11 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
     }
 
     /**
-     * Constructor: Initialize a new Cluster
+     * Constructor: Initialize a new Cluster.
      *
      * @param cluster cluster object to initialize the new object
      */
-    public SemiCluster(SemiCluster cluster) {
+    public SemiCluster(final SemiCluster cluster) {
       verticesList = new HashSet<LongWritable>();
       verticesList.addAll(cluster.verticesList);
       score = cluster.score;
@@ -362,12 +349,14 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
     }
 
     /**
-     * Add a vertex to the cluster and recalculate the score
+     * Add a vertex to the cluster and recalculate the score.
      *
      * @param vertex The new vertex to be added into the cluster
+     * @param boundaryEdgeScoreFactor Boundary Edge Score Factor
      */
-    public void addVertex(Vertex<LongWritable, ?, DoubleWritable, ?>
-    vertex, double boundaryEdgeScoreFactor) {
+    public final void addVertex(
+      final Vertex<LongWritable, ?, DoubleWritable, ?>
+      vertex, final double boundaryEdgeScoreFactor) {
       long vertexId = vertex.getId().get();
       if (verticesList.add(new LongWritable(vertexId))) {
           this.computeScore(vertex, boundaryEdgeScoreFactor);
@@ -381,19 +370,20 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
      *
      * @return Number of semi clusters in the list
      */
-    public int getSize() {
+    public final int getSize() {
       return verticesList.size();
     }
 
     /**
-     * Compute the score of the semi-cluster
+     * Compute the score of the semi-cluster.
      *
      * @param vertex The recently added vertex
+     * @param boundaryEdgeScoreFactor Boundary Edge Score Factor
      *
-     * @return the new score of the cluster
      */
-    private void computeScore(Vertex<LongWritable, ?, DoubleWritable, ?>
-    vertex, double boundaryEdgeScoreFactor) {
+    private void computeScore(
+      final Vertex<LongWritable, ?, DoubleWritable, ?>
+      vertex, final double boundaryEdgeScoreFactor) {
       /*for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
         System.out.println("v:" + vertex.getId() + ", target:" +
           edge.getTargetVertexId() + ", edgeValue:" + edge.getValue());
@@ -412,33 +402,35 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
             boundaryScore += edge.getValue().get();
           }
         }
-        System.out.println("inner: " + innerScore + " - (boundary: " +
-          boundaryScore + " * " + boundaryEdgeScoreFactor + ") / size:" + getSize());
-        score = (innerScore - (boundaryEdgeScoreFactor * boundaryScore)) /
-          (getSize() * (getSize() - 1) / 2);
+        System.out.println("inner: " + innerScore + " - (boundary: "
+        + boundaryScore + " * " + boundaryEdgeScoreFactor
+        + ") / size:" + getSize());
+        score = (innerScore - (boundaryEdgeScoreFactor * boundaryScore))
+          / (getSize() * (getSize() - 1) / 2);
       }
     } // End of computeScore()
 
     /**
-     * Return the list of vertices belonging to current semi cluster
+     * Return the list of vertices belonging to current semi cluster.
+     *
      * @return List of vertices belonging to current semi cluster
      */
-    public HashSet<LongWritable> getVerticesList() {
+    public final HashSet<LongWritable> getVerticesList() {
       return verticesList;
     }
 
-    /** CompareTo
+    /** CompareTo method.
      * Two semi clusters are the same when:
      * --> they have the same number of vertices
      * --> all their vertices are the same
      * For each vertex, check if it exists in the other cluster
      *
-     * @param cluster Cluster to be compared with current cluster
+     * @param other Cluster to be compared with current cluster
      *
      * @return 0 if two clusters are the same
      */
     @Override
-    public int compareTo(SemiCluster other) {
+    public final int compareTo(final SemiCluster other) {
       if (other == null) {
         return 1;
       }
@@ -454,17 +446,30 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       return -1;
     }
 
+    /**
+     * hashCode method.
+     *
+     * @return result HashCode result
+     */
     @Override
-    public int hashCode() {
+    public final int hashCode() {
       final int prime = 31;
       int result = 1;
-      result = prime * result
-        + ((verticesList == null) ? 0 : verticesList.hashCode());
+      result = prime * result;
+      if (verticesList != null) {
+        result += verticesList.hashCode();
+      }
       return result;
     }
 
+    /**
+     * Equals method.
+     *
+     * @param obj Object to compare if it is equal with.
+     * @return boolean result.
+     */
     @Override
-    public boolean equals(Object obj) {
+    public final boolean equals(final Object obj) {
       if (this == obj) {
         return true;
       }
@@ -485,34 +490,44 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       return true;
     }
 
+    /**
+     * Convert object to string object.
+     *
+     * @return string object
+     */
     @Override
-    public String toString() {
+    public final String toString() {
       StringBuilder builder = new StringBuilder();
       builder.append("[ ");
       for (LongWritable v: this.verticesList) {
         builder.append(v.toString());
         builder.append(" ");
       }
-      builder.append(" | " + score + ", " + innerScore + ", " + boundaryScore + " ]");
+      builder.append(" | " + score + ", " + innerScore + ", "
+      + boundaryScore + " ]");
       return builder.toString();
     }
 
     /**
-     * Decimal Precision of latent vector values
+     * Decimal Precision of latent vector values.
      *
      * @param value Value to be truncated
      * @param x Number of decimals to keep
+     *
+     * @return value with X decimals
      */
-    public double keepXdecimals(Double value, int x) {
-      double num = 1;
-      for (int i = 0; i < x; i++) {
-        num *= 10;
-      }
-      return Math.round(value * num) / num;
+    public final double keepXdecimals(final Double value, final int x) {
+      return Math.round(value * Math.pow(TEN, x - 1)) / Math.pow(TEN, x - 1);
     }
 
+    /**
+     * Read fields.
+     *
+     * @param input Input to be read.
+     * @throws IOException for IO.
+     */
     @Override
-    public void readFields(DataInput input) throws IOException {
+    public final void readFields(final DataInput input) throws IOException {
       verticesList = new HashSet<LongWritable>();
       int size = input.readInt();
       for (int i = 0; i < size; i++) {
@@ -525,8 +540,14 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       boundaryScore = input.readDouble();
     }
 
+    /**
+     * Write fields.
+     *
+     * @param output Output to be written.
+     * @throws IOException for IO.
+     */
     @Override
-    public void write(DataOutput output) throws IOException {
+    public final void write(final DataOutput output) throws IOException {
       output.writeInt(getSize());
       for (LongWritable vertex: verticesList) {
         vertex.write(output);
