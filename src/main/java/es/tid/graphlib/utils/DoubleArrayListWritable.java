@@ -2,9 +2,16 @@ package es.tid.graphlib.utils;
 
 import org.apache.giraph.utils.ArrayListWritable;
 import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.WritableComparable;
 
 public class DoubleArrayListWritable
-  extends ArrayListWritable<DoubleWritable> {
+  extends ArrayListWritable<DoubleWritable>
+  implements WritableComparable<DoubleArrayListWritable>{
+
+  /**
+   * Serialization number.
+   */
+  private static final long serialVersionUID = 5968423975161632117L;
 
   /** Default constructor for reflection */
   public DoubleArrayListWritable() {

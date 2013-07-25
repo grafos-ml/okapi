@@ -8,6 +8,7 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 
 import es.tid.graphlib.utils.DoubleArrayListWritable;
 
@@ -18,7 +19,7 @@ import es.tid.graphlib.utils.DoubleArrayListWritable;
   name = "SVD++",
   description = "Minimizes the error in users preferences predictions")
 
-public class Svdpp extends Vertex<IntWritable,
+public class Svdpp extends Vertex<Text,
 DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   /** Name of aggregator that aggregates all ratings. */
   public static final String OVERALL_RATING_AGGREGATOR =
@@ -42,7 +43,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   public static final int ITERATIONS_DEFAULT = 10;
   /** Keyword for parameter setting the regularization parameter LAMBDA. */
   public static final String LAMBDA_KEYWORD = "svd.lambda";
-  /** Default value for LABDA. */
+  /** Default value for LAMBDA. */
   public static final float LAMBDA_DEFAULT = 0.01f;
   /** Keyword for parameter setting the learning rate GAMMA. */
   public static final String GAMMA_KEYWORD = "svd.gamma";
@@ -68,6 +69,8 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
   private int updatesNum = 0;
   /** Type of vertex 0 for user, 1 for item - used in the Output Format. */
   private boolean isItem = false;
+  /** Prefix of item IDs. Used to distinguish from users */
+  private final String ITEM_ID_PREFIX = "i_";
   /**
    * Initial vector value to be used for the L2Norm case.
    * Keep it outside the compute() method
@@ -121,10 +124,11 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
       // For L2Norm
       initialValue = new DoubleArrayListWritable(getValue().getLatentVector());
     }
+
     // Send sum of ratings to aggregator
     if (getSuperstep() == 0) {
       double sum = 0;
-      for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
+      for (Edge<Text, DoubleWritable> edge : getEdges()) {
         sum += edge.getValue().get();
       }
       this.aggregate(OVERALL_RATING_AGGREGATOR, new DoubleWritable(sum));
@@ -151,8 +155,8 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
       if (getSuperstep() == 1) {
         double observed = message.getMessage().get(
           message.getMessage().size() - 1).get();
-        DefaultEdge<IntWritable, DoubleWritable> edge =
-          new DefaultEdge<IntWritable, DoubleWritable>();
+        DefaultEdge<Text, DoubleWritable> edge =
+          new DefaultEdge<Text, DoubleWritable>();
         edge.setTargetVertexId(message.getSourceId());
         edge.setValue(new DoubleWritable(observed));
         addEdge(edge);
@@ -234,15 +238,19 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     // Initialize Latent Vector
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
-        ((double) (getId().get() + i) % HUNDRED) / HUNDRED));
+        ((Double.parseDouble(
+          getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
     }
+
     // Initialize Baseline Estimate
     value.setBaselineEstimate(new DoubleWritable(
-      (getId().get() % HUNDRED) / HUNDRED));
+      (Double.parseDouble(
+        getId().toString().substring(2)) % HUNDRED) / HUNDRED));
     // Initialize Relative Value
     for (int i = 0; i < vectorSize; i++) {
       value.setRelativeValue(i, new DoubleWritable(
-        ((double) (getId().get() + i) % HUNDRED) / HUNDRED));
+        ((Double.parseDouble(
+          getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
     }
     setValue(value);
   }
@@ -360,7 +368,8 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     DoubleArrayListWritable part1 = new DoubleArrayListWritable();
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
 
-    part1 = numMatrixProduct(1/Math.sqrt(getNumEdges()), getValue().getRelativeValue());
+    part1 = numMatrixProduct(
+      1 / Math.sqrt(getNumEdges()), getValue().getRelativeValue());
     part2 = dotAddition(getValue().getLatentVector(), part1);
     double part3 = dotProduct(vvertex, part2);
     double numEdges = 0d;
@@ -371,10 +380,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     }
     double avgRatings = ((DoubleWritable)
       getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() / numEdges;
-    /*System.out.println("--avgRatings= " + avgRatings + ", total:" +
-      ((DoubleWritable)
-        getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() + ", edges: " +
-      numEdges);*/
+    
     double rating = avgRatings + getValue().getBaselineEstimate().get()
       + otherBaselineEstimate + part3;
     return rating;
@@ -393,16 +399,24 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
    *
    * @return rating Predicted rating
    */
+  /*predictRating(message.getMessage(),
+            message.getBaselineEstimate().get(), message.getRelativeValue(),
+            message.getNumEdges());*/
   public final double predictRating(final DoubleArrayListWritable vvertex,
     final double otherBaselineEstimate,
     final DoubleArrayListWritable relativeValues,
     final IntWritable numUserEdges) {
     DoubleArrayListWritable part1;
     DoubleArrayListWritable part2;
-
+    System.out.println("vvertex: " + vvertex.toString() + ", bi:"
+    + otherBaselineEstimate + ", relative:" + relativeValues
+    + ", userEdges: " + numUserEdges.get());
     part1 = numMatrixProduct(1/Math.sqrt(numUserEdges.get()), relativeValues);
     part2 = dotAddition(vvertex, part1);
     double part3 = dotProduct(getValue().getLatentVector(), part2);
+    System.out.println("part1: " + part1.toString()
+      + ", part2: " + part2.toString()
+      + ", part3: " + part3);
     double numEdges = 0d;
     if (getSuperstep() < 2) {
       numEdges = getTotalNumEdges();
@@ -413,6 +427,9 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
       getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() / numEdges;
     double rating = avgRatings + getValue().getBaselineEstimate().get()
       + otherBaselineEstimate + part3;
+    /*System.out.println("---rating= avg + bi + bu + p3: " + rating + "= "
+      + avgRatings + " + " + getValue().getBaselineEstimate().get() + " + "
+      + otherBaselineEstimate + " + " + part3);*/
     return rating;
   }
   /**
@@ -447,7 +464,7 @@ DoubleArrayListHashMapDoubleWritable, DoubleWritable, SvdMessageWrapper> {
     }
     // At superstep 0, users send rating to items
     if (getSuperstep() == 0) {
-      for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
+      for (Edge<Text, DoubleWritable> edge : getEdges()) {
         DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
           .getLatentVector());
         x.add(new DoubleWritable(edge.getValue().get()));
