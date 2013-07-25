@@ -6,12 +6,13 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 
 import es.tid.graphlib.utils.DoubleArrayListWritable;
-import es.tid.graphlib.utils.MessageWrapper;
+import es.tid.graphlib.utils.TextMessageWrapper;
 
 /** This class provides the wrapper for the sending message.*/
-public class SvdMessageWrapper extends MessageWrapper {
+public class SvdMessageWrapper extends TextMessageWrapper {
   /** Baseline Estimate. */
   private DoubleWritable baselineEstimate;
   /** Relative Value. */
@@ -32,7 +33,7 @@ public class SvdMessageWrapper extends MessageWrapper {
    * @param pRelativeValue Relative Value
    * @param pNumEdges Number of Edges
    */
-  public SvdMessageWrapper(final IntWritable sourceId,
+  public SvdMessageWrapper(final Text sourceId,
       final DoubleArrayListWritable message,
       final DoubleWritable pBaselineEstimate,
       final DoubleArrayListWritable pRelativeValue,
@@ -41,6 +42,16 @@ public class SvdMessageWrapper extends MessageWrapper {
     baselineEstimate = pBaselineEstimate;
     relativeValue = pRelativeValue;
     numEdges = pNumEdges;
+  }
+
+  /**
+   * Set Baseline Estimate.
+   *
+   * @param pBaselineEstimate Baseline Estimate
+   */
+  public final void setBaselineEstimate(
+    final DoubleWritable pBaselineEstimate) {
+    baselineEstimate = pBaselineEstimate;
   }
 
   /**
@@ -53,23 +64,13 @@ public class SvdMessageWrapper extends MessageWrapper {
   }
 
   /**
-   * Set Baseline Estimate.
-   *
-   * @param pBaselineEstimate Baseline Estimate
-   */
-  public final void setBaselineEstimate(
-    final DoubleWritable pBaselineEstimate) {
-    this.baselineEstimate = pBaselineEstimate;
-  }
-
-  /**
    * Set Relative Value.
    *
    * @param pRelativeValue Relative value
    */
   public final void setRelativeValue(
     final DoubleArrayListWritable pRelativeValue) {
-    this.relativeValue = pRelativeValue;
+    relativeValue = pRelativeValue;
   }
 
   /**

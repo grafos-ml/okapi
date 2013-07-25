@@ -5,108 +5,86 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import org.apache.giraph.conf.ImmutableClassesGiraphConfiguration;
-import org.apache.hadoop.io.IntWritable;
+import org.apache.giraph.utils.ReflectionUtils;
 import org.apache.hadoop.io.WritableComparable;
 
-/** This class provides the wrapper for the sending message.*/
-public class MessageWrapper implements WritableComparable<MessageWrapper> {
-  /** Message sender vertex Id */
-  private IntWritable sourceId;
-  /** Message with data */
-  private DoubleArrayListWritable message;
+/** This class provides the wrapper for the sending message.
+ * @param <I> SourceId
+ * @param <M> Message
+ */
+@SuppressWarnings("rawtypes")
+public abstract class MessageWrapper<
+  I extends WritableComparable,
+  M extends WritableComparable>
+  implements WritableComparable<MessageWrapper<I, M>> {
+  /** Message sender vertex Id. */
+  private I sourceId;
+  /** Message with data. */
+  private M message;
+  /** Used for instantiation */
+  //private Class<I> idRefClass = null;
+  /** Used for instantiation */
+  //private Class<M> messageRefClass = null;
 
-  // TODO SHOULD BE STATIC RIGHT?
-  // Should be actually removed!!!
-  /** Configuration */
+  /** Configuration. */
   private ImmutableClassesGiraphConfiguration
-    <IntWritable, ?, ?, DoubleArrayListWritable> conf;
+    <I, ?, ?, M> conf;
 
-  /** Constructor */
+  /**
+   * Using the default constructor requires that the user implement
+   * setClass(), guaranteed to be invoked prior to instantiation in
+   * readFields().
+   */
   public MessageWrapper() {
   }
 
   /**
-   * Constructor.
-   * @param sourceId Vertex Source Id
-   * @param message Message
+   * Constructor with another {@link MessageWrapper}.
+   *
+   * @param pMessageWrapper Message Wrapper to be used internally.
+   *
    */
-  public MessageWrapper(IntWritable sourceId,
-      DoubleArrayListWritable message) {
-    this.sourceId = sourceId;
-    this.message = message;
+  public MessageWrapper(final I pSourceId, final M pMessage) {
+    sourceId = pSourceId;
+    message = pMessage;
   }
 
   /**
-   * Return Vertex Source Id
+   * Subclasses must provide the vertex Id class type appropriately
+   * and can use getVertexIdClass() to do it.
    *
-   * @return sourceId Message sender vertex Id
+   * @return Class
    */
-  public IntWritable getSourceId() {
-    return sourceId;
-  }
-
-  public void setSourceId(IntWritable sourceId) {
-    this.sourceId = sourceId;
-  }
+  public abstract Class<I> getVertexIdClass();
 
   /**
-   * Return Message data
+   * Subclasses must provide the message class type appropriately
+   * and can use getMessageClass() to do it.
    *
-   * @return message message to be returned
+   * @return Class<M>
    */
-  public DoubleArrayListWritable getMessage() {
-    return message;
-  }
+  public abstract Class<M> getMessageClass();
 
   /**
-   * Store message to this object
+   * Read Fields.
    *
-   * @param message Message to be stored
+   * @param input Input to be read.
+   * @throws IOException for IO.
    */
-  public void setMessage(DoubleArrayListWritable message) {
-    this.message = message;
-  }
-
-  /**
-   * Get Configuration
-   *
-   * @return conf Configuration
-   */
-  public ImmutableClassesGiraphConfiguration
-      <IntWritable, ?, ?, DoubleArrayListWritable> getConf() {
-    return conf;
-  }
-
-  /**
-   * Set Configuration
-   *
-   * @param conf Configuration to be stored
-   */
-  public void setConf(ImmutableClassesGiraphConfiguration
-      <IntWritable, ?, ?, DoubleArrayListWritable> conf) {
-    this.conf = conf;
-  }
-
-  /**
-   * Read Fields
-   *
-   * @param input Input
-   */
-  @Override
-  public void readFields(DataInput input) throws IOException {
-    sourceId = new IntWritable();
+  public void readFields(final DataInput input) throws IOException {
+    sourceId = (I) ReflectionUtils.newInstance(getVertexIdClass(), conf);
     sourceId.readFields(input);
-    message = new DoubleArrayListWritable();
+    message = (M) ReflectionUtils.newInstance(getMessageClass(), conf);
     message.readFields(input);
   }
 
   /**
-   * Write Fields
+   * Write Fields.
    *
-   * @param output Output
+   * @param output Output to be written.
+   * @throws IOException for IO.
    */
-  @Override
-  public void write(DataOutput output) throws IOException {
+  public void write(final DataOutput output) throws IOException {
     if (sourceId == null) {
       throw new IllegalStateException("write: Null destination vertex index");
     }
@@ -115,34 +93,111 @@ public class MessageWrapper implements WritableComparable<MessageWrapper> {
   }
 
   /**
-   * Return Message to the form of a String
+   * Get Configuration.
    *
-   * @return String object
+   * @return conf Configuration
    */
-  @Override
-  public String toString() {
-    return "MessageWrapper{" +
-      ", sourceId=" + sourceId +
-      ", message=" + message +
-      '}';
+  final ImmutableClassesGiraphConfiguration
+      <I, ?, ?, M> getConf() {
+    return conf;
   }
 
   /**
-   * Check if object is equal to message
+   * Set Configuration.
    *
-   * @param o Object to be checked
+   * @param pConf Configuration to be stored.
+   */
+  final void setConf(final ImmutableClassesGiraphConfiguration
+      <I, ?, ?, M> pConf) {
+    conf = pConf;
+  }
+
+  /**
+   * Return Vertex Source Id.
+   *
+   * @return sourceId Message sender vertex Id
+   */
+  public final I getSourceId() {
+    return sourceId;
+  }
+
+  /**
+   * Set Source Id.
+   *
+   * @param pSourceId Source Id to be set
+   */
+  public final void setSourceId(final I pSourceId) {
+    sourceId = pSourceId;
+  }
+
+  /**
+   * Return Message data.
+   *
+   * @return message message to be returned
+   */
+  public final M getMessage() {
+    return message;
+  }
+
+  /**
+   * Store message to this object.
+   *
+   * @param pMessage Message to be stored
+   */
+  public final void setMessage(final M pMessage) {
+    message = pMessage;
+  }
+
+  /**
+   * Return Message to the form of a String.
+   *
+   * @return String object
+   */
+  public String toString() {
+    return "MessageWrapper{"
+      + ", sourceId=" + sourceId
+      + ", message=" + message
+      + '}';
+  }
+
+  /**
+   * CompareTo method.
+   *
+   * @param wrapper WRapper to be compared to
+   *
+   * @return 0 if equal
+   */
+  public final int compareTo(final MessageWrapper<I, M> wrapper) {
+
+    if (this == wrapper) {
+      return 0;
+    }
+
+    if (((Comparable<I>) sourceId).compareTo(
+      (I) wrapper.getSourceId()) == 0) {
+      return ((Comparable<M>) message).compareTo(
+        (M) wrapper.getMessage());
+    } else {
+      return ((Comparable<I>) sourceId).compareTo(
+        (I) wrapper.getSourceId());
+    }
+  }
+
+  /**
+   * Check if object is equal to message.
+   *
+   * @param other Object to be checked
    *
    * @return boolean value
    */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
+  public final boolean equals(final MessageWrapper<I, M> other) {
+    if (this == other) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (other == null || getClass() != other.getClass()) {
       return false;
     }
-    MessageWrapper that = (MessageWrapper) o;
+    MessageWrapper<I, M> that = other;
 
     if (message != null ? !message.equals(that.message) :
         that.message != null) {
@@ -153,26 +208,5 @@ public class MessageWrapper implements WritableComparable<MessageWrapper> {
       return false;
     }
     return true;
-  }
-
-  /**
-   * CompareTo method
-   *
-   * @param wrapper WRapper to be compared to
-   *
-   * @return 0 if equal
-   */
-  @Override
-  public int compareTo(MessageWrapper wrapper) {
-
-    if (this == wrapper) {
-      return 0;
-    }
-
-    if (this.sourceId.compareTo(wrapper.getSourceId()) == 0) {
-      return this.message.compareTo(wrapper.getMessage());
-    } else {
-      return this.sourceId.compareTo(wrapper.getSourceId());
-    }
   }
 }
