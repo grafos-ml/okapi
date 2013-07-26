@@ -180,24 +180,17 @@ public class Svdpp extends Vertex<Text,
       // Change the Vertex Latent Vector based on SVD equation
       if (!isItem()) {
         // Users - supersteps 0, 2, 4, 6, ...
-        System.out.println("msg_received: " + message.toString());
         double predicted =
           predictRating(message.getMessage(),
             message.getBaselineEstimate().get());
-        System.out.println("u-SS:" + getSuperstep() + ", predicted: "
-          + predicted);
         err = observed - predicted;
         computeValue(lambda, gamma, err, message.getMessage());
       } else {
         // Items - supersteps 1, 3, 5, 7, ...
-        System.out.println("msg_received: " + message.toString());
         double predicted =
           predictRating(message.getMessage(),
             message.getBaselineEstimate().get(), message.getRelativeValue(),
             message.getNumEdges());
-        System.out.println("i-SS:" + getSuperstep() + ", predicted: "
-          + predicted
-          + ", message: " + message.toString());
         err = observed - predicted;
         computeValue(lambda, gamma, err, message.getMessage(),
           message.getRelativeValue(), message.getNumEdges());
@@ -263,7 +256,6 @@ public class Svdpp extends Vertex<Text,
           getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
     }
     setValue(value);
-    System.out.println("[init] " + getId() + ", " + getValue().toString());
   }
 
   /**
@@ -285,8 +277,8 @@ public class Svdpp extends Vertex<Text,
   }
 
   /**
-   * Compute Relative Value. y_j = y_j + gamma * (err * numAllEdges * q_i -
-   * lambda * y_i)
+   * Compute Relative Value.
+   * y_j = y_j + gamma * (err * (1/sqrt(numEdges) * q_i - lambda * y_i)
    * 
    * @param lambda
    *          Regularization parameter
@@ -305,7 +297,7 @@ public class Svdpp extends Vertex<Text,
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
     DoubleArrayListWritable part3 = new DoubleArrayListWritable();
 
-    part1 = numMatrixProduct(err * getNumEdges(), vvertex);
+    part1 = numMatrixProduct(err * (1 / Math.sqrt(getNumEdges())), vvertex);
     part2 = numMatrixProduct(lambda, getValue().getRelativeValue());
     part3 = numMatrixProduct(gamma, dotSub(part1, part2));
     getValue().setRelativeValue(dotAddition(
@@ -401,15 +393,6 @@ public class Svdpp extends Vertex<Text,
       1 / Math.sqrt(getNumEdges()), getValue().getRelativeValue());
     part2 = dotAddition(getValue().getLatentVector(), part1);
     double part3 = dotProduct(vvertex, part2);
-    System.out.println("item: " + vvertex.toString()
-      + ", bi: " + otherBaselineEstimate
-      + "|| user: " + getValue().getLatentVector().toString()
-      + ", bu: " + getValue().getBaselineEstimate()
-      + ", relative:" + getValue().getRelativeValue()
-      + ", userEdges: " + getNumEdges());
-    System.out.println("part1: " + part1.toString()
-      + ", part2: " + part2.toString()
-      + ", part3: " + part3);
     double numEdges = 0d;
     if (getSuperstep() < 2) {
       numEdges = getTotalNumEdges();
@@ -451,17 +434,9 @@ public class Svdpp extends Vertex<Text,
     final IntWritable numUserEdges) {
     DoubleArrayListWritable part1;
     DoubleArrayListWritable part2;
-    System.out.println("item: " + getValue().getLatentVector().toString()
-      + ", bi:" + getValue().getBaselineEstimate()
-      + "|| user: " + vvertex.toString()
-      + ", bu:" + otherBaselineEstimate + ", relative:" + relativeValues
-      + ", userEdges: " + numUserEdges.get());
     part1 = numMatrixProduct(1 / Math.sqrt(numUserEdges.get()), relativeValues);
     part2 = dotAddition(vvertex, part1);
     double part3 = dotProduct(getValue().getLatentVector(), part2);
-    System.out.println("part1: " + part1.toString()
-      + ", part2: " + part2.toString()
-      + ", part3: " + part3);
     double numEdges = 0d;
     if (getSuperstep() < 2) {
       numEdges = getTotalNumEdges();
@@ -472,11 +447,6 @@ public class Svdpp extends Vertex<Text,
       getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() / numEdges;
     double rating = avgRatings + getValue().getBaselineEstimate().get()
       + otherBaselineEstimate + part3;
-    /*
-     * System.out.println("---rating= avg + bi + bu + p3: " + rating + "= " +
-     * avgRatings + " + " + getValue().getBaselineEstimate().get() + " + " +
-     * otherBaselineEstimate + " + " + part3);
-     */
     return rating;
   }
 
