@@ -141,9 +141,9 @@ public class Svdpp extends Vertex<Text,
     // Used if RMSE version or RMSE aggregator is enabled
     double rmseErr = 0d;
 
+ // Sum of items relative values - Used in user
+    DoubleArrayListWritable relativeValuesSum = new DoubleArrayListWritable();
     if (!isItem()) {
-      // Sum of items relative values - Used in user
-      DoubleArrayListWritable relativeValuesSum = new DoubleArrayListWritable();
       for (int i = 0; i < vectorSize; i++) {
         relativeValuesSum.add(i, new DoubleWritable(0d));
       }
@@ -199,7 +199,7 @@ public class Svdpp extends Vertex<Text,
           + ", message: " + message.toString());
         err = observed - predicted;
         computeValue(lambda, gamma, err, message.getMessage(),
-          message.getRelativeValue());
+          message.getRelativeValue(), message.getNumEdges());
         computeRelativeValue(lambda, gamma, err, message.getMessage());
       }
       // If termination flag is set to RMSE OR RMSE aggregator is enabled
@@ -312,7 +312,7 @@ public class Svdpp extends Vertex<Text,
   }
 
   /**
-   * Compute the user's value. pu = pu + gamma * (error * qi - lamda * pu)
+   * Compute the user's value. pu = pu + gamma * (error * qi - lambda * pu)
    * 
    * @param lambda
    *          Regularization parameter
@@ -340,8 +340,9 @@ public class Svdpp extends Vertex<Text,
   }
 
   /**
-   * Compute the item's value. qi = qi + gamma * (error * (pu + numAllEdges *
-   * sum(y_j)) - lamda * qi)
+   * Compute the item's value.
+   * qi = qi + gamma * (error *
+   *      (pu + (1/sqrt(numEdges) * sum(y_j)) - lambda * qi))
    * 
    * @param lambda
    *          Regularization parameter
@@ -356,7 +357,8 @@ public class Svdpp extends Vertex<Text,
    */
   public final void computeValue(final float lambda, final float gamma,
     final double err, final DoubleArrayListWritable vvertex,
-    final DoubleArrayListWritable relativeValues) {
+    final DoubleArrayListWritable relativeValues,
+    final IntWritable numUserEdges) {
 
     DoubleArrayListWritable part1a = new DoubleArrayListWritable();
     DoubleArrayListWritable part1b = new DoubleArrayListWritable();
@@ -365,7 +367,7 @@ public class Svdpp extends Vertex<Text,
     DoubleArrayListWritable value = new DoubleArrayListWritable();
 
     part1a = dotAddition(vvertex,
-      numMatrixProduct(relativeValues.size(), relativeValues));
+      numMatrixProduct(1 / Math.sqrt(numUserEdges.get()), relativeValues));
     part1b = numMatrixProduct((double) err, part1a);
     part2 = numMatrixProduct((double) lambda,
       getValue().getLatentVector());
@@ -379,7 +381,7 @@ public class Svdpp extends Vertex<Text,
   /**
    * Compute Predicted Rating when vertex is a user.
    * 
-   * r_ui = b_ui + dotProduct(q_i * (p_u + numEdges * sum(y_i)))
+   * r_ui = b_ui + dotProduct(q_i * (p_u + (1/sqrt(numEdges)) * sum(y_i)))
    * where b_ui = m + b_u + b_i
    * 
    * @param vvertex
