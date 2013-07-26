@@ -141,10 +141,19 @@ public class Svdpp extends Vertex<Text,
     // Used if RMSE version or RMSE aggregator is enabled
     double rmseErr = 0d;
 
-    // Used for user - to calculate the sum of y_i
-    DoubleArrayListWritable relativeValuesSum = new DoubleArrayListWritable();
-    for (int i = 0; i < vectorSize; i++) {
-      relativeValuesSum.add(i, new DoubleWritable(0d));
+    if (!isItem()) {
+      // Sum of items relative values - Used in user
+      DoubleArrayListWritable relativeValuesSum = new DoubleArrayListWritable();
+      for (int i = 0; i < vectorSize; i++) {
+        relativeValuesSum.add(i, new DoubleWritable(0d));
+      }
+      if (getSuperstep() > 1) {
+        for (SvdMessageWrapper message : messages) {
+          relativeValuesSum = dotAddition(relativeValuesSum,
+            message.getRelativeValue());
+        }
+        getValue().setRelativeValue(relativeValuesSum);
+      }
     }
     // FOR LOOP - for each message
     for (SvdMessageWrapper message : messages) {
@@ -178,10 +187,9 @@ public class Svdpp extends Vertex<Text,
           + predicted);
         err = observed - predicted;
         computeValue(lambda, gamma, err, message.getMessage());
-        relativeValuesSum = dotAddition(relativeValuesSum,
-          message.getRelativeValue());
       } else {
         // Items - supersteps 1, 3, 5, 7, ...
+        System.out.println("msg_received: " + message.toString());
         double predicted =
           predictRating(message.getMessage(),
             message.getBaselineEstimate().get(), message.getRelativeValue(),
@@ -200,9 +208,6 @@ public class Svdpp extends Vertex<Text,
       }
     } // END OF LOOP - for each message
 
-    if (getSuperstep() > 1 && !isItem()) {
-      getValue().setRelativeValue(relativeValuesSum);
-    }
     haltFactor =
       defineFactor(factorFlag, initialValue, tolerance, rmseErr);
 
@@ -257,7 +262,7 @@ public class Svdpp extends Vertex<Text,
           getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
     }
     setValue(value);
-    System.out.println("[init] " + getValue().toString());
+    System.out.println("[init] " + getId() + ", " + getValue().toString());
   }
 
   /**
@@ -374,8 +379,8 @@ public class Svdpp extends Vertex<Text,
   /**
    * Compute Predicted Rating when vertex is a user.
    * 
-   * r_ui = b_ui + dotProduct(q_i * (p_u + numEdges * sum(y_i))) where b_ui = m
-   * + b_u + b_i
+   * r_ui = b_ui + dotProduct(q_i * (p_u + numEdges * sum(y_i)))
+   * where b_ui = m + b_u + b_i
    * 
    * @param vvertex
    *          Neighbor's Latent Vector
