@@ -180,6 +180,7 @@ public class Svdpp extends Vertex<Text,
       // Change the Vertex Latent Vector based on SVD equation
       if (!isItem()) {
         // Users - supersteps 0, 2, 4, 6, ...
+        System.out.println("msg_received: " + message.toString());
         double predicted =
           predictRating(message.getMessage(),
             message.getBaselineEstimate().get());
