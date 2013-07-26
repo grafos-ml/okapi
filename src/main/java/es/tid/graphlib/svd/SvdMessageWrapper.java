@@ -139,7 +139,7 @@ public class SvdMessageWrapper extends TextMessageWrapper {
   @Override
   public final String toString() {
     return "MessageWrapper{"
-      + ", sourceId=" + super.getSourceId()
+      + "sourceId=" + super.getSourceId()
       + ", message=" + super.getMessage()
       + ", baseline=" + baselineEstimate
       + ", relative=" + relativeValue

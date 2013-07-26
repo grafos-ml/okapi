@@ -109,4 +109,18 @@ extends DoubleArrayListHashMapWritable {
   public final DoubleArrayListWritable getRelativeValue() {
     return relativeValue;
   }
+
+  /**
+   * Return Message to the form of a String.
+   *
+   * @return String object
+   */
+  @Override
+  public final String toString() {
+    return "VertexValue{"
+      + "value=" + super.getLatentVector()
+      + ", baseline=" + baselineEstimate
+      + ", relative=" + relativeValue
+      + '}';
+  }
 }
