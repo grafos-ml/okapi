@@ -5,7 +5,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.HashMap;
 
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import es.tid.graphlib.cf.CfVertexValue;
@@ -21,12 +21,12 @@ public class SgdVertexValue
 extends CfVertexValue
 implements Writable {
   /** Neighbors Values */
-  private HashMap<IntWritable, DoubleArrayListWritable> neighValues;
+  private HashMap<Text, DoubleArrayListWritable> neighValues;
 
   /** Constructor */
   public SgdVertexValue() {
     super();
-    neighValues = new HashMap<IntWritable, DoubleArrayListWritable>();
+    neighValues = new HashMap<Text, DoubleArrayListWritable>();
   }
 
   /**
@@ -37,7 +37,7 @@ implements Writable {
   public void write(DataOutput output) throws IOException {
     super.write(output);
     output.writeInt(getSize());
-    for (IntWritable key : neighValues.keySet()) {
+    for (Text key : neighValues.keySet()) {
       key.write(output);
       neighValues.get(key).write(output);
     }
@@ -51,10 +51,10 @@ implements Writable {
   public void readFields(DataInput input) throws IOException {
     super.readFields(input);
 
-    neighValues = new HashMap<IntWritable, DoubleArrayListWritable>();
+    neighValues = new HashMap<Text, DoubleArrayListWritable>();
     int size = input.readInt();
     for (int i = 0; i < size; i++) {
-      IntWritable key = new IntWritable();
+      Text key = new Text();
       key.readFields(input);
       DoubleArrayListWritable value = new DoubleArrayListWritable();
       value.readFields(input);
@@ -68,7 +68,7 @@ implements Writable {
    * @param neighId Key of the pair
    * @param neighVal Value of the pair
    */
-  public void setNeighborValue(IntWritable neighId,
+  public void setNeighborValue(Text neighId,
     DoubleArrayListWritable neighVal) {
     neighValues.put(neighId, neighVal);
   }
@@ -79,7 +79,7 @@ implements Writable {
    * @param id Neighbor's Id
    * @return Neighbor Latent Value
    */
-  public DoubleArrayListWritable getNeighValue(IntWritable id) {
+  public DoubleArrayListWritable getNeighValue(Text id) {
     return neighValues.get(id);
   }
 
@@ -88,7 +88,7 @@ implements Writable {
    *
    * @return Neighbors values
    */
-  public HashMap<IntWritable, DoubleArrayListWritable> getAllNeighValue() {
+  public HashMap<Text, DoubleArrayListWritable> getAllNeighValue() {
     return neighValues;
   }
 

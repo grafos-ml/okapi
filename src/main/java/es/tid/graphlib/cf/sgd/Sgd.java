@@ -9,10 +9,10 @@ import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 
 import es.tid.graphlib.utils.DoubleArrayListWritable;
-import es.tid.graphlib.utils.IntMessageWrapper;
+import es.tid.graphlib.utils.TextMessageWrapper;
 
 /**
  * Demonstrates the Pregel Stochastic Gradient Descent (SGD) implementation.
@@ -21,8 +21,8 @@ import es.tid.graphlib.utils.IntMessageWrapper;
   name = "Stochastic Gradient Descent (SGD)",
   description = "Minimizes the error in users preferences predictions")
 
-public class Sgd extends Vertex<IntWritable, SgdVertexValue,
-DoubleWritable, IntMessageWrapper> {
+public class Sgd extends Vertex<Text, SgdVertexValue,
+DoubleWritable, TextMessageWrapper> {
   /** Keyword for parameter enabling delta caching. */
   public static final String DELTA_CACHING = "sgd.delta.caching";
   /** Default value for parameter enabling delta caching. */
@@ -88,7 +88,7 @@ DoubleWritable, IntMessageWrapper> {
    * Compute method.
    * @param messages Messages received
    */
-  public final void compute(final Iterable<IntMessageWrapper> messages) {
+  public final void compute(final Iterable<TextMessageWrapper> messages) {
     /** Error between predicted and observed rating */
     double err = 0d;
 
@@ -138,7 +138,7 @@ DoubleWritable, IntMessageWrapper> {
     double rmseErr = 0d;
 
     // FOR LOOP - for each message
-    for (IntMessageWrapper message : messages) {
+    for (TextMessageWrapper message : messages) {
       messagesNum++;
       // First superstep for items:
       // 1. Create outgoing edges of items
@@ -146,8 +146,8 @@ DoubleWritable, IntMessageWrapper> {
       if (getSuperstep() == 1) {
         double observed = message.getMessage().get(
           message.getMessage().size() - 1).get();
-        DefaultEdge<IntWritable, DoubleWritable> edge =
-          new DefaultEdge<IntWritable, DoubleWritable>();
+        DefaultEdge<Text, DoubleWritable> edge =
+          new DefaultEdge<Text, DoubleWritable>();
         edge.setTargetVertexId(message.getSourceId());
         edge.setValue(new DoubleWritable(observed));
         addEdge(edge);
@@ -192,7 +192,7 @@ DoubleWritable, IntMessageWrapper> {
     // Go through the edges and execute the SGD computation
     if (isDeltaEnabled) {
       // FOR LOOP - for each edge
-      for (Entry<IntWritable, DoubleArrayListWritable> vvertex : getValue()
+      for (Entry<Text, DoubleArrayListWritable> vvertex : getValue()
         .getAllNeighValue().entrySet()) {
         // Calculate error
         double observed = (double) getEdgeValue(vvertex.getKey()).get();
@@ -252,7 +252,8 @@ DoubleWritable, IntMessageWrapper> {
       new SgdVertexValue();
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
-        ((double) (getId().get() + i) % HUNDRED) / HUNDRED));
+        ((Double.parseDouble(getId().toString().substring(2)) + i) % HUNDRED)
+        / HUNDRED));
     }
     setValue(value);
   }
@@ -314,11 +315,11 @@ DoubleWritable, IntMessageWrapper> {
    */
   public final void sendMessage() {
     // Create a message and wrap together the source id and the message
-    IntMessageWrapper message = new IntMessageWrapper();
+    TextMessageWrapper message = new TextMessageWrapper();
     message.setSourceId(getId());
     // At superstep 0, users send rating to items
     if (getSuperstep() == 0) {
-      for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
+      for (Edge<Text, DoubleWritable> edge : getEdges()) {
         DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
           .getLatentVector());
         x.add(new DoubleWritable(edge.getValue().get()));
