@@ -58,7 +58,7 @@ public class Als extends Vertex<Text, AlsVertexValue,
   /** Decimals. */
   public static final int DECIMALS = 4;
   /** Number used in the initialization of values. */
-  public static final double NUM = 100;
+  public static final double HUNDRED = 100;
   /** Number used in the keepXdecimals method. */
   public static final int TEN = 10;
   /** Factor Error: it may be RMSE or L2NORM on initial&final vector. */
@@ -201,7 +201,8 @@ public class Als extends Vertex<Text, AlsVertexValue,
       new AlsVertexValue();
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
-        ((Double.parseDouble(getId().toString().substring(2)) + i) % NUM) / NUM));
+        ((Double.parseDouble(getId().toString().substring(2)) + i) % HUNDRED)
+        / HUNDRED));
     }
     setValue(value);
   }
@@ -228,11 +229,10 @@ public class Als extends Vertex<Text, AlsVertexValue,
     DoubleMatrix ratings = new DoubleMatrix(getNumEdges());
     // FOR LOOP - for each edge
     for (Entry<Text, DoubleArrayListWritable> vvertex
-      :
-      getValue().getAllNeighValue().entrySet()) {
+      : getValue().getAllNeighValue().entrySet()) {
       // Store the latent vector of the current neighbor
-      double[] curVec = new double[getValue().getSize()];
-      for (int i = 0; i < getValue().getSize(); i++) {
+      double[] curVec = new double[vvertex.getValue().size()];
+      for (int i = 0; i < vvertex.getValue().size(); i++) {
         curVec[i] = vvertex.getValue().get(i).get();
       }
       matNeighVectors.putColumn(j, new DoubleMatrix(curVec));
