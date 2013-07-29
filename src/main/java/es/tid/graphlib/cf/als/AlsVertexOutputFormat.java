@@ -6,11 +6,8 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
-import es.tid.graphlib.cf.sgd.Sgd;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for graphs
@@ -19,7 +16,7 @@ import es.tid.graphlib.cf.sgd.Sgd;
  * Each line consists of: vertex id, vertex value and option edge value
  */
 public class AlsVertexOutputFormat extends
-  TextVertexOutputFormat<IntWritable, AlsVertexValue,
+  TextVertexOutputFormat<Text, AlsVertexValue,
   DoubleWritable> {
 
   /** Specify the output delimiter */
@@ -32,7 +29,7 @@ public class AlsVertexOutputFormat extends
    * @return a vertex writer
    */
   public TextVertexWriter createVertexWriter(TaskAttemptContext context) {
-    return new TextIntDoubleArrayVertexWriter();
+    return new AlsVertexWriter();
   }
 
   /**
@@ -40,7 +37,7 @@ public class AlsVertexOutputFormat extends
    * - Int Vertex Id
    * - Double Array Vertex Value
    */
-  protected class TextIntDoubleArrayVertexWriter
+  protected class AlsVertexWriter
       extends TextVertexWriterToEachLine {
     /** Saved delimiter */
     private String delimiter;
@@ -56,7 +53,7 @@ public class AlsVertexOutputFormat extends
 
     @Override
     protected Text convertVertexToLine
-    (Vertex<IntWritable, AlsVertexValue, DoubleWritable, ?>
+    (Vertex<Text, AlsVertexValue, DoubleWritable, ?>
           vertex)
       throws IOException {
 

@@ -9,12 +9,12 @@ import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 import org.jblas.DoubleMatrix;
 import org.jblas.Solve;
 
 import es.tid.graphlib.utils.DoubleArrayListWritable;
-import es.tid.graphlib.utils.IntMessageWrapper;
+import es.tid.graphlib.utils.TextMessageWrapper;
 
 /**
  * Demonstrates the Pregel Stochastic Gradient Descent (SGD) implementation.
@@ -24,8 +24,8 @@ import es.tid.graphlib.utils.IntMessageWrapper;
   description = "Matrix Factorization Algorithm: "
     + "It Minimizes the error in users preferences predictions")
 
-public class Als extends Vertex<IntWritable, AlsVertexValue,
-  DoubleWritable, IntMessageWrapper> {
+public class Als extends Vertex<Text, AlsVertexValue,
+  DoubleWritable, TextMessageWrapper> {
   /** Keyword for enabling RMSE aggregator. */
   public static final String RMSE_AGGREGATOR = "als.rmse.aggregator";
   /** Default value of RMSE aggregator tolerance. */
@@ -82,7 +82,7 @@ public class Als extends Vertex<IntWritable, AlsVertexValue,
    * Compute method.
    * @param messages Messages received
    */
-  public final void compute(final Iterable<IntMessageWrapper> messages) {
+  public final void compute(final Iterable<TextMessageWrapper> messages) {
     /* Error = observed - predicted */
     double err = 0d;
     /* Flag for checking if parameter for RMSE aggregator received */
@@ -123,7 +123,7 @@ public class Als extends Vertex<IntWritable, AlsVertexValue,
     double rmseErr = 0d;
 
     // FOR LOOP - for each message
-    for (IntMessageWrapper message : messages) {
+    for (TextMessageWrapper message : messages) {
       messagesNum++;
        // First superstep for items:
        // 1. Create outgoing edges of items
@@ -131,8 +131,8 @@ public class Als extends Vertex<IntWritable, AlsVertexValue,
       if (getSuperstep() == 1) {
         double observed = message.getMessage().get(
           message.getMessage().size() - 1).get();
-        DefaultEdge<IntWritable, DoubleWritable> edge =
-          new DefaultEdge<IntWritable, DoubleWritable>();
+        DefaultEdge<Text, DoubleWritable> edge =
+          new DefaultEdge<Text, DoubleWritable>();
         edge.setTargetVertexId(message.getSourceId());
         edge.setValue(new DoubleWritable(observed));
         addEdge(edge);
@@ -158,7 +158,7 @@ public class Als extends Vertex<IntWritable, AlsVertexValue,
       // Used if RMSE version or RMSE aggregator is enabled
       rmseErr = 0d;
       // FOR LOOP - for each edge
-      for (Entry<IntWritable, DoubleArrayListWritable> vvertex
+      for (Entry<Text, DoubleArrayListWritable> vvertex
         :
         getValue().getAllNeighValue().entrySet()) {
         double observed = (double) getEdgeValue(vvertex.getKey()).get();
@@ -201,7 +201,7 @@ public class Als extends Vertex<IntWritable, AlsVertexValue,
       new AlsVertexValue();
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
-        ((double) (getId().get() + i) % NUM) / NUM));
+        ((Double.parseDouble(getId().toString().substring(2)) + i) % NUM) / NUM));
     }
     setValue(value);
   }
@@ -227,7 +227,7 @@ public class Als extends Vertex<IntWritable, AlsVertexValue,
     DoubleMatrix matNeighVectors = new DoubleMatrix(getNumEdges());
     DoubleMatrix ratings = new DoubleMatrix(getNumEdges());
     // FOR LOOP - for each edge
-    for (Entry<IntWritable, DoubleArrayListWritable> vvertex
+    for (Entry<Text, DoubleArrayListWritable> vvertex
       :
       getValue().getAllNeighValue().entrySet()) {
       // Store the latent vector of the current neighbor
@@ -285,9 +285,9 @@ public class Als extends Vertex<IntWritable, AlsVertexValue,
    */
   public final void sendMessage() {
     // Send to all neighbors a message
-    for (Edge<IntWritable, DoubleWritable> edge : getEdges()) {
+    for (Edge<Text, DoubleWritable> edge : getEdges()) {
       // Create a message and wrap together the source id and the message
-      IntMessageWrapper message = new IntMessageWrapper();
+      TextMessageWrapper message = new TextMessageWrapper();
       message.setSourceId(getId());
       message.setMessage(getValue().getLatentVector());
       // At superstep 0, users send rating to items
@@ -327,14 +327,14 @@ public class Als extends Vertex<IntWritable, AlsVertexValue,
    * @param vector Vertex latent vector
    * @param rating Rating of item
    *
-   * @return IntMessageWrapper object
+   * @return TextMessageWrapper object
    */
-  public final IntMessageWrapper wrapMessage(final IntWritable id,
+  public final TextMessageWrapper wrapMessage(final Text id,
     final DoubleArrayListWritable vector, final int rating) {
     if (rating != -1) {
       vector.add(new DoubleWritable(rating));
     }
-    return new IntMessageWrapper(id, vector);
+    return new TextMessageWrapper(id, vector);
   }
 
   /**

@@ -5,7 +5,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 import java.util.HashMap;
 
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import es.tid.graphlib.cf.CfVertexValue;
@@ -25,12 +25,12 @@ implements Writable {
   private static final long serialVersionUID = 1L;
 
   /** Neighbors Values. */
-  private HashMap<IntWritable, DoubleArrayListWritable> neighValues;
+  private HashMap<Text, DoubleArrayListWritable> neighValues;
 
   /** Constructor. */
   public AlsVertexValue() {
     super();
-    neighValues = new HashMap<IntWritable, DoubleArrayListWritable>();
+    neighValues = new HashMap<Text, DoubleArrayListWritable>();
   }
 
   /**
@@ -42,7 +42,7 @@ implements Writable {
   public void write(DataOutput output) throws IOException {
     super.write(output);
     output.writeInt(getSize());
-    for (IntWritable key : neighValues.keySet()) {
+    for (Text key : neighValues.keySet()) {
       key.write(output);
       neighValues.get(key).write(output);
     }
@@ -57,10 +57,10 @@ implements Writable {
   public void readFields(DataInput input) throws IOException {
     super.readFields(input);
 
-    neighValues = new HashMap<IntWritable, DoubleArrayListWritable>();
+    neighValues = new HashMap<Text, DoubleArrayListWritable>();
     int size = input.readInt();
     for (int i = 0; i < size; i++) {
-      IntWritable key = new IntWritable();
+      Text key = new Text();
       key.readFields(input);
       DoubleArrayListWritable value = new DoubleArrayListWritable();
       value.readFields(input);
@@ -74,7 +74,7 @@ implements Writable {
    * @param neighId Key of the pair
    * @param neighVal Value of the pair
    */
-  public final void setNeighborValue(final IntWritable neighId,
+  public final void setNeighborValue(final Text neighId,
     final DoubleArrayListWritable neighVal) {
     neighValues.put(neighId, neighVal);
   }
@@ -85,7 +85,7 @@ implements Writable {
    * @param id Neighbor's Id
    * @return Neighbor Latent Value
    */
-  public final DoubleArrayListWritable getNeighValue(final IntWritable id) {
+  public final DoubleArrayListWritable getNeighValue(final Text id) {
     return neighValues.get(id);
   }
 
@@ -95,7 +95,7 @@ implements Writable {
    * @return Neighbors values
    */
   public final HashMap<
-    IntWritable, DoubleArrayListWritable> getAllNeighValue() {
+    Text, DoubleArrayListWritable> getAllNeighValue() {
     return neighValues;
   }
 
