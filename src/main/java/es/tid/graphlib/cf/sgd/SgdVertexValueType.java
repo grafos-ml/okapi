@@ -1,4 +1,4 @@
-package es.tid.graphlib.utils;
+package es.tid.graphlib.cf.sgd;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -9,20 +9,22 @@ import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Writable;
 
+import es.tid.graphlib.utils.DoubleArrayListWritable;
+
 /**
  * A Writable implementation for 2 elements
  * First element: sourceValue
  * Second element: neighValues
  */
 
-public class DoubleArrayListHashMapWritable implements Writable {
+public class SgdVertexValueType implements Writable {
   /** Source Vertex Value */
   private DoubleArrayListWritable sourceValue;
   /** Neighbors Values */
   private HashMap<IntWritable, DoubleArrayListWritable> neighValues;
 
   /** Constructor */
-  public DoubleArrayListHashMapWritable() {
+  public SgdVertexValueType() {
     sourceValue = new DoubleArrayListWritable();
     neighValues = new HashMap<IntWritable, DoubleArrayListWritable>();
   }

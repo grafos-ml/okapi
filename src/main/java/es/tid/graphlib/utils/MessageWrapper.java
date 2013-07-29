@@ -21,10 +21,6 @@ public abstract class MessageWrapper<
   private I sourceId;
   /** Message with data. */
   private M message;
-  /** Used for instantiation */
-  //private Class<I> idRefClass = null;
-  /** Used for instantiation */
-  //private Class<M> messageRefClass = null;
 
   /** Configuration. */
   private ImmutableClassesGiraphConfiguration

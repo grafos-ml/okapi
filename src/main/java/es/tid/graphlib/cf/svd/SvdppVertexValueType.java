@@ -6,7 +6,6 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.DoubleWritable;
 
-import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
 import es.tid.graphlib.utils.DoubleArrayListWritable;
 
 /**
@@ -21,15 +20,15 @@ import es.tid.graphlib.utils.DoubleArrayListWritable;
  * Fourth element: relativeValue
  */
 
-public class DoubleArrayListHashMapDoubleWritable
-extends DoubleArrayListHashMapWritable {
+public class SvdppVertexValueType
+extends DoubleArrayListWritable {
   /** Observed Deviation. */
   private DoubleWritable baselineEstimate;
   /** Relative Value. */
   private DoubleArrayListWritable relativeValue;
 
   /** Constructor. */
-  public DoubleArrayListHashMapDoubleWritable() {
+  public SvdppVertexValueType() {
     super();
     baselineEstimate = new DoubleWritable();
     relativeValue = new DoubleArrayListWritable();
@@ -60,6 +59,15 @@ extends DoubleArrayListHashMapWritable {
     relativeValue = new DoubleArrayListWritable();
     baselineEstimate.readFields(input);
     relativeValue.readFields(input);
+  }
+
+  /**
+   * Get number of neighbors latent vectors in this list.
+   *
+   * @return Number of neighbors latent vectors in the list
+   */
+  public int getSize() {
+    return relativeValue.size();
   }
 
   /**
@@ -118,7 +126,7 @@ extends DoubleArrayListHashMapWritable {
   @Override
   public final String toString() {
     return "VertexValue{"
-      + "value=" + super.getLatentVector()
+      + "value=" + super.getObject()
       + ", baseline=" + baselineEstimate
       + ", relative=" + relativeValue
       + '}';

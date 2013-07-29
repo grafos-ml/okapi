@@ -1,4 +1,4 @@
-package es.tid.graphlib.cf.svd;
+package es.tid.graphlib.cf.als;
 
 import java.io.IOException;
 
@@ -6,12 +6,11 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import es.tid.graphlib.svd.DoubleArrayListHashMapDoubleWritable;
-import es.tid.graphlib.svd.Svdpp;
-import es.tid.graphlib.svd.TextIntDoubleArrayVertexWriter;
+import es.tid.graphlib.cf.sgd.Sgd;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for graphs
@@ -19,32 +18,35 @@ import es.tid.graphlib.svd.TextIntDoubleArrayVertexWriter;
  *
  * Each line consists of: vertex id, vertex value and option edge value
  */
-public class TextDoubleArrayHashMapDoubleTextVertexOutputFormat
-  extends TextVertexOutputFormat
-  <Text, DoubleArrayListHashMapDoubleWritable, DoubleWritable> {
+public class AlsVertexOutputFormat extends
+  TextVertexOutputFormat<IntWritable, AlsVertexValueType,
+  DoubleWritable> {
 
-  /** Specify the output delimiter. */
+  /** Specify the output delimiter */
   public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
-  /** Default output delimiter. */
+  /** Default output delimiter */
   public static final String LINE_TOKENIZE_VALUE_DEFAULT = "   ";
   /**
-   * Create Vertex Writer.
-   *
+   * Create vertex writer
    * @param context Context
-   * @return new object TextIntIntVertexWriter
+   * @return a vertex writer
    */
-  public final TextVertexWriter
-  createVertexWriter(final TaskAttemptContext context) {
+  public TextVertexWriter createVertexWriter(TaskAttemptContext context) {
     return new TextIntDoubleArrayVertexWriter();
   }
-  /** Class TextIntIntVertexWriter. */
+
+  /**
+   * A vertex writer that prints text with
+   * - Int Vertex Id
+   * - Double Array Vertex Value
+   */
   protected class TextIntDoubleArrayVertexWriter
       extends TextVertexWriterToEachLine {
-    /** Saved delimiter. */
+    /** Saved delimiter */
     private String delimiter;
 
     @Override
-    public final void initialize(final TaskAttemptContext context)
+    public void initialize(TaskAttemptContext context)
       throws IOException, InterruptedException {
       super.initialize(context);
       Configuration conf = context.getConfiguration();
@@ -53,19 +55,20 @@ public class TextDoubleArrayHashMapDoubleTextVertexOutputFormat
     }
 
     @Override
-    protected final Text convertVertexToLine(final Vertex
-      <Text, DoubleArrayListHashMapDoubleWritable, DoubleWritable, ?>
-      vertex)
+    protected Text convertVertexToLine
+    (Vertex<IntWritable, AlsVertexValueType, DoubleWritable, ?>
+          vertex)
       throws IOException {
+
       boolean isErrorFlag = getContext().getConfiguration().getBoolean(
-        "svd.print.error", false);
+        "als.print.error", false);
       boolean isUpdatesFlag = getContext().getConfiguration().getBoolean(
-        "svd.print.updates", false);
+        "als.print.updates", false);
       boolean isMessagesFlag = getContext().getConfiguration().getBoolean(
-        "svd.print.messages", false);
+    	        "als.print.messages", false);
 
       String type = "";
-      if (((Svdpp) vertex).isItem()) {
+      if (((Als) vertex).isItem()) {
         type = "item";
       } else {
         type = "user";
@@ -78,17 +81,17 @@ public class TextDoubleArrayHashMapDoubleTextVertexOutputFormat
       Text line = new Text(type + delimiter + id + delimiter + value);
 
       if (isErrorFlag) {
-        error = Double.toString(Math.abs(((Svdpp) vertex).getHaltFactor()));
+        error = Double.toString(Math.abs(((Als) vertex).returnHaltFactor()));
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(error.getBytes(), 0, error.length());
       }
       if (isUpdatesFlag) {
-        updates = Integer.toString(((Svdpp) vertex).getUpdates());
+        updates = Integer.toString(((Als) vertex).getUpdates()); // .toString();
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(updates.getBytes(), 0, updates.length());
       }
       if (isMessagesFlag) {
-        messages = Integer.toString(((Svdpp) vertex).getMessages());
+        messages = Integer.toString(((Als) vertex).getMessages());
         line.append(delimiter.getBytes(), 0, delimiter.length());
         line.append(messages.getBytes(), 0, messages.length());
       }

@@ -46,6 +46,14 @@ public class DoubleArrayListWritable
     System.out.println("]");
   }
 
+  public DoubleArrayListWritable getObject() {
+    return this;
+  }
+  public void setObject(DoubleArrayListWritable object) {
+    for (int i=0; i<this.size(); i++) {
+      this.set(i, object.get(i));
+    }
+  }
   /**
    * Compare function
    *

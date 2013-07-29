@@ -12,7 +12,7 @@ import es.tid.graphlib.utils.DoubleArrayListWritable;
 import es.tid.graphlib.utils.TextMessageWrapper;
 
 /** This class provides the wrapper for the sending message.*/
-public class SvdMessageWrapper extends TextMessageWrapper {
+public class SvdppMessageWrapper extends TextMessageWrapper {
   /** Baseline Estimate. */
   private DoubleWritable baselineEstimate;
   /** Relative Value. */
@@ -21,7 +21,7 @@ public class SvdMessageWrapper extends TextMessageWrapper {
   private IntWritable numEdges;
 
   /** Constructor. */
-  public SvdMessageWrapper() {
+  public SvdppMessageWrapper() {
     super();
   }
 
@@ -33,7 +33,7 @@ public class SvdMessageWrapper extends TextMessageWrapper {
    * @param pRelativeValue Relative Value
    * @param pNumEdges Number of Edges
    */
-  public SvdMessageWrapper(final Text sourceId,
+  public SvdppMessageWrapper(final Text sourceId,
       final DoubleArrayListWritable message,
       final DoubleWritable pBaselineEstimate,
       final DoubleArrayListWritable pRelativeValue,

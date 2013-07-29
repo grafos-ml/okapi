@@ -13,7 +13,6 @@ import org.apache.hadoop.io.IntWritable;
 import org.jblas.DoubleMatrix;
 import org.jblas.Solve;
 
-import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
 import es.tid.graphlib.utils.DoubleArrayListWritable;
 import es.tid.graphlib.utils.IntMessageWrapper;
 
@@ -25,7 +24,7 @@ import es.tid.graphlib.utils.IntMessageWrapper;
   description = "Matrix Factorization Algorithm: "
     + "It Minimizes the error in users preferences predictions")
 
-public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
+public class Als extends Vertex<IntWritable, AlsVertexValueType,
   DoubleWritable, IntMessageWrapper> {
   /** Keyword for enabling RMSE aggregator. */
   public static final String RMSE_AGGREGATOR = "als.rmse.aggregator";
@@ -198,8 +197,8 @@ public class Als extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
    * @param vectorSize Vector Size
    */
   public final void initLatentVector(final int vectorSize) {
-    DoubleArrayListHashMapWritable value =
-      new DoubleArrayListHashMapWritable();
+    AlsVertexValueType value =
+      new AlsVertexValueType();
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
         ((double) (getId().get() + i) % NUM) / NUM));

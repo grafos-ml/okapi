@@ -11,7 +11,6 @@ import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 
-import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
 import es.tid.graphlib.utils.DoubleArrayListWritable;
 import es.tid.graphlib.utils.IntMessageWrapper;
 
@@ -22,7 +21,7 @@ import es.tid.graphlib.utils.IntMessageWrapper;
   name = "Stochastic Gradient Descent (SGD)",
   description = "Minimizes the error in users preferences predictions")
 
-public class Sgd extends Vertex<IntWritable, DoubleArrayListHashMapWritable,
+public class Sgd extends Vertex<IntWritable, SgdVertexValueType,
 DoubleWritable, IntMessageWrapper> {
   /** Keyword for parameter enabling delta caching. */
   public static final String DELTA_CACHING = "sgd.delta.caching";
@@ -249,8 +248,8 @@ DoubleWritable, IntMessageWrapper> {
    * @param vectorSize Size of latent vector
    */
   public final void initLatentVector(final int vectorSize) {
-    DoubleArrayListHashMapWritable value =
-      new DoubleArrayListHashMapWritable();
+    SgdVertexValueType value =
+      new SgdVertexValueType();
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
         ((double) (getId().get() + i) % HUNDRED) / HUNDRED));

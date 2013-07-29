@@ -25,20 +25,15 @@ import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
-import es.tid.graphlib.sgd.Sgd;
-import es.tid.graphlib.sgd.TextIntDoubleArrayVertexWriter;
-import es.tid.graphlib.utils.DoubleArrayListHashMapWritable;
-
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for graphs
  * with int ids.
  *
  * Each line consists of: vertex id, vertex value and option edge value
  */
-public class IntDoubleArrayHashMapTextVertexOutputFormat
+public class SgdVertexOutputFormat
   extends TextVertexOutputFormat
-  <IntWritable, DoubleArrayListHashMapWritable, DoubleWritable> {
+  <IntWritable, SgdVertexValueType, DoubleWritable> {
 
   /** Specify the output delimiter */
   public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
@@ -52,10 +47,10 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat
    */
   public TextVertexWriter
   createVertexWriter(TaskAttemptContext context) {
-    return new TextIntDoubleArrayVertexWriter();
+    return new SgdVertexWriter();
   }
   /** Class TextIntIntVertexWriter */
-  protected class TextIntDoubleArrayVertexWriter
+  protected class SgdVertexWriter
       extends TextVertexWriterToEachLine {
     /** Saved delimiter */
     private String delimiter;
@@ -71,7 +66,7 @@ public class IntDoubleArrayHashMapTextVertexOutputFormat
 
     @Override
     protected Text convertVertexToLine(Vertex
-      <IntWritable, DoubleArrayListHashMapWritable, DoubleWritable, ?> vertex)
+      <IntWritable, SgdVertexValueType, DoubleWritable, ?> vertex)
       throws IOException {
       boolean isErrorFlag = getContext().getConfiguration().getBoolean(
         "sgd.print.error", false);
