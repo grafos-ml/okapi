@@ -33,7 +33,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  */
 public class SgdVertexOutputFormat
   extends TextVertexOutputFormat
-  <IntWritable, SgdVertexValueType, DoubleWritable> {
+  <IntWritable, SgdVertexValue, DoubleWritable> {
 
   /** Specify the output delimiter */
   public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
@@ -66,7 +66,7 @@ public class SgdVertexOutputFormat
 
     @Override
     protected Text convertVertexToLine(Vertex
-      <IntWritable, SgdVertexValueType, DoubleWritable, ?> vertex)
+      <IntWritable, SgdVertexValue, DoubleWritable, ?> vertex)
       throws IOException {
       boolean isErrorFlag = getContext().getConfiguration().getBoolean(
         "sgd.print.error", false);

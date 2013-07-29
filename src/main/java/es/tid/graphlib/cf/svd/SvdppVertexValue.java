@@ -6,29 +6,29 @@ import java.io.IOException;
 
 import org.apache.hadoop.io.DoubleWritable;
 
+import es.tid.graphlib.cf.CfVertexValue;
 import es.tid.graphlib.utils.DoubleArrayListWritable;
 
 /**
  * A Writable extension of the DoubleArrayListHashMapWritable.
  *
- * It inherits 2 elements
- * First element: sourceValue
- * Second element: neighValues
+ * It inherits 1 element
+ * Element: latentVector
  *
  * And it implements 2 new elements
  * Third element: baselineEstimate
  * Fourth element: relativeValue
  */
 
-public class SvdppVertexValueType
-extends DoubleArrayListWritable {
+public class SvdppVertexValue
+extends CfVertexValue {
   /** Observed Deviation. */
   private DoubleWritable baselineEstimate;
   /** Relative Value. */
   private DoubleArrayListWritable relativeValue;
 
   /** Constructor. */
-  public SvdppVertexValueType() {
+  public SvdppVertexValue() {
     super();
     baselineEstimate = new DoubleWritable();
     relativeValue = new DoubleArrayListWritable();
@@ -126,7 +126,7 @@ extends DoubleArrayListWritable {
   @Override
   public final String toString() {
     return "VertexValue{"
-      + "value=" + super.getObject()
+      + "value=" + super.getLatentVector()
       + ", baseline=" + baselineEstimate
       + ", relative=" + relativeValue
       + '}';

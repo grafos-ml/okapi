@@ -24,7 +24,7 @@ import es.tid.graphlib.utils.IntMessageWrapper;
   description = "Matrix Factorization Algorithm: "
     + "It Minimizes the error in users preferences predictions")
 
-public class Als extends Vertex<IntWritable, AlsVertexValueType,
+public class Als extends Vertex<IntWritable, AlsVertexValue,
   DoubleWritable, IntMessageWrapper> {
   /** Keyword for enabling RMSE aggregator. */
   public static final String RMSE_AGGREGATOR = "als.rmse.aggregator";
@@ -197,8 +197,8 @@ public class Als extends Vertex<IntWritable, AlsVertexValueType,
    * @param vectorSize Vector Size
    */
   public final void initLatentVector(final int vectorSize) {
-    AlsVertexValueType value =
-      new AlsVertexValueType();
+    AlsVertexValue value =
+      new AlsVertexValue();
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
         ((double) (getId().get() + i) % NUM) / NUM));

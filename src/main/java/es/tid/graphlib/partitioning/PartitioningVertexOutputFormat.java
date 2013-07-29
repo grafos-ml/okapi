@@ -32,7 +32,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  *
  * Each line consists of: vertex id, vertex value and option edge value
  */
-public class IntIntTextVertexOutputFormat extends
+public class PartitioningVertexOutputFormat extends
   TextVertexOutputFormat<IntWritable, IntWritable,
   IntWritable> {
   /** Specify the output delimiter */

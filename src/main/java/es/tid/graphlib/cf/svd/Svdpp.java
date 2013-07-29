@@ -19,7 +19,7 @@ import es.tid.graphlib.utils.DoubleArrayListWritable;
   name = "SVD++",
   description = "Minimizes the error in users preferences predictions")
 public class Svdpp extends Vertex<Text,
-  SvdppVertexValueType, DoubleWritable, SvdppMessageWrapper> {
+  SvdppVertexValue, DoubleWritable, SvdppMessageWrapper> {
   /** Name of aggregator that aggregates all ratings. */
   public static final String OVERALL_RATING_AGGREGATOR =
     "OVERALL_RATING_AGGREGATOR";
@@ -122,7 +122,7 @@ public class Svdpp extends Vertex<Text,
     if (getSuperstep() < 2) {
       initValue(vectorSize);
       // For L2Norm
-      initialValue = new DoubleArrayListWritable(getValue().getObject());
+      initialValue = new DoubleArrayListWritable(getValue().getLatentVector());
     }
 
     // Send sum of ratings to aggregator
@@ -237,11 +237,11 @@ public class Svdpp extends Vertex<Text,
    *          Latent Vector Size
    */
   public final void initValue(final int vectorSize) {
-    SvdppVertexValueType value =
-      new SvdppVertexValueType();
+    SvdppVertexValue value =
+      new SvdppVertexValue();
     // Initialize Latent Vector
     for (int i = 0; i < vectorSize; i++) {
-      value.set(i, new DoubleWritable(
+      value.setLatentVector(i, new DoubleWritable(
         ((Double.parseDouble(
           getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
     }
@@ -324,11 +324,11 @@ public class Svdpp extends Vertex<Text,
     DoubleArrayListWritable value = new DoubleArrayListWritable();
     part1 = numMatrixProduct((double) err, vvertex);
     part2 = numMatrixProduct((double) lambda,
-      getValue().getObject());
+      getValue().getLatentVector());
     part3 = numMatrixProduct((double) gamma,
       dotSub(part1, part2));
-    value = dotAddition(getValue().getObject(), part3);
-    getValue().setObject(value);
+    value = dotAddition(getValue().getLatentVector(), part3);
+    getValue().setLatentVector(value);
     updatesNum++;
   }
 
@@ -363,11 +363,11 @@ public class Svdpp extends Vertex<Text,
       numMatrixProduct(1 / Math.sqrt(numUserEdges.get()), relativeValues));
     part1b = numMatrixProduct((double) err, part1a);
     part2 = numMatrixProduct((double) lambda,
-      getValue().getObject());
+      getValue().getLatentVector());
     part3 = numMatrixProduct((double) gamma,
       dotSub(part1b, part2));
-    value = dotAddition(getValue().getObject(), part3);
-    getValue().setObject(value);
+    value = dotAddition(getValue().getLatentVector(), part3);
+    getValue().setLatentVector(value);
     updatesNum++;
   }
 
@@ -391,7 +391,7 @@ public class Svdpp extends Vertex<Text,
 
     part1 = numMatrixProduct(
       1 / Math.sqrt(getNumEdges()), getValue().getRelativeValue());
-    part2 = dotAddition(getValue().getObject(), part1);
+    part2 = dotAddition(getValue().getLatentVector(), part1);
     double part3 = dotProduct(vvertex, part2);
     double numEdges = 0d;
     if (getSuperstep() < 2) {
@@ -436,7 +436,7 @@ public class Svdpp extends Vertex<Text,
     DoubleArrayListWritable part2;
     part1 = numMatrixProduct(1 / Math.sqrt(numUserEdges.get()), relativeValues);
     part2 = dotAddition(vvertex, part1);
-    double part3 = dotProduct(getValue().getObject(), part2);
+    double part3 = dotProduct(getValue().getLatentVector(), part2);
     double numEdges = 0d;
     if (getSuperstep() < 2) {
       numEdges = getTotalNumEdges();
@@ -486,13 +486,13 @@ public class Svdpp extends Vertex<Text,
     if (getSuperstep() == 0) {
       for (Edge<Text, DoubleWritable> edge : getEdges()) {
         DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
-          .getObject());
+          .getLatentVector());
         x.add(new DoubleWritable(edge.getValue().get()));
         message.setMessage(x);
         sendMessage(edge.getTargetVertexId(), message);
       }
     } else {
-      message.setMessage(getValue().getObject());
+      message.setMessage(getValue().getLatentVector());
       sendMessageToAllEdges(message);
     }
   }
@@ -670,7 +670,7 @@ public class Svdpp extends Vertex<Text,
     } else if (factorFlag.equals("rmse")) {
       factor = getRMSE(rmseErr);
     } else if (factorFlag.equals("l2norm")) {
-      factor = getL2Norm(pInitialValue, getValue().getObject());
+      factor = getL2Norm(pInitialValue, getValue().getLatentVector());
     } else {
       throw new RuntimeException("BUG: halt factor " + factorFlag
         + " is not included in the recognized options");

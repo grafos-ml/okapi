@@ -17,7 +17,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  */
 public class SvdppVertexOutputFormat
   extends TextVertexOutputFormat
-  <Text, SvdppVertexValueType, DoubleWritable> {
+  <Text, SvdppVertexValue, DoubleWritable> {
 
   /** Specify the output delimiter. */
   public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
@@ -50,7 +50,7 @@ public class SvdppVertexOutputFormat
 
     @Override
     protected final Text convertVertexToLine(final Vertex
-      <Text, SvdppVertexValueType, DoubleWritable, ?>
+      <Text, SvdppVertexValue, DoubleWritable, ?>
       vertex)
       throws IOException {
       boolean isErrorFlag = getContext().getConfiguration().getBoolean(
@@ -67,7 +67,7 @@ public class SvdppVertexOutputFormat
         type = "user";
       }
       String id = vertex.getId().toString();
-      String value = vertex.getValue().getObject().toString();
+      String value = vertex.getValue().getLatentVector().toString();
       String error = null;
       String updates = null;
       String messages = null;

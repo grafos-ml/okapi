@@ -1,41 +1,46 @@
-package es.tid.graphlib.cf.sgd;
+package es.tid.graphlib.cf.als;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.HashMap;
 
-import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Writable;
 
+import es.tid.graphlib.cf.CfVertexValue;
 import es.tid.graphlib.utils.DoubleArrayListWritable;
 
 /**
- * A Writable implementation for 2 elements
+ * A Writable implementation for 2 elements.
  * First element: sourceValue
  * Second element: neighValues
  */
 
-public class SgdVertexValueType implements Writable {
-  /** Source Vertex Value */
-  private DoubleArrayListWritable sourceValue;
-  /** Neighbors Values */
+public class AlsVertexValue
+extends CfVertexValue
+implements Writable {
+
+  /** For serialization. */
+  private static final long serialVersionUID = 1L;
+
+  /** Neighbors Values. */
   private HashMap<IntWritable, DoubleArrayListWritable> neighValues;
 
-  /** Constructor */
-  public SgdVertexValueType() {
-    sourceValue = new DoubleArrayListWritable();
+  /** Constructor. */
+  public AlsVertexValue() {
+    super();
     neighValues = new HashMap<IntWritable, DoubleArrayListWritable>();
   }
 
   /**
-   * Write bytes
+   * Write bytes.
    *
    * @param output Output
+   * @throws IOException for IO
    */
   public void write(DataOutput output) throws IOException {
-    sourceValue.write(output);
+    super.write(output);
     output.writeInt(getSize());
     for (IntWritable key : neighValues.keySet()) {
       key.write(output);
@@ -44,13 +49,13 @@ public class SgdVertexValueType implements Writable {
   }
 
   /**
-   * Read bytes
+   * Read bytes.
    *
    * @param input Input
+   * @throws IOException for IO
    */
   public void readFields(DataInput input) throws IOException {
-    sourceValue = new DoubleArrayListWritable();
-    sourceValue.readFields(input);
+    super.readFields(input);
 
     neighValues = new HashMap<IntWritable, DoubleArrayListWritable>();
     int size = input.readInt();
@@ -64,60 +69,33 @@ public class SgdVertexValueType implements Writable {
   }
 
   /**
-   * Set vertex latent value
-   *
-   * @param value Vertex Latent Value
-   */
-  public void setLatentVector(DoubleArrayListWritable value) {
-    sourceValue = value;
-  }
-
-  /**
-   * Set one element of vertex latent value
-   *
-   * @param index Index of the vertex Latent vector
-   * @param value Latent Value for the index
-   */
-  public void setLatentVector(int index, DoubleWritable value) {
-    sourceValue.add(index, value);
-  }
-
-  /**
-   * Get vertex latent vector values
-   *
-   * @return Vertex Latent Value
-   */
-  public DoubleArrayListWritable getLatentVector() {
-    return sourceValue;
-  }
-
-  /**
    * Add a vertex latent value to the HashMap.
    *
    * @param neighId Key of the pair
    * @param neighVal Value of the pair
    */
-  public void setNeighborValue(IntWritable neighId,
-    DoubleArrayListWritable neighVal) {
+  public final void setNeighborValue(final IntWritable neighId,
+    final DoubleArrayListWritable neighVal) {
     neighValues.put(neighId, neighVal);
   }
 
   /**
-   * Get vertex neighbors latent vector values
+   * Get vertex neighbors latent vector values.
    *
    * @param id Neighbor's Id
    * @return Neighbor Latent Value
    */
-  public DoubleArrayListWritable getNeighValue(IntWritable id) {
+  public final DoubleArrayListWritable getNeighValue(final IntWritable id) {
     return neighValues.get(id);
   }
 
   /**
-   * Get the neighbors vertices values (data stored with vertex)
+   * Get the neighbors vertices values (data stored with vertex).
    *
    * @return Neighbors values
    */
-  public HashMap<IntWritable, DoubleArrayListWritable> getAllNeighValue() {
+  public final HashMap<
+    IntWritable, DoubleArrayListWritable> getAllNeighValue() {
     return neighValues;
   }
 
@@ -126,7 +104,7 @@ public class SgdVertexValueType implements Writable {
    *
    * @return Number of neighbors latent vectors in the list
    */
-  public int getSize() {
+  public final int getSize() {
     return neighValues.size();
   }
 
@@ -135,7 +113,7 @@ public class SgdVertexValueType implements Writable {
    *
    * @return True iff there are no pairs in the list
    */
-  public boolean isEmpty() {
+  public final boolean isEmpty() {
     return getSize() == 0;
   }
 }

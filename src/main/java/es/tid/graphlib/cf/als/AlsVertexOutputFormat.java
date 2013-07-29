@@ -19,7 +19,7 @@ import es.tid.graphlib.cf.sgd.Sgd;
  * Each line consists of: vertex id, vertex value and option edge value
  */
 public class AlsVertexOutputFormat extends
-  TextVertexOutputFormat<IntWritable, AlsVertexValueType,
+  TextVertexOutputFormat<IntWritable, AlsVertexValue,
   DoubleWritable> {
 
   /** Specify the output delimiter */
@@ -56,7 +56,7 @@ public class AlsVertexOutputFormat extends
 
     @Override
     protected Text convertVertexToLine
-    (Vertex<IntWritable, AlsVertexValueType, DoubleWritable, ?>
+    (Vertex<IntWritable, AlsVertexValue, DoubleWritable, ?>
           vertex)
       throws IOException {
 

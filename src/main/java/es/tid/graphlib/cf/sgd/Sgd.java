@@ -21,7 +21,7 @@ import es.tid.graphlib.utils.IntMessageWrapper;
   name = "Stochastic Gradient Descent (SGD)",
   description = "Minimizes the error in users preferences predictions")
 
-public class Sgd extends Vertex<IntWritable, SgdVertexValueType,
+public class Sgd extends Vertex<IntWritable, SgdVertexValue,
 DoubleWritable, IntMessageWrapper> {
   /** Keyword for parameter enabling delta caching. */
   public static final String DELTA_CACHING = "sgd.delta.caching";
@@ -248,8 +248,8 @@ DoubleWritable, IntMessageWrapper> {
    * @param vectorSize Size of latent vector
    */
   public final void initLatentVector(final int vectorSize) {
-    SgdVertexValueType value =
-      new SgdVertexValueType();
+    SgdVertexValue value =
+      new SgdVertexValue();
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
         ((double) (getId().get() + i) % HUNDRED) / HUNDRED));
