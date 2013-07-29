@@ -19,31 +19,32 @@ public class AlsVertexOutputFormat extends
   TextVertexOutputFormat<Text, AlsVertexValue,
   DoubleWritable> {
 
-  /** Specify the output delimiter */
+  /** Specify the output delimiter. */
   public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
-  /** Default output delimiter */
+  /** Default output delimiter. */
   public static final String LINE_TOKENIZE_VALUE_DEFAULT = "   ";
   /**
-   * Create vertex writer
+   * Create vertex writer.
    * @param context Context
    * @return a vertex writer
    */
-  public TextVertexWriter createVertexWriter(TaskAttemptContext context) {
+  public final TextVertexWriter createVertexWriter(
+    final TaskAttemptContext context) {
     return new AlsVertexWriter();
   }
 
   /**
-   * A vertex writer that prints text with
+   * A vertex writer. It prints:
    * - Int Vertex Id
    * - Double Array Vertex Value
    */
   protected class AlsVertexWriter
       extends TextVertexWriterToEachLine {
-    /** Saved delimiter */
+    /** Saved delimiter. */
     private String delimiter;
 
     @Override
-    public void initialize(TaskAttemptContext context)
+    public final void initialize(final TaskAttemptContext context)
       throws IOException, InterruptedException {
       super.initialize(context);
       Configuration conf = context.getConfiguration();
@@ -52,17 +53,15 @@ public class AlsVertexOutputFormat extends
     }
 
     @Override
-    protected Text convertVertexToLine
-    (Vertex<Text, AlsVertexValue, DoubleWritable, ?>
-          vertex)
+    protected final Text convertVertexToLine(
+      final Vertex<Text, AlsVertexValue, DoubleWritable, ?>vertex)
       throws IOException {
-
       boolean isErrorFlag = getContext().getConfiguration().getBoolean(
         "als.print.error", false);
       boolean isUpdatesFlag = getContext().getConfiguration().getBoolean(
         "als.print.updates", false);
       boolean isMessagesFlag = getContext().getConfiguration().getBoolean(
-    	        "als.print.messages", false);
+        "als.print.messages", false);
 
       String type = "";
       if (((Als) vertex).isItem()) {

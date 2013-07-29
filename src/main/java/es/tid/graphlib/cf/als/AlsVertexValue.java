@@ -39,9 +39,9 @@ implements Writable {
    * @param output Output
    * @throws IOException for IO
    */
-  public void write(DataOutput output) throws IOException {
+  public final void write(final DataOutput output) throws IOException {
     super.write(output);
-    output.writeInt(getSize());
+    output.writeInt(getNeighSize());
     for (Text key : neighValues.keySet()) {
       key.write(output);
       neighValues.get(key).write(output);
@@ -54,7 +54,7 @@ implements Writable {
    * @param input Input
    * @throws IOException for IO
    */
-  public void readFields(DataInput input) throws IOException {
+  public final void readFields(final DataInput input) throws IOException {
     super.readFields(input);
 
     neighValues = new HashMap<Text, DoubleArrayListWritable>();
@@ -104,7 +104,7 @@ implements Writable {
    *
    * @return Number of neighbors latent vectors in the list
    */
-  public final int getSize() {
+  public final int getNeighSize() {
     return neighValues.size();
   }
 
@@ -114,6 +114,6 @@ implements Writable {
    * @return True iff there are no pairs in the list
    */
   public final boolean isEmpty() {
-    return getSize() == 0;
+    return getNeighSize() == 0;
   }
 }

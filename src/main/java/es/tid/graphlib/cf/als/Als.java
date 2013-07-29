@@ -243,7 +243,7 @@ public class Als extends Vertex<Text, AlsVertexValue,
     // Amat = MiIi * t(MiIi) + LAMBDA * getNumEdges() * matId
     DoubleMatrix matNeighVectorsTrans = matNeighVectors.transpose();
     DoubleMatrix matMul = matNeighVectors.mmul(matNeighVectorsTrans);
-    DoubleMatrix matId = DoubleMatrix.eye(getValue().getSize());
+    DoubleMatrix matId = DoubleMatrix.eye(getValue().getNeighSize());
     double reg = lambda * getNumEdges();
     // Vmat = MiIi * t(R(i,Ii))
     DoubleMatrix aMatrix = matMul.add(matId.mul(reg));
@@ -272,7 +272,7 @@ public class Als extends Vertex<Text, AlsVertexValue,
    */
   public final void updateLatentVector(final DoubleMatrix value) {
     DoubleArrayListWritable val = new DoubleArrayListWritable();
-    for (int i = 0; i < getValue().getSize(); i++) {
+    for (int i = 0; i < getValue().getLatentVector().size(); i++) {
       val.add(new DoubleWritable(value.get(i)));
       getValue().getLatentVector().set(i, new DoubleWritable(value.get(i)));
     }
