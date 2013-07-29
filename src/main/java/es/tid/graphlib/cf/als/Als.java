@@ -219,19 +219,24 @@ public class Als extends Vertex<Text, AlsVertexValue,
      * Vmat = MiIi * t(R(i,Ii))
      * Amat * Umat = Vmat <==> solve Umat
      *
-     * where MiIi: movies feature matrix rated by user i (matNeighVectors)
-     * t(MiIi): transpose of MiIi (matNeighVectorsTrans)
-     * Nui: number of ratings of user i (getNumEdges())
-     * E: identity matrix (matId) R(i,Ii): ratings of movies rated by user i
+     * where MiIi: movies feature matrix rated by user i
+     * --> matNeighVectors[vectorSize][getNumEdges()]
+     * t(MiIi): transpose of MiIi
+     * --> matNeighVectorsTrans[getNumEdges()][vectorSize]
+     * Nui: number of ratings of user i --> getNumEdges()
+     * E: identity matrix --> matId[vectorSize][vectorSize]
+     * R(i,Ii): ratings of movies rated by user i
      */
     int j = 0;
-    DoubleMatrix matNeighVectors = new DoubleMatrix(getNumEdges());
+    // Create a matrix with #rows = 1st parameter, #columns = 2nd parameter
+    DoubleMatrix matNeighVectors = new DoubleMatrix(getValue().getLatentVector().size(), getNumEdges());
+    // Create a row vector with the ratings
     DoubleMatrix ratings = new DoubleMatrix(getNumEdges());
     // FOR LOOP - for each edge
     for (Entry<Text, DoubleArrayListWritable> vvertex
       : getValue().getAllNeighValue().entrySet()) {
       // Store the latent vector of the current neighbor
-      double[] curVec = new double[vvertex.getValue().size()];
+			double[] curVec = new double[vvertex.getValue().size()];
       for (int i = 0; i < vvertex.getValue().size(); i++) {
         curVec[i] = vvertex.getValue().get(i).get();
       }
@@ -243,10 +248,10 @@ public class Als extends Vertex<Text, AlsVertexValue,
     // Amat = MiIi * t(MiIi) + LAMBDA * getNumEdges() * matId
     DoubleMatrix matNeighVectorsTrans = matNeighVectors.transpose();
     DoubleMatrix matMul = matNeighVectors.mmul(matNeighVectorsTrans);
-    DoubleMatrix matId = DoubleMatrix.eye(getValue().getNeighSize());
+    DoubleMatrix matId = DoubleMatrix.eye(getValue().getLatentVector().size());
     double reg = lambda * getNumEdges();
-    // Vmat = MiIi * t(R(i,Ii))
     DoubleMatrix aMatrix = matMul.add(matId.mul(reg));
+    // Vmat = MiIi * t(R(i,Ii))
     DoubleMatrix vMatrix = matNeighVectors.mmul(ratings);
     DoubleMatrix uMatrix = new DoubleMatrix();
     uMatrix = Solve.solve(aMatrix, vMatrix);
