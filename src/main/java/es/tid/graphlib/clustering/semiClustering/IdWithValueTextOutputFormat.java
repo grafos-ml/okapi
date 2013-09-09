@@ -58,10 +58,10 @@ public class IdWithValueTextOutputFormat<I extends WritableComparable,
     }
 
     @Override
-    protected Text convertVertexToLine(Vertex<I, V, E, ?> vertex)
+    protected Text convertVertexToLine(Vertex<I, V, E> vertex)
       throws IOException {
       String id = vertex.getId().toString();
-      String value = ((SemiClustering) vertex).getValue().toString();
+      String value = vertex.getValue().toString();
       Text line = new Text(id + delimiter + value);
       return line;
     }

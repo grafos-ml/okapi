@@ -54,7 +54,7 @@ public class AlsVertexOutputFormat extends
 
     @Override
     protected final Text convertVertexToLine(
-      final Vertex<Text, AlsVertexValue, DoubleWritable, ?>vertex)
+      final Vertex<Text, AlsVertexValue, DoubleWritable>vertex)
       throws IOException {
       boolean isErrorFlag = getContext().getConfiguration().getBoolean(
         "als.print.error", false);

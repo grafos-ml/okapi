@@ -10,6 +10,7 @@ import java.util.TreeSet;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
@@ -25,7 +26,7 @@ import es.tid.graphlib.clustering.semiClustering.SemiClustering.SemiClusterTreeS
   name = "Semi Clustering",
   description = "Put vertices into clusters.")
 
-public class SemiClustering extends Vertex<LongWritable,
+public class SemiClustering extends BasicComputation<LongWritable,
 SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
 
   /** Keyword for parameter setting the number of iterations. */
@@ -58,8 +59,9 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
    * Compute method.
    * @param messages Messages received
    */
-  public final void compute(
-    final Iterable<SemiClusterTreeSetWritable> messages) {
+  public final void compute(Vertex<LongWritable, 
+      SemiClusterTreeSetWritable, DoubleWritable> vertex, 
+      final Iterable<SemiClusterTreeSetWritable> messages) {
     // Set the number of iterations
     int iterations = getContext().getConfiguration().getInt(
       ITERATIONS_KEYWORD, ITERATIONS_DEFAULT);
@@ -86,26 +88,26 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       SemiClusterTreeSetWritable clusterList =
         new SemiClusterTreeSetWritable(scoreComparator);
       SemiCluster myCluster = new SemiCluster();
-      myCluster.addVertex(this, boundaryEdgeScoreFactor);
+      myCluster.addVertex(vertex, boundaryEdgeScoreFactor);
       clusterList.add(myCluster);
-      setValue(clusterList);
-      System.out.println("---S: " + getSuperstep() + ", id: " + getId()
-        + ", clusterList: " + getValue());
+      vertex.setValue(clusterList);
+      System.out.println("---S: " + getSuperstep() + ", id: " + vertex.getId()
+        + ", clusterList: " + vertex.getValue());
       //sendMessageToAllEdges(getValue());
-      for (Edge<LongWritable, DoubleWritable> edge : getEdges()) {
+      for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
         SemiClusterTreeSetWritable message = new SemiClusterTreeSetWritable();
-        message.addAll(getValue());
+        message.addAll(vertex.getValue());
 
         sendMessage(edge.getTargetVertexId(), message);
         //System.out.println("send " + message.getMessage().toString() +
         //" to " + edge.getTargetVertexId());
       }
-      voteToHalt();
+      vertex.voteToHalt();
       return;
     }
 
     if (getSuperstep() == iterations) {
-      voteToHalt();
+      vertex.voteToHalt();
       return;
     }
     // In the next supersteps:
@@ -118,21 +120,21 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
 
     SemiClusterTreeSetWritable tempList =
       new SemiClusterTreeSetWritable(scoreComparator);
-    tempList.addAll(getValue());
+    tempList.addAll(vertex.getValue());
 
     // FOR LOOP - for each message/list
     for (SemiClusterTreeSetWritable  message : messages) {
-      System.out.println("S:" + getSuperstep() + ", id:" + getId()
+      System.out.println("S:" + getSuperstep() + ", id:" + vertex.getId()
         + ", message received " + message.toString());
       for (SemiCluster cluster: message) {
       //Iterator<SemiCluster> clusterIter = message.iterator();
       // WHILE LOOP - for each cluster in the message/list
       //while (clusterIter.hasNext()) {
         //SemiCluster cluster = new SemiCluster(clusterIter.next());
-        if (!cluster.verticesList.contains(getId())
+        if (!cluster.verticesList.contains(vertex.getId())
           && cluster.verticesList.size() < clusterCapacity) {
           SemiCluster newCluster = new SemiCluster(cluster);
-          newCluster.addVertex(this, boundaryEdgeScoreFactor);
+          newCluster.addVertex(vertex, boundaryEdgeScoreFactor);
           boolean added = tempList.add(newCluster);
           //tempList.addCluster(newCluster);
           System.out.println("Cluster: " + cluster.verticesList.toString()
@@ -141,26 +143,26 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
         }
       } // END OF WHILE LOOP - (for each cluster)
     } // END OF FOR LOOP - (for each message/list)
-    getValue().clear();
+    vertex.getValue().clear();
     SemiClusterTreeSetWritable value =
       new SemiClusterTreeSetWritable(scoreComparator);
     Iterator<SemiCluster> iterator = tempList.iterator();
     for (int i = 0; i < clusterListCapacity; i++) {
       if (iterator.hasNext()) {
         value.add(iterator.next());
-        setValue(value);
+        vertex.setValue(value);
       }
     }
-    System.out.println("---S: " + getSuperstep() + ", id: " + getId()
-      + ", clusterList: " + getValue());
+    System.out.println("---S: " + getSuperstep() + ", id: " + vertex.getId()
+      + ", clusterList: " + vertex.getValue());
 
     SemiClusterTreeSetWritable message = new SemiClusterTreeSetWritable();
-    message.addAll(getValue());
+    message.addAll(vertex.getValue());
     for (SemiCluster c: message) {
       System.out.println(c.toString());
     }
-    sendMessageToAllEdges(message);
-    voteToHalt();
+    sendMessageToAllEdges(vertex, message);
+    vertex.voteToHalt();
   } // END OF Compute()
 
   /***************************************************************************
@@ -355,8 +357,8 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
      * @param boundaryEdgeScoreFactor Boundary Edge Score Factor
      */
     public final void addVertex(
-      final Vertex<LongWritable, ?, DoubleWritable, ?>
-      vertex, final double boundaryEdgeScoreFactor) {
+        final Vertex<LongWritable, ? , DoubleWritable> vertex, 
+        final double boundaryEdgeScoreFactor) {
       long vertexId = vertex.getId().get();
       if (verticesList.add(new LongWritable(vertexId))) {
           this.computeScore(vertex, boundaryEdgeScoreFactor);
@@ -382,8 +384,8 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
      *
      */
     private void computeScore(
-      final Vertex<LongWritable, ?, DoubleWritable, ?>
-      vertex, final double boundaryEdgeScoreFactor) {
+        final Vertex<LongWritable, ?, DoubleWritable> vertex, 
+        final double boundaryEdgeScoreFactor) {
       /*for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
         System.out.println("v:" + vertex.getId() + ", target:" +
           edge.getTargetVertexId() + ", edgeValue:" + edge.getValue());

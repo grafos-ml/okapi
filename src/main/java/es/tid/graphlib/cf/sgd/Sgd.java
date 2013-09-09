@@ -6,6 +6,7 @@ import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
 import org.apache.giraph.edge.DefaultEdge;
 import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
@@ -21,7 +22,7 @@ import es.tid.graphlib.utils.TextMessageWrapper;
   name = "Stochastic Gradient Descent (SGD)",
   description = "Minimizes the error in users preferences predictions")
 
-public class Sgd extends Vertex<Text, SgdVertexValue,
+public class Sgd extends BasicComputation<Text, SgdVertexValue,
 DoubleWritable, TextMessageWrapper> {
   /** Keyword for parameter enabling delta caching. */
   public static final String DELTA_CACHING = "sgd.delta.caching";
@@ -88,7 +89,8 @@ DoubleWritable, TextMessageWrapper> {
    * Compute method.
    * @param messages Messages received
    */
-  public final void compute(final Iterable<TextMessageWrapper> messages) {
+  public final void compute(Vertex<Text, SgdVertexValue,
+      DoubleWritable> vertex, final Iterable<TextMessageWrapper> messages) {
     /** Error between predicted and observed rating */
     double err = 0d;
 
@@ -125,9 +127,10 @@ DoubleWritable, TextMessageWrapper> {
     // First superstep for users (superstep 0) & items (superstep 1)
     // Initialize vertex latent vector
     if (getSuperstep() < 2) {
-      initLatentVector(vectorSize);
+      initLatentVector(vertex, vectorSize);
       // For L2Norm
-      initialValue = new DoubleArrayListWritable(getValue().getLatentVector());
+      initialValue = new DoubleArrayListWritable(
+          vertex.getValue().getLatentVector());
     }
     // Set flag for items - used in the Output Format
     if (getSuperstep() == 1) {
@@ -150,7 +153,7 @@ DoubleWritable, TextMessageWrapper> {
           new DefaultEdge<Text, DoubleWritable>();
         edge.setTargetVertexId(message.getSourceId());
         edge.setValue(new DoubleWritable(observed));
-        addEdge(edge);
+        vertex.addEdge(edge);
         // Remove the last value from message
         // It's there only for the 1st round of items
         message.getMessage().remove(message.getMessage().size() - 1);
@@ -162,10 +165,10 @@ DoubleWritable, TextMessageWrapper> {
       // update their values based on the message received
       if (isDeltaEnabled) {
         DoubleArrayListWritable currVal =
-          getValue().getNeighValue(message.getSourceId());
+          vertex.getValue().getNeighValue(message.getSourceId());
         DoubleArrayListWritable newVal = message.getMessage();
         if (currVal == null || currVal.compareTo(newVal) != 0) {
-          getValue().setNeighborValue(message.getSourceId(), newVal);
+          vertex.getValue().setNeighborValue(message.getSourceId(), newVal);
           isNeighUpdated = true;
         }
       } // END OF IF CLAUSE - delta caching is enabled
@@ -173,12 +176,13 @@ DoubleWritable, TextMessageWrapper> {
       // If delta caching is NOT enabled
       if (!isDeltaEnabled) {
         // Calculate error
-        double observed = (double) getEdgeValue(message.getSourceId()).get();
-        err = getError(getValue().getLatentVector(),
+        double observed = (double) vertex.getEdgeValue(
+            message.getSourceId()).get();
+        err = getError(vertex.getValue().getLatentVector(),
           message.getMessage(), observed);
         // Change the Vertex Latent Vector based on SGD equation
-        updateValue(message.getMessage(), lambda, gamma, err);
-        err = getError(getValue().getLatentVector(),
+        updateValue(vertex, message.getMessage(), lambda, gamma, err);
+        err = getError(vertex.getValue().getLatentVector(),
           message.getMessage(),
           observed);
         // If termination flag is set to RMSE OR RMSE aggregator is enabled
@@ -192,19 +196,19 @@ DoubleWritable, TextMessageWrapper> {
     // Go through the edges and execute the SGD computation
     if (isDeltaEnabled) {
       // FOR LOOP - for each edge
-      for (Entry<Text, DoubleArrayListWritable> vvertex : getValue()
+      for (Entry<Text, DoubleArrayListWritable> vvertex : vertex.getValue()
         .getAllNeighValue().entrySet()) {
         // Calculate error
-        double observed = (double) getEdgeValue(vvertex.getKey()).get();
-        err = getError(getValue().getLatentVector(),
+        double observed = (double) vertex.getEdgeValue(vvertex.getKey()).get();
+        err = getError(vertex.getValue().getLatentVector(),
           vvertex.getValue(),
           observed);
         // If at least one neighbor has changed its latent vector,
         // then calculation of vertex can not be avoided
         if (isNeighUpdated) {
           // Change the Vertex Latent Vector based on SGD equation
-          updateValue(vvertex.getValue(), lambda, gamma, err);
-          err = getError(getValue().getLatentVector(),
+          updateValue(vertex, vvertex.getValue(), lambda, gamma, err);
+          err = getError(vertex.getValue().getLatentVector(),
             vvertex.getValue(), observed);
         } // END OF IF CLAUSE - (neighUpdated)
         // If termination flag is set to RMSE or RMSE aggregator is true
@@ -214,7 +218,8 @@ DoubleWritable, TextMessageWrapper> {
       }  // END OF LOOP - for each edge
     } // END OF IF CLAUSE - (isDeltaEnabled)
 
-    haltFactor = defineFactor(factorFlag, initialValue, tolerance, rmseErr);
+    haltFactor = defineFactor(
+        vertex, factorFlag, initialValue, tolerance, rmseErr);
 
     // If RMSE aggregator flag is true - send rmseErr to aggregator
     if (rmseTolerance != 0f) {
@@ -224,13 +229,13 @@ DoubleWritable, TextMessageWrapper> {
     if (getSuperstep() == 0
       ||
       (haltFactor > tolerance && getSuperstep() < iterations)) {
-      sendMessage();
+      sendMessage(vertex);
     }
     // haltFactor is used in the OutputFormat file. --> To print the error
     if (factorFlag.equals("basic")) {
       haltFactor = err;
     }
-    voteToHalt();
+    vertex.voteToHalt();
   } // END OF compute()
 
   /**
@@ -247,15 +252,16 @@ DoubleWritable, TextMessageWrapper> {
    *
    * @param vectorSize Size of latent vector
    */
-  public final void initLatentVector(final int vectorSize) {
+  public final void initLatentVector(Vertex<Text, SgdVertexValue,
+      DoubleWritable> vertex, final int vectorSize) {
     SgdVertexValue value =
       new SgdVertexValue();
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
-        ((Double.parseDouble(getId().toString().substring(2)) + i) % HUNDRED)
+        ((Double.parseDouble(vertex.getId().toString().substring(2)) + i) % HUNDRED)
         / HUNDRED));
     }
-    setValue(value);
+    vertex.setValue(value);
   }
 
   /**
@@ -266,7 +272,8 @@ DoubleWritable, TextMessageWrapper> {
    * @param gamma Larning rate
    * @param err Error between predicted and observed rating
    */
-  public final void updateValue(
+  public final void updateValue(Vertex<Text, SgdVertexValue,
+      DoubleWritable> vertex,
     final DoubleArrayListWritable vvertex, final float lambda,
     final float gamma, final double err) {
     /**
@@ -282,13 +289,13 @@ DoubleWritable, TextMessageWrapper> {
     DoubleArrayListWritable part3;
     DoubleArrayListWritable value;
     part1 = numMatrixProduct((double) lambda,
-      getValue().getLatentVector());
+      vertex.getValue().getLatentVector());
     part2 = numMatrixProduct((double) err, vvertex);
     part3 = numMatrixProduct((double) -gamma,
       dotAddition(part1, part2));
-    value = dotAddition(getValue().getLatentVector(), part3);
+    value = dotAddition(vertex.getValue().getLatentVector(), part3);
     keepXdecimals(value, DECIMALS);
-    getValue().setLatentVector(value);
+    vertex.getValue().setLatentVector(value);
     updatesNum++;
   }
 
@@ -313,22 +320,23 @@ DoubleWritable, TextMessageWrapper> {
   /**
    * Send messages to neighbours.
    */
-  public final void sendMessage() {
+  public final void sendMessage(Vertex<Text, SgdVertexValue,
+      DoubleWritable> vertex) {
     // Create a message and wrap together the source id and the message
     TextMessageWrapper message = new TextMessageWrapper();
-    message.setSourceId(getId());
+    message.setSourceId(vertex.getId());
     // At superstep 0, users send rating to items
     if (getSuperstep() == 0) {
-      for (Edge<Text, DoubleWritable> edge : getEdges()) {
-        DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
-          .getLatentVector());
+      for (Edge<Text, DoubleWritable> edge : vertex.getEdges()) {
+        DoubleArrayListWritable x = 
+            new DoubleArrayListWritable(vertex.getValue().getLatentVector());
         x.add(new DoubleWritable(edge.getValue().get()));
         message.setMessage(x);
         sendMessage(edge.getTargetVertexId(), message);
       }
     } else {
-      message.setMessage(getValue().getLatentVector());
-      sendMessageToAllEdges(message);
+      message.setMessage(vertex.getValue().getLatentVector());
+      sendMessageToAllEdges(vertex, message);
     }
   }
 
@@ -459,7 +467,8 @@ DoubleWritable, TextMessageWrapper> {
    *
    * @return factor number of halting barrier
    */
-  public final double defineFactor(final String factorFlag,
+  public final double defineFactor(Vertex<Text, SgdVertexValue,
+      DoubleWritable> vertex, final String factorFlag,
       final DoubleArrayListWritable pInitialValue, final float pTolerance,
       final double rmseErr) {
     double factor = 0d;
@@ -468,7 +477,7 @@ DoubleWritable, TextMessageWrapper> {
     } else if (factorFlag.equals("rmse")) {
       factor = getRMSE(rmseErr);
     } else if (factorFlag.equals("l2norm")) {
-      factor = getL2Norm(pInitialValue, getValue().getLatentVector());
+      factor = getL2Norm(pInitialValue, vertex.getValue().getLatentVector());
     } else {
       throw new RuntimeException("BUG: halt factor " + factorFlag
         +

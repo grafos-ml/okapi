@@ -20,8 +20,7 @@ public class MessageWrapper implements WritableComparable<MessageWrapper> {
   // TODO SHOULD BE STATIC RIGHT?
   // Should be actually removed!!!
   /** Configuration */
-  private ImmutableClassesGiraphConfiguration
-    <LongWritable, ?, ?, SemiClusterTreeSetWritable> conf;
+  private ImmutableClassesGiraphConfiguration<LongWritable, ?, ?> conf;
 
   /** Constructor */
   public MessageWrapper() {
@@ -74,8 +73,7 @@ public class MessageWrapper implements WritableComparable<MessageWrapper> {
    *
    * @return conf Configuration
    */
-  public ImmutableClassesGiraphConfiguration
-      <LongWritable, ?, ?, SemiClusterTreeSetWritable> getConf() {
+  public ImmutableClassesGiraphConfiguration<LongWritable, ?, ?> getConf() {
     return conf;
   }
 
@@ -84,8 +82,8 @@ public class MessageWrapper implements WritableComparable<MessageWrapper> {
    *
    * @param conf Configuration to be stored
    */
-  public void setConf(ImmutableClassesGiraphConfiguration
-      <LongWritable, ?, ?, SemiClusterTreeSetWritable> conf) {
+  public void setConf(
+      ImmutableClassesGiraphConfiguration<LongWritable, ?, ?> conf) {
     this.conf = conf;
   }
 

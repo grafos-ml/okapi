@@ -19,8 +19,7 @@ public class IntMessageWrapper
   // TODO SHOULD BE STATIC RIGHT?
   // Should be actually removed!!!
   /** Configuration */
-  private ImmutableClassesGiraphConfiguration
-    <IntWritable, ?, ?, IntWritable> conf;
+  private ImmutableClassesGiraphConfiguration<IntWritable, ?, ?> conf;
 
   /** Constructor */
   public IntMessageWrapper() {
@@ -71,8 +70,7 @@ public class IntMessageWrapper
    *
    * @return conf Configuration
    */
-  public ImmutableClassesGiraphConfiguration
-      <IntWritable, ?, ?, IntWritable> getConf() {
+  public ImmutableClassesGiraphConfiguration<IntWritable, ?, ?> getConf() {
     return conf;
   }
 
@@ -82,7 +80,7 @@ public class IntMessageWrapper
    * @param conf Configuration to be stored
    */
   public void setConf(
-    ImmutableClassesGiraphConfiguration<IntWritable, ?, ?, IntWritable> conf) {
+    ImmutableClassesGiraphConfiguration<IntWritable, ?, ?> conf) {
     this.conf = conf;
   }
 

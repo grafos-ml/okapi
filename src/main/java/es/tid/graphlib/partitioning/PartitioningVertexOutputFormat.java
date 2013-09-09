@@ -66,8 +66,8 @@ public class PartitioningVertexOutputFormat extends
     }
 
     @Override
-    protected Text convertVertexToLine
-    (Vertex<IntWritable, IntWritable, IntWritable, ?> vertex)
+    protected Text convertVertexToLine(
+        Vertex<IntWritable, IntWritable, IntWritable> vertex)
       throws IOException {
       String id = vertex.getId().toString();
       String value = vertex.getValue().toString();

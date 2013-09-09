@@ -17,6 +17,7 @@
 
 package es.tid.graphlib.pagerank;
 
+import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
@@ -31,7 +32,7 @@ import org.apache.log4j.Logger;
  *
  * The maximum number of supersteps is configurable.
  */
-public class SimplePageRankVertex extends Vertex<LongWritable,
+public class SimplePageRankVertex extends BasicComputation<LongWritable,
   DoubleWritable, FloatWritable, DoubleWritable> {
   /** Default number of supersteps */
   public static final int MAX_SUPERSTEPS_DEFAULT = 30;
@@ -43,9 +44,11 @@ public class SimplePageRankVertex extends Vertex<LongWritable,
     Logger.getLogger(SimplePageRankVertex.class);
 
   @Override
-  public void compute(Iterable<DoubleWritable> messages) {
+  public void compute(
+      Vertex<LongWritable, DoubleWritable, FloatWritable> vertex,
+      Iterable<DoubleWritable> messages) {
     if (getSuperstep() == 0) {
-      setValue(new DoubleWritable(1f / getTotalNumVertices()));
+      vertex.setValue(new DoubleWritable(1f / getTotalNumVertices()));
     }
     if (getSuperstep() >= 1) {
       double sum = 0;
@@ -54,16 +57,17 @@ public class SimplePageRankVertex extends Vertex<LongWritable,
       }
       DoubleWritable vertexValue =
         new DoubleWritable((0.15f / getTotalNumVertices()) + 0.85f * sum);
-      setValue(vertexValue);
+      vertex.setValue(vertexValue);
     }
 
     if (getSuperstep() < getContext().getConfiguration().getInt(
       MAX_SUPERSTEPS, MAX_SUPERSTEPS_DEFAULT)) {
 
-      long edges = getNumEdges();
-      sendMessageToAllEdges(new DoubleWritable(getValue().get() / edges));
+      long edges = vertex.getNumEdges();
+      sendMessageToAllEdges(vertex,
+          new DoubleWritable(vertex.getValue().get() / edges));
     } else {
-      voteToHalt();
+      vertex.voteToHalt();
     }
   }
 }

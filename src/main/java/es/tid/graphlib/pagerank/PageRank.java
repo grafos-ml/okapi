@@ -2,6 +2,7 @@
 package es.tid.graphlib.pagerank;
 
 import org.apache.giraph.examples.Algorithm;
+import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
@@ -13,7 +14,7 @@ import org.apache.hadoop.io.LongWritable;
 @Algorithm(
   name = "Page rank - modified")
 
-public class PageRank extends Vertex<LongWritable,
+public class PageRank extends BasicComputation<LongWritable,
   DoubleWritable, FloatWritable, DoubleWritable> {
   /** Default number of supersteps */
   public static final int MAX_SUPERSTEPS_DEFAULT = 30;
@@ -33,19 +34,22 @@ public class PageRank extends Vertex<LongWritable,
    * @param messages Messages received
    */
   @Override
-  public void compute(Iterable<DoubleWritable> messages) {
+  public void compute(
+      Vertex<LongWritable, DoubleWritable, FloatWritable> vertex, 
+      Iterable<DoubleWritable> messages) {
     /** Flag for checking if parameter for L2Norm is enabled */
     boolean l2normFlag = getContext().getConfiguration().getBoolean(
       "PageRank.l2norm", false);
 
     if (getSuperstep() == 0) {
       if (l2normFlag) {
-        initialValue = getValue();
+        initialValue = vertex.getValue();
         // System.out.println("**S: " + getSuperstep() +
         // ", vertex, init_value: " + getId() + ", " + initialValue);
       }
       /** Set value with X decimals */
-      keepXdecimals(new DoubleWritable(1d / getTotalNumVertices()), DECIMALS);
+      keepXdecimals(vertex,
+          new DoubleWritable(1d / getTotalNumVertices()), DECIMALS);
     }
 
     if (getSuperstep() >= 1) {
@@ -55,11 +59,11 @@ public class PageRank extends Vertex<LongWritable,
       }
       DoubleWritable vertexValue =
         new DoubleWritable((0.15f / getTotalNumVertices()) + 0.85f * sum);
-      keepXdecimals(vertexValue, DECIMALS);
+      keepXdecimals(vertex, vertexValue, DECIMALS);
 
       /** Compute L2Norm */
       if (l2normFlag) {
-        l2normError = getL2Norm(initialValue, getValue());
+        l2normError = getL2Norm(initialValue, vertex.getValue());
         /* System.out.println("**S: " + getSuperstep() + ", VertexId: " +
           getId() + ", [" + initialValue + ", " + getValue() + "], " +
             l2normError); */
@@ -70,18 +74,18 @@ public class PageRank extends Vertex<LongWritable,
       if (getSuperstep() == 0 || (l2normError > TOLERANCE &&
           getSuperstep() < getContext().getConfiguration().getInt(
               MAX_SUPERSTEPS, MAX_SUPERSTEPS_DEFAULT))) {
-        sendMessageToAllEdges(new DoubleWritable(getValue().get() /
-          getNumEdges()));
+        sendMessageToAllEdges(vertex, 
+            new DoubleWritable(vertex.getValue().get() / vertex.getNumEdges()));
       } else {
-        voteToHalt();
+        vertex.voteToHalt();
       }
     } else {
       if (getSuperstep() < getContext().getConfiguration().getInt(
           MAX_SUPERSTEPS, MAX_SUPERSTEPS_DEFAULT)) {
-        sendMessageToAllEdges(new DoubleWritable(getValue().get() /
-          getNumEdges()));
+        sendMessageToAllEdges(vertex, 
+            new DoubleWritable(vertex.getValue().get() / vertex.getNumEdges()));
       } else {
-        voteToHalt();
+        vertex.voteToHalt();
       }
     }
   } // EoF compute()
@@ -92,8 +96,11 @@ public class PageRank extends Vertex<LongWritable,
    * @param value Value to be truncated
    * @param x Number of decimals to be kept
    */
-  public void keepXdecimals(DoubleWritable value, int x) {
-    setValue(new DoubleWritable(
+  public void keepXdecimals(
+      Vertex<LongWritable, DoubleWritable, FloatWritable> vertex,
+      DoubleWritable value, int x) {
+    
+    vertex.setValue(new DoubleWritable(
         (double)(Math.round(value.get() * Math.pow(10,x)) / Math.pow(10,x))));
   }
 

@@ -6,8 +6,8 @@ import java.util.regex.Pattern;
 
 import org.apache.giraph.edge.DefaultEdge;
 import org.apache.giraph.edge.Edge;
-import org.apache.giraph.examples.SimpleTriangleClosingVertex;
-import org.apache.giraph.examples.SimpleTriangleClosingVertex.IntArrayListWritable;
+import org.apache.giraph.examples.SimpleTriangleClosingComputation;
+import org.apache.giraph.examples.SimpleTriangleClosingComputation.IntArrayListWritable;
 import org.apache.giraph.io.formats.TextVertexInputFormat;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.NullWritable;
@@ -63,7 +63,7 @@ public class IntArrayIntNullTextVertexInputFormat extends
     @Override
     protected IntArrayListWritable getValue(String[] tokens)
       throws IOException {
-      return new SimpleTriangleClosingVertex.IntArrayListWritable();
+      return new IntArrayListWritable();
     }
 
     @Override

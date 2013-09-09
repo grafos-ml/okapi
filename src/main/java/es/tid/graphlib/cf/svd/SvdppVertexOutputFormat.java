@@ -49,9 +49,8 @@ public class SvdppVertexOutputFormat
     }
 
     @Override
-    protected final Text convertVertexToLine(final Vertex
-      <Text, SvdppVertexValue, DoubleWritable, ?>
-      vertex)
+    protected final Text convertVertexToLine(
+        final Vertex<Text, SvdppVertexValue, DoubleWritable> vertex)
       throws IOException {
       boolean isErrorFlag = getContext().getConfiguration().getBoolean(
         "svd.print.error", false);

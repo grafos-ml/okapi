@@ -6,6 +6,7 @@ import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
 import org.apache.giraph.edge.DefaultEdge;
 import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
@@ -24,7 +25,7 @@ import es.tid.graphlib.utils.TextMessageWrapper;
   description = "Matrix Factorization Algorithm: "
     + "It Minimizes the error in users preferences predictions")
 
-public class Als extends Vertex<Text, AlsVertexValue,
+public class Als extends BasicComputation<Text, AlsVertexValue,
   DoubleWritable, TextMessageWrapper> {
   /** Keyword for enabling RMSE aggregator. */
   public static final String RMSE_AGGREGATOR = "als.rmse.aggregator";
@@ -82,7 +83,8 @@ public class Als extends Vertex<Text, AlsVertexValue,
    * Compute method.
    * @param messages Messages received
    */
-  public final void compute(final Iterable<TextMessageWrapper> messages) {
+  public final void compute(Vertex<Text, AlsVertexValue, DoubleWritable> vertex, 
+      final Iterable<TextMessageWrapper> messages) {
     /* Error = observed - predicted */
     double err = 0d;
     /* Flag for checking if parameter for RMSE aggregator received */
@@ -110,9 +112,10 @@ public class Als extends Vertex<Text, AlsVertexValue,
     // First superstep for users (superstep 0) & items (superstep 1)
     // Initialize vertex latent vector
     if (getSuperstep() < 2) {
-      initLatentVector(vectorSize);
+      initLatentVector(vertex, vectorSize);
       // For L2Norm
-      initialValue = new DoubleArrayListWritable(getValue().getLatentVector());
+      initialValue = new DoubleArrayListWritable(
+          vertex.getValue().getLatentVector());
     }
     // Set flag for items - used in the Output Format
     if (getSuperstep() == 1) {
@@ -135,7 +138,7 @@ public class Als extends Vertex<Text, AlsVertexValue,
           new DefaultEdge<Text, DoubleWritable>();
         edge.setTargetVertexId(message.getSourceId());
         edge.setValue(new DoubleWritable(observed));
-        addEdge(edge);
+        vertex.addEdge(edge);
         // Remove the last value from message
         // It's there only for the 1st round of items
         message.getMessage().remove(message.getMessage().size() - 1);
@@ -145,24 +148,24 @@ public class Als extends Vertex<Text, AlsVertexValue,
       // For the rest supersteps:
       // update their values based on the message received
       DoubleArrayListWritable currVal =
-        getValue().getNeighValue(message.getSourceId());
+        vertex.getValue().getNeighValue(message.getSourceId());
       DoubleArrayListWritable newVal = message.getMessage();
       if (currVal == null || currVal.compareTo(newVal) != 0) {
-        getValue().setNeighborValue(message.getSourceId(), newVal);
+        vertex.getValue().setNeighborValue(message.getSourceId(), newVal);
       }
     } // END OF LOOP - for each message
 
     if (getSuperstep() > 0) {
       // Execute ALS computation
-      updateValue(lambda);
+      updateValue(vertex, lambda);
       // Used if RMSE version or RMSE aggregator is enabled
       rmseErr = 0d;
       // FOR LOOP - for each edge
       for (Entry<Text, DoubleArrayListWritable> vvertex
         :
-        getValue().getAllNeighValue().entrySet()) {
-        double observed = (double) getEdgeValue(vvertex.getKey()).get();
-        err = getError(getValue().getLatentVector(), vvertex.getValue(),
+        vertex.getValue().getAllNeighValue().entrySet()) {
+        double observed = (double) vertex.getEdgeValue(vvertex.getKey()).get();
+        err = getError(vertex.getValue().getLatentVector(), vvertex.getValue(),
           observed);
         // If termination flag is set to RMSE or RMSE aggregator is true
         if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
@@ -172,7 +175,7 @@ public class Als extends Vertex<Text, AlsVertexValue,
    } // END OF IF CLAUSE - Superstep > 0
 
     haltFactor =
-      defineFactor(factorFlag, initialValue, tolerance, rmseErr);
+      defineFactor(vertex, factorFlag, initialValue, tolerance, rmseErr);
 
     // If RMSE aggregator flag is true
     if (rmseTolerance != 0f) {
@@ -182,13 +185,13 @@ public class Als extends Vertex<Text, AlsVertexValue,
     if (getSuperstep() == 0
       ||
         (haltFactor > tolerance && getSuperstep() < iterations)) {
-      sendMessage();
+      sendMessage(vertex);
     }
     // halt_factor is used in the OutputFormat file. --> To print the error
     if (factorFlag.equals("basic")) {
       haltFactor = err;
     }
-    voteToHalt();
+    vertex.voteToHalt();
   } // END OF compute()
 
   /**
@@ -196,15 +199,17 @@ public class Als extends Vertex<Text, AlsVertexValue,
    *
    * @param vectorSize Vector Size
    */
-  public final void initLatentVector(final int vectorSize) {
+  public final void initLatentVector(
+      Vertex<Text, AlsVertexValue, DoubleWritable> vertex, 
+      final int vectorSize) {
     AlsVertexValue value =
       new AlsVertexValue();
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
-        ((Double.parseDouble(getId().toString().substring(2)) + i) % HUNDRED)
+        ((Double.parseDouble(vertex.getId().toString().substring(2)) + i) % HUNDRED)
         / HUNDRED));
     }
-    setValue(value);
+    vertex.setValue(value);
   }
 
   /**
@@ -212,7 +217,8 @@ public class Als extends Vertex<Text, AlsVertexValue,
    *
    * @param lambda regularization parameter
    */
-  public final void updateValue(final float lambda) {
+  public final void updateValue(
+      Vertex<Text, AlsVertexValue, DoubleWritable> vertex, final float lambda) {
     /**
      * Update Vertex Latent Vector based on ALS equation
      * Amat = MiIi * t(MiIi) + LAMBDA * Nui * E
@@ -229,12 +235,13 @@ public class Als extends Vertex<Text, AlsVertexValue,
      */
     int j = 0;
     // Create a matrix with #rows = 1st parameter, #columns = 2nd parameter
-    DoubleMatrix matNeighVectors = new DoubleMatrix(getValue().getLatentVector().size(), getNumEdges());
+    DoubleMatrix matNeighVectors = new DoubleMatrix(
+        vertex.getValue().getLatentVector().size(), vertex.getNumEdges());
     // Create a row vector with the ratings
-    DoubleMatrix ratings = new DoubleMatrix(getNumEdges());
+    DoubleMatrix ratings = new DoubleMatrix(vertex.getNumEdges());
     // FOR LOOP - for each edge
     for (Entry<Text, DoubleArrayListWritable> vvertex
-      : getValue().getAllNeighValue().entrySet()) {
+      : vertex.getValue().getAllNeighValue().entrySet()) {
       // Store the latent vector of the current neighbor
 			double[] curVec = new double[vvertex.getValue().size()];
       for (int i = 0; i < vvertex.getValue().size(); i++) {
@@ -242,14 +249,14 @@ public class Als extends Vertex<Text, AlsVertexValue,
       }
       matNeighVectors.putColumn(j, new DoubleMatrix(curVec));
       // Store the rating related with the current neighbor
-      ratings.put(j, (double) getEdgeValue(vvertex.getKey()).get());
+      ratings.put(j, (double) vertex.getEdgeValue(vvertex.getKey()).get());
       j++;
     } /// END OF LOOP - for each edge
     // Amat = MiIi * t(MiIi) + LAMBDA * getNumEdges() * matId
     DoubleMatrix matNeighVectorsTrans = matNeighVectors.transpose();
     DoubleMatrix matMul = matNeighVectors.mmul(matNeighVectorsTrans);
-    DoubleMatrix matId = DoubleMatrix.eye(getValue().getLatentVector().size());
-    double reg = lambda * getNumEdges();
+    DoubleMatrix matId = DoubleMatrix.eye(vertex.getValue().getLatentVector().size());
+    double reg = lambda * vertex.getNumEdges();
     DoubleMatrix aMatrix = matMul.add(matId.mul(reg));
     // Vmat = MiIi * t(R(i,Ii))
     DoubleMatrix vMatrix = matNeighVectors.mmul(ratings);
@@ -257,7 +264,7 @@ public class Als extends Vertex<Text, AlsVertexValue,
     uMatrix = Solve.solve(aMatrix, vMatrix);
 
     // Update current vertex latent vector
-    updateLatentVector(uMatrix);
+    updateLatentVector(vertex, uMatrix);
     updatesNum++;
   }
 
@@ -275,11 +282,13 @@ public class Als extends Vertex<Text, AlsVertexValue,
    *
    * @param value Vertex latent vector
    */
-  public final void updateLatentVector(final DoubleMatrix value) {
+  public final void updateLatentVector(
+      Vertex<Text, AlsVertexValue, DoubleWritable> vertex, 
+      final DoubleMatrix value) {
     DoubleArrayListWritable val = new DoubleArrayListWritable();
-    for (int i = 0; i < getValue().getLatentVector().size(); i++) {
+    for (int i = 0; i < vertex.getValue().getLatentVector().size(); i++) {
       val.add(new DoubleWritable(value.get(i)));
-      getValue().getLatentVector().set(i, new DoubleWritable(value.get(i)));
+      vertex.getValue().getLatentVector().set(i, new DoubleWritable(value.get(i)));
     }
     keepXdecimals(val, DECIMALS);
     //getValue().setLatentVector(val);
@@ -288,17 +297,18 @@ public class Als extends Vertex<Text, AlsVertexValue,
   /**
    * Send message to neighbors.
    */
-  public final void sendMessage() {
+  public final void sendMessage(
+      Vertex<Text, AlsVertexValue, DoubleWritable> vertex) {
     // Send to all neighbors a message
-    for (Edge<Text, DoubleWritable> edge : getEdges()) {
+    for (Edge<Text, DoubleWritable> edge : vertex.getEdges()) {
       // Create a message and wrap together the source id and the message
       TextMessageWrapper message = new TextMessageWrapper();
-      message.setSourceId(getId());
-      message.setMessage(getValue().getLatentVector());
+      message.setSourceId(vertex.getId());
+      message.setMessage(vertex.getValue().getLatentVector());
       // At superstep 0, users send rating to items
       if (getSuperstep() == 0) {
-        DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
-          .getLatentVector());
+        DoubleArrayListWritable x = new DoubleArrayListWritable(
+            vertex.getValue().getLatentVector());
         x.add(new DoubleWritable(edge.getValue().get()));
         message.setMessage(x);
       }
@@ -470,16 +480,17 @@ public class Als extends Vertex<Text, AlsVertexValue,
    * @param rmseErr RMSE error
    * @return factor number of halting barrier
    */
-  public final double defineFactor(final String factorFlag,
-      final DoubleArrayListWritable pInitialValue, final float pTolerance,
-      final double rmseErr) {
+  public final double defineFactor(
+      Vertex<Text, AlsVertexValue, DoubleWritable> vertex, 
+      final String factorFlag, final DoubleArrayListWritable pInitialValue, 
+      final float pTolerance, final double rmseErr) {
     double factor = 0d;
     if (factorFlag.equals("basic")) {
       factor = pTolerance + 1d;
     } else if (factorFlag.equals("rmse")) {
       factor = getRMSE(rmseErr);
     } else if (factorFlag.equals("l2norm")) {
-      factor = getL2Norm(pInitialValue, getValue().getLatentVector());
+      factor = getL2Norm(pInitialValue, vertex.getValue().getLatentVector());
     } else {
       throw new RuntimeException("BUG: halt factor " + factorFlag
         +

@@ -4,6 +4,7 @@ import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
 import org.apache.giraph.edge.DefaultEdge;
 import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
@@ -18,7 +19,7 @@ import es.tid.graphlib.utils.DoubleArrayListWritable;
 @Algorithm(
   name = "SVD++",
   description = "Minimizes the error in users preferences predictions")
-public class Svdpp extends Vertex<Text,
+public class Svdpp extends BasicComputation<Text,
   SvdppVertexValue, DoubleWritable, SvdppMessageWrapper> {
   /** Name of aggregator that aggregates all ratings. */
   public static final String OVERALL_RATING_AGGREGATOR =
@@ -89,7 +90,9 @@ public class Svdpp extends Vertex<Text,
    * @param messages
    *          Messages received
    */
-  public final void compute(final Iterable<SvdppMessageWrapper> messages) {
+  public final void compute(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex, 
+      final Iterable<SvdppMessageWrapper> messages) {
     /** Error between predicted and observed rating */
     double err = 0d;
 
@@ -120,15 +123,16 @@ public class Svdpp extends Vertex<Text,
     // First superstep for users (superstep 0) & items (superstep 1)
     // Initialize vertex latent vector and baseline estimate
     if (getSuperstep() < 2) {
-      initValue(vectorSize);
+      initValue(vertex, vectorSize);
       // For L2Norm
-      initialValue = new DoubleArrayListWritable(getValue().getLatentVector());
+      initialValue = 
+          new DoubleArrayListWritable(vertex.getValue().getLatentVector());
     }
 
     // Send sum of ratings to aggregator
     if (getSuperstep() == 0) {
       double sum = 0;
-      for (Edge<Text, DoubleWritable> edge : getEdges()) {
+      for (Edge<Text, DoubleWritable> edge : vertex.getEdges()) {
         sum += edge.getValue().get();
       }
       this.aggregate(OVERALL_RATING_AGGREGATOR, new DoubleWritable(sum));
@@ -152,7 +156,7 @@ public class Svdpp extends Vertex<Text,
           relativeValuesSum = dotAddition(relativeValuesSum,
             message.getRelativeValue());
         }
-        getValue().setRelativeValue(relativeValuesSum);
+        vertex.getValue().setRelativeValue(relativeValuesSum);
       }
     }
     // FOR LOOP - for each message
@@ -168,33 +172,34 @@ public class Svdpp extends Vertex<Text,
           new DefaultEdge<Text, DoubleWritable>();
         edge.setTargetVertexId(message.getSourceId());
         edge.setValue(new DoubleWritable(observed));
-        addEdge(edge);
+        vertex.addEdge(edge);
         // Remove the last value from message
         // It's there only for the 1st round of items
         message.getMessage().remove(message.getMessage().size() - 1);
       } // END OF IF CLAUSE - superstep==1
 
       // Calculate error
-      double observed = (double) getEdgeValue(message.getSourceId()).get();
-      computeBaseline(lambda, gamma, err);
+      double observed = 
+          (double)vertex.getEdgeValue(message.getSourceId()).get();
+      computeBaseline(vertex, lambda, gamma, err);
       // Change the Vertex Latent Vector based on SVD equation
       if (!isItem()) {
         // Users - supersteps 0, 2, 4, 6, ...
         double predicted =
-          predictRating(message.getMessage(),
+          predictRating(vertex, message.getMessage(),
             message.getBaselineEstimate().get());
         err = observed - predicted;
-        computeValue(lambda, gamma, err, message.getMessage());
+        computeValue(vertex, lambda, gamma, err, message.getMessage());
       } else {
         // Items - supersteps 1, 3, 5, 7, ...
         double predicted =
-          predictRating(message.getMessage(),
+          predictRating(vertex, message.getMessage(),
             message.getBaselineEstimate().get(), message.getRelativeValue(),
             message.getNumEdges());
         err = observed - predicted;
-        computeValue(lambda, gamma, err, message.getMessage(),
+        computeValue(vertex, lambda, gamma, err, message.getMessage(),
           message.getRelativeValue(), message.getNumEdges());
-        computeRelativeValue(lambda, gamma, err, message.getMessage());
+        computeRelativeValue(vertex, lambda, gamma, err, message.getMessage());
       }
       // If termination flag is set to RMSE OR RMSE aggregator is enabled
       if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
@@ -203,7 +208,7 @@ public class Svdpp extends Vertex<Text,
     } // END OF LOOP - for each message
 
     haltFactor =
-      defineFactor(factorFlag, initialValue, tolerance, rmseErr);
+      defineFactor(vertex, factorFlag, initialValue, tolerance, rmseErr);
 
     // If RMSE aggregator flag is true - send rmseErr to aggregator
     if (rmseTolerance != 0f) {
@@ -212,13 +217,13 @@ public class Svdpp extends Vertex<Text,
 
     if (getSuperstep() == 0
       || (haltFactor > tolerance && getSuperstep() < iterations)) {
-      sendMessage();
+      sendMessage(vertex);
     }
     // haltFactor is used in the OutputFormat file. --> To print the error
     if (factorFlag.equals("basic")) {
       haltFactor = err;
     }
-    voteToHalt();
+    vertex.voteToHalt();
   } // END OF compute()
 
   /**
@@ -236,26 +241,28 @@ public class Svdpp extends Vertex<Text,
    * @param vectorSize
    *          Latent Vector Size
    */
-  public final void initValue(final int vectorSize) {
-    SvdppVertexValue value =
-      new SvdppVertexValue();
+  public final void initValue(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex, 
+      final int vectorSize) {
+    
+    SvdppVertexValue value = new SvdppVertexValue();
     // Initialize Latent Vector
     for (int i = 0; i < vectorSize; i++) {
       value.setLatentVector(i, new DoubleWritable(
         ((Double.parseDouble(
-          getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
+          vertex.getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
     }
     // Initialize Baseline Estimate
     value.setBaselineEstimate(new DoubleWritable(
       (Double.parseDouble(
-        getId().toString().substring(2)) % HUNDRED) / HUNDRED));
+        vertex.getId().toString().substring(2)) % HUNDRED) / HUNDRED));
     // Initialize Relative Value
     for (int i = 0; i < vectorSize; i++) {
       value.setRelativeValue(i, new DoubleWritable(
         ((Double.parseDouble(
-          getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
+          vertex.getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
     }
-    setValue(value);
+    vertex.setValue(value);
   }
 
   /**
@@ -269,11 +276,14 @@ public class Svdpp extends Vertex<Text,
    *          error between predicted and actual rating
    */
 
-  public final void computeBaseline(final float lambda, final float gamma,
+  public final void computeBaseline(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex, 
+      final float lambda, final float gamma,
     final double err) {
-    getValue().setBaselineEstimate(new DoubleWritable(
-      getValue().getBaselineEstimate().get()
-        + gamma * (err - lambda * getValue().getBaselineEstimate().get())));
+    
+    vertex.getValue().setBaselineEstimate(new DoubleWritable(
+      vertex.getValue().getBaselineEstimate().get()
+        + gamma * (err - lambda * vertex.getValue().getBaselineEstimate().get())));
   }
 
   /**
@@ -290,18 +300,21 @@ public class Svdpp extends Vertex<Text,
    *          Other vertex latent vector
    */
 
-  public final void computeRelativeValue(final float lambda,
-    final float gamma, final double err,
+  public final void computeRelativeValue(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex, 
+      final float lambda, final float gamma, final double err,
     final DoubleArrayListWritable vvertex) {
+    
     DoubleArrayListWritable part1 = new DoubleArrayListWritable();
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
     DoubleArrayListWritable part3 = new DoubleArrayListWritable();
 
-    part1 = numMatrixProduct(err * (1 / Math.sqrt(getNumEdges())), vvertex);
-    part2 = numMatrixProduct(lambda, getValue().getRelativeValue());
+    part1 = numMatrixProduct(
+        err * (1 / Math.sqrt(vertex.getNumEdges())), vvertex);
+    part2 = numMatrixProduct(lambda, vertex.getValue().getRelativeValue());
     part3 = numMatrixProduct(gamma, dotSub(part1, part2));
-    getValue().setRelativeValue(dotAddition(
-      getValue().getRelativeValue(), part3));
+    vertex.getValue().setRelativeValue(dotAddition(
+      vertex.getValue().getRelativeValue(), part3));
   }
 
   /**
@@ -316,19 +329,22 @@ public class Svdpp extends Vertex<Text,
    * @param vvertex
    *          Other vertex latent vector
    */
-  public final void computeValue(final float lambda, final float gamma,
-    final double err, final DoubleArrayListWritable vvertex) {
+  public final void computeValue(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex,
+      final float lambda, final float gamma,final double err, 
+      final DoubleArrayListWritable vvertex) {
+    
     DoubleArrayListWritable part1 = new DoubleArrayListWritable();
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
     DoubleArrayListWritable part3 = new DoubleArrayListWritable();
     DoubleArrayListWritable value = new DoubleArrayListWritable();
     part1 = numMatrixProduct((double) err, vvertex);
     part2 = numMatrixProduct((double) lambda,
-      getValue().getLatentVector());
+      vertex.getValue().getLatentVector());
     part3 = numMatrixProduct((double) gamma,
       dotSub(part1, part2));
-    value = dotAddition(getValue().getLatentVector(), part3);
-    getValue().setLatentVector(value);
+    value = dotAddition(vertex.getValue().getLatentVector(), part3);
+    vertex.getValue().setLatentVector(value);
     updatesNum++;
   }
 
@@ -348,8 +364,10 @@ public class Svdpp extends Vertex<Text,
    * @param relativeValues
    *          Relative Values
    */
-  public final void computeValue(final float lambda, final float gamma,
-    final double err, final DoubleArrayListWritable vvertex,
+  public final void computeValue(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex,
+      final float lambda, final float gamma, final double err, 
+      final DoubleArrayListWritable vvertex,
     final DoubleArrayListWritable relativeValues,
     final IntWritable numUserEdges) {
 
@@ -363,11 +381,11 @@ public class Svdpp extends Vertex<Text,
       numMatrixProduct(1 / Math.sqrt(numUserEdges.get()), relativeValues));
     part1b = numMatrixProduct((double) err, part1a);
     part2 = numMatrixProduct((double) lambda,
-      getValue().getLatentVector());
+      vertex.getValue().getLatentVector());
     part3 = numMatrixProduct((double) gamma,
       dotSub(part1b, part2));
-    value = dotAddition(getValue().getLatentVector(), part3);
-    getValue().setLatentVector(value);
+    value = dotAddition(vertex.getValue().getLatentVector(), part3);
+    vertex.getValue().setLatentVector(value);
     updatesNum++;
   }
 
@@ -384,14 +402,18 @@ public class Svdpp extends Vertex<Text,
    * 
    * @return rating Predicted rating
    */
-  public final double predictRating(final DoubleArrayListWritable vvertex,
-    final double otherBaselineEstimate) {
+  public final double predictRating(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex,
+      final DoubleArrayListWritable vvertex, 
+      final double otherBaselineEstimate) {
+    
     DoubleArrayListWritable part1 = new DoubleArrayListWritable();
     DoubleArrayListWritable part2 = new DoubleArrayListWritable();
 
     part1 = numMatrixProduct(
-      1 / Math.sqrt(getNumEdges()), getValue().getRelativeValue());
-    part2 = dotAddition(getValue().getLatentVector(), part1);
+      1 / Math.sqrt(vertex.getNumEdges()), 
+      vertex.getValue().getRelativeValue());
+    part2 = dotAddition(vertex.getValue().getLatentVector(), part1);
     double part3 = dotProduct(vvertex, part2);
     double numEdges = 0d;
     if (getSuperstep() < 2) {
@@ -402,7 +424,7 @@ public class Svdpp extends Vertex<Text,
     double avgRatings = ((DoubleWritable)
       getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() / numEdges;
 
-    double rating = avgRatings + getValue().getBaselineEstimate().get()
+    double rating = avgRatings + vertex.getValue().getBaselineEstimate().get()
       + otherBaselineEstimate + part3;
     return rating;
   }
@@ -428,15 +450,17 @@ public class Svdpp extends Vertex<Text,
    * predictRating(message.getMessage(), message.getBaselineEstimate().get(),
    * message.getRelativeValue(), message.getNumEdges());
    */
-  public final double predictRating(final DoubleArrayListWritable vvertex,
-    final double otherBaselineEstimate,
-    final DoubleArrayListWritable relativeValues,
-    final IntWritable numUserEdges) {
+  public final double predictRating(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex,
+      final DoubleArrayListWritable vvertex, final double otherBaselineEstimate,
+      final DoubleArrayListWritable relativeValues, 
+      final IntWritable numUserEdges) {
+    
     DoubleArrayListWritable part1;
     DoubleArrayListWritable part2;
     part1 = numMatrixProduct(1 / Math.sqrt(numUserEdges.get()), relativeValues);
     part2 = dotAddition(vvertex, part1);
-    double part3 = dotProduct(getValue().getLatentVector(), part2);
+    double part3 = dotProduct(vertex.getValue().getLatentVector(), part2);
     double numEdges = 0d;
     if (getSuperstep() < 2) {
       numEdges = getTotalNumEdges();
@@ -445,7 +469,7 @@ public class Svdpp extends Vertex<Text,
     }
     double avgRatings = ((DoubleWritable)
       getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get() / numEdges;
-    double rating = avgRatings + getValue().getBaselineEstimate().get()
+    double rating = avgRatings + vertex.getValue().getBaselineEstimate().get()
       + otherBaselineEstimate + part3;
     return rating;
   }
@@ -460,6 +484,7 @@ public class Svdpp extends Vertex<Text,
    */
   public final void keepXdecimals(final DoubleArrayListWritable value,
     final int x) {
+    
     for (int i = 0; i < value.size(); i++) {
       value.set(i,
         new DoubleWritable(
@@ -471,29 +496,30 @@ public class Svdpp extends Vertex<Text,
   /**
    * Send messages to neighbors.
    */
-  public final void sendMessage() {
+  public final void sendMessage(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex) {
     // Create a message and wrap together the source id and the message
     SvdppMessageWrapper message = new SvdppMessageWrapper();
-    message.setSourceId(getId());
-    message.setBaselineEstimate(getValue().getBaselineEstimate());
-    message.setRelativeValue(getValue().getRelativeValue());
+    message.setSourceId(vertex.getId());
+    message.setBaselineEstimate(vertex.getValue().getBaselineEstimate());
+    message.setRelativeValue(vertex.getValue().getRelativeValue());
     if (!isItem()) {
-      message.setNumEdges(new IntWritable(getNumEdges()));
+      message.setNumEdges(new IntWritable(vertex.getNumEdges()));
     } else {
       message.setNumEdges(new IntWritable(0));
     }
     // At superstep 0, users send rating to items
     if (getSuperstep() == 0) {
-      for (Edge<Text, DoubleWritable> edge : getEdges()) {
-        DoubleArrayListWritable x = new DoubleArrayListWritable(getValue()
-          .getLatentVector());
+      for (Edge<Text, DoubleWritable> edge : vertex.getEdges()) {
+        DoubleArrayListWritable x = 
+            new DoubleArrayListWritable(vertex.getValue().getLatentVector());
         x.add(new DoubleWritable(edge.getValue().get()));
         message.setMessage(x);
         sendMessage(edge.getTargetVertexId(), message);
       }
     } else {
-      message.setMessage(getValue().getLatentVector());
-      sendMessageToAllEdges(message);
+      message.setMessage(vertex.getValue().getLatentVector());
+      sendMessageToAllEdges(vertex, message);
     }
   }
 
@@ -661,16 +687,17 @@ public class Svdpp extends Vertex<Text,
    * 
    * @return factor number of halting barrier
    */
-  public final double defineFactor(final String factorFlag,
-    final DoubleArrayListWritable pInitialValue, final float pTolerance,
-    final double rmseErr) {
+  public final double defineFactor(
+      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex,
+      final String factorFlag,final DoubleArrayListWritable pInitialValue, 
+      final float pTolerance, final double rmseErr) {
     double factor = 0d;
     if (factorFlag.equals("basic")) {
       factor = pTolerance + 1d;
     } else if (factorFlag.equals("rmse")) {
       factor = getRMSE(rmseErr);
     } else if (factorFlag.equals("l2norm")) {
-      factor = getL2Norm(pInitialValue, getValue().getLatentVector());
+      factor = getL2Norm(pInitialValue, vertex.getValue().getLatentVector());
     } else {
       throw new RuntimeException("BUG: halt factor " + factorFlag
         + " is not included in the recognized options");

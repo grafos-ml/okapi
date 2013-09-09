@@ -23,8 +23,7 @@ public abstract class MessageWrapper<
   private M message;
 
   /** Configuration. */
-  private ImmutableClassesGiraphConfiguration
-    <I, ?, ?, M> conf;
+  private ImmutableClassesGiraphConfiguration <I, ?, ?> conf;
 
   /**
    * Using the default constructor requires that the user implement
@@ -93,8 +92,7 @@ public abstract class MessageWrapper<
    *
    * @return conf Configuration
    */
-  final ImmutableClassesGiraphConfiguration
-      <I, ?, ?, M> getConf() {
+  final ImmutableClassesGiraphConfiguration<I, ?, ?> getConf() {
     return conf;
   }
 
@@ -103,8 +101,7 @@ public abstract class MessageWrapper<
    *
    * @param pConf Configuration to be stored.
    */
-  final void setConf(final ImmutableClassesGiraphConfiguration
-      <I, ?, ?, M> pConf) {
+  final void setConf(final ImmutableClassesGiraphConfiguration<I, ?, ?> pConf) {
     conf = pConf;
   }
 

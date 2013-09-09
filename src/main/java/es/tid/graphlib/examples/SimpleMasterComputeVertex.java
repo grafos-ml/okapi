@@ -19,6 +19,7 @@
 package es.tid.graphlib.examples;
 
 import org.apache.giraph.aggregators.DoubleOverwriteAggregator;
+import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.giraph.worker.WorkerContext;
@@ -31,8 +32,8 @@ import org.apache.log4j.Logger;
  * Demonstrates a computation with a centralized part implemented via a
  * MasterCompute.
  */
-public class SimpleMasterComputeVertex extends
-  Vertex<LongWritable, DoubleWritable, FloatWritable, DoubleWritable> {
+public class SimpleMasterComputeVertex extends BasicComputation<LongWritable, 
+DoubleWritable, FloatWritable, DoubleWritable> {
   /** Aggregator to get values from the master to the workers */
   public static final String SMC_AGG = "simplemastercompute.aggregator";
   /** Logger */
@@ -40,11 +41,13 @@ public class SimpleMasterComputeVertex extends
       Logger.getLogger(SimpleMasterComputeVertex.class);
 
   @Override
-  public void compute(Iterable<DoubleWritable> messages) {
-    double oldSum = getSuperstep() == 0 ? 0 : getValue().get();
+  public void compute(
+      Vertex<LongWritable, DoubleWritable, FloatWritable> vertex,
+      Iterable<DoubleWritable> messages) {
+    double oldSum = getSuperstep() == 0 ? 0 : vertex.getValue().get();
     double newValue = this.<DoubleWritable>getAggregatedValue(SMC_AGG).get();
     double newSum = oldSum + newValue;
-    setValue(new DoubleWritable(newSum));
+    vertex.setValue(new DoubleWritable(newSum));
 
     SimpleMasterComputeWorkerContext workerContext =
         (SimpleMasterComputeWorkerContext) getWorkerContext();

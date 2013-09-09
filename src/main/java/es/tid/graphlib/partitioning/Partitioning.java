@@ -7,6 +7,7 @@ import java.util.Random;
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.IntSumAggregator;
 import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.IntWritable;
@@ -25,7 +26,7 @@ import org.apache.hadoop.io.IntWritable;
     + "(c) Adapts to dynamic graph changes with minimum cost.\n"
 )
 
-public class Partitioning extends Vertex<IntWritable,
+public class Partitioning extends BasicComputation<IntWritable,
   IntWritable, IntWritable, IntMessageWrapper> {
   /** Keyword for Probability barrier for a vertex to migrate. */
   public static final String PROBABILITY = "partitioning.probability";
@@ -84,7 +85,9 @@ public class Partitioning extends Vertex<IntWritable,
    * Compute method.
    * @param messages Messages received
    */
-  public final void compute(final Iterable<IntMessageWrapper> messages) {
+  public final void compute(
+      Vertex<IntWritable, IntWritable, IntWritable> vertex,
+      final Iterable<IntMessageWrapper> messages) {
     int iterations = getContext().getConfiguration().getInt(
       ITERATIONS_KEYWORD, ITERATIONS_DEFAULT);
     int stabilization = getContext().getConfiguration().getInt(
@@ -94,7 +97,7 @@ public class Partitioning extends Vertex<IntWritable,
     if (stabilizationRounds == stabilization || getSuperstep() > iterations) {
       /*System.out.println("stabilizationRounds: " + stabilizationRounds +
         ", getSuperstep(): " + getSuperstep());*/
-      voteToHalt();
+      vertex.voteToHalt();
       return;
     }
 
@@ -119,12 +122,12 @@ public class Partitioning extends Vertex<IntWritable,
     if (getSuperstep() == 0) {
       /*System.out.println("***** SS:" + getSuperstep() +
         ", vertexID: " + getId() + ", totalCapacity: " + totalCapacity); */
-      initValue(numPartitions);
-      setInitialValue();
+      initValue(vertex, numPartitions);
+      setInitialValue(vertex);
 
       /* Send to capacity aggregator a PLUS_ONE signal */
-      aggregate(AGGREGATOR_CAPACITY_PREFIX + getValue().get(), PLUS_ONE);
-      advertisePartition();
+      aggregate(AGGREGATOR_CAPACITY_PREFIX + vertex.getValue().get(), PLUS_ONE);
+      advertisePartition(vertex);
       return;
     }
 
@@ -134,7 +137,7 @@ public class Partitioning extends Vertex<IntWritable,
       for (IntMessageWrapper message : messages) {
         /*System.out.println("  [RECEIVE] from " + message.getSourceId() +
           ", " + message.getMessage()); */
-        setEdgeValue(message.getSourceId(), message.getMessage());
+        vertex.setEdgeValue(message.getSourceId(), message.getMessage());
       }
 
       /* Count neighbors in each partition --> store in a hashmap */
@@ -146,7 +149,7 @@ public class Partitioning extends Vertex<IntWritable,
         new HashMap<Integer, Double>();
 
       /* Count number of neighbors in neighbor's partition */
-      for (Edge<IntWritable, IntWritable> edge : getEdges()) {
+      for (Edge<IntWritable, IntWritable> edge : vertex.getEdges()) {
         Integer currCount = countNeigh.get(edge.getValue().get());
         if (currCount == null) {
           countNeigh.put(edge.getValue().get(), 1);
@@ -170,15 +173,15 @@ public class Partitioning extends Vertex<IntWritable,
           int load = ((IntWritable)
             getAggregatedValue(AGGREGATOR_CAPACITY_PREFIX
               + partition.getKey())).get();
-          int numNeighbors = getNumEdges();
+          int numNeighbors = vertex.getNumEdges();
           int numNeighborsInPartition = countNeigh.get(partition.getKey());
           double weight =
             (1d - load / (double) totalCapacity) * (numNeighborsInPartition
               / (double) numNeighbors);
           weightedPartition.put(partition.getKey(), weight);
         }
-        migrate2partition = maxWeightedPartition(weightedPartition);
-        if (migrate2partition != getValue().get()) {
+        migrate2partition = maxWeightedPartition(vertex, weightedPartition);
+        if (migrate2partition != vertex.getValue().get()) {
           aggregate(AGGREGATOR_DEMAND_PREFIX + migrate2partition, PLUS_ONE);
         }
       }
@@ -187,7 +190,7 @@ public class Partitioning extends Vertex<IntWritable,
 
     if (messages.iterator().hasNext()) {
       throw new RuntimeException(
-        "BUG: vertex " + getId() + " received message in even superstep");
+        "BUG: vertex " + vertex.getId() + " received message in even superstep");
     }
 
     /* Even Supersteps: Migrate to partition */
@@ -206,7 +209,8 @@ public class Partitioning extends Vertex<IntWritable,
       stabilizationRounds = 0;
     }
     /*System.out.println("StabilizationRounds = " + stabilizationRounds); */
-    if (migrate2partition != getValue().get() && migrate2partition != -1) {
+    if (migrate2partition != vertex.getValue().get() && 
+        migrate2partition != -1) {
       int load = ((IntWritable) getAggregatedValue(
           AGGREGATOR_CAPACITY_PREFIX + migrate2partition)).get();
       int availability = totalCapacity - load;
@@ -215,13 +219,13 @@ public class Partitioning extends Vertex<IntWritable,
           AGGREGATOR_DEMAND_PREFIX + migrate2partition)).get();
       double finalProbability = (double) availability / demand;
       if (randomGenerator.nextDouble() < finalProbability) {
-        migrate(migrate2partition);
-        advertisePartition();
+        migrate(vertex, migrate2partition);
+        advertisePartition(vertex);
       }
     }
     int localEdges = 0;
-    for (Edge<IntWritable, IntWritable> edge : getEdges()) {
-      if (edge.getValue().get() == getValue().get()) {
+    for (Edge<IntWritable, IntWritable> edge : vertex.getEdges()) {
+      if (edge.getValue().get() == vertex.getValue().get()) {
         localEdges++;
       }
     }
@@ -231,11 +235,12 @@ public class Partitioning extends Vertex<IntWritable,
   /**
    * Create message, fill it with data and send it to neighbors.
    */
-  public final void advertisePartition() {
+  public final void advertisePartition(
+      Vertex<IntWritable, IntWritable, IntWritable> vertex) {
     IntMessageWrapper message = new IntMessageWrapper();
-    message.setSourceId(getId());
-    message.setMessage(getValue());
-    sendMessageToAllEdges(message);
+    message.setSourceId(vertex.getId());
+    message.setMessage(vertex.getValue());
+    sendMessageToAllEdges(vertex, message);
   }
 
   /**
@@ -243,15 +248,17 @@ public class Partitioning extends Vertex<IntWritable,
    *
    * @param pMigrate2partition     PartitionID to be migrated to
    */
-  public final void migrate(final int pMigrate2partition) {
+  public final void migrate(
+      Vertex<IntWritable, IntWritable, IntWritable> vertex, 
+      final int pMigrate2partition) {
     // Remove vertex from current partition
-    aggregate(AGGREGATOR_CAPACITY_PREFIX + getValue().get(), MINUS_ONE);
+    aggregate(AGGREGATOR_CAPACITY_PREFIX + vertex.getValue().get(), MINUS_ONE);
     // Add vertex to new partition
     aggregate(AGGREGATOR_CAPACITY_PREFIX + pMigrate2partition, PLUS_ONE);
     incMigrationsCounter();
     /*System.out.println("  [AGG_CAP_SEND] Migrate to " + migrate2partition);
     System.out.println("  [AGG_CAP_SEND] Remove from " + getValue().get());*/
-    setValue(new IntWritable(pMigrate2partition));
+    vertex.setValue(new IntWritable(pMigrate2partition));
   }
 
   /**
@@ -262,8 +269,9 @@ public class Partitioning extends Vertex<IntWritable,
    *
    * @return partitionID    Partition ID with the maximum weight
    */
-  public final int maxWeightedPartition(final HashMap<Integer, Double>
-    weightedPartition) {
+  public final int maxWeightedPartition(
+      Vertex<IntWritable, IntWritable, IntWritable> vertex, 
+      final HashMap<Integer, Double> weightedPartition) {
     Map.Entry<Integer, Double> maxEntry = null;
     for (Map.Entry<Integer, Double> entry
       :
@@ -274,7 +282,7 @@ public class Partitioning extends Vertex<IntWritable,
         maxEntry = entry;
       } else {
         if (entry.getValue() == maxEntry.getValue()) {
-          if (entry.getKey() == getValue().get()) {
+          if (entry.getKey() == vertex.getValue().get()) {
             maxEntry = entry;
           }
         }
@@ -289,18 +297,21 @@ public class Partitioning extends Vertex<IntWritable,
    *
    * @param numPartitions Number of Partitions
    */
-  public final void initValue(final int numPartitions) {
+  public final void initValue(
+      Vertex<IntWritable, IntWritable, IntWritable> vertex, 
+      final int numPartitions) {
     //Random randomGenerator = new Random();
     //int partition = randomGenerator.nextInt(numPartitions);
     //setValue(new IntWritable(partition));
-    setValue(new IntWritable(getId().get() % numPartitions));
+    vertex.setValue(new IntWritable(vertex.getId().get() % numPartitions));
   }
 
   /**
    * Set the initial value of the vertex.
    */
-  final void setInitialValue() {
-    initialValue = getValue().get();
+  final void setInitialValue(
+      Vertex<IntWritable, IntWritable, IntWritable> vertex) {
+    initialValue = vertex.getValue().get();
   }
 
   /**

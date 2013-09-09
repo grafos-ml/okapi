@@ -5,6 +5,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import org.apache.giraph.Algorithm;
+import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.utils.ArrayListWritable;
 import org.apache.hadoop.io.DoubleWritable;
@@ -21,7 +22,7 @@ import es.tid.graphlib.examples.Sgd.MessageWrapper;
     name = "Stochastic Gradient Descent (SGD)",
     description = "Minimizes the error in users preferences predictions")
 
-public class Sgd extends Vertex<Text, DoubleArrayListWritable,
+public class Sgd extends BasicComputation<Text, DoubleArrayListWritable,
 DoubleWritable, MessageWrapper> {
   /** Keyword for parameter setting the convergence tolerance parameter
    *  depending on the version enabled; l2norm or rmse */
@@ -59,7 +60,9 @@ DoubleWritable, MessageWrapper> {
    * Compute method
    * @param messages Messages received
    */
-  public void compute(Iterable<MessageWrapper> messages) {
+  public void compute(
+      Vertex<Text, DoubleArrayListWritable, DoubleWritable> vertex,
+      Iterable<MessageWrapper> messages) {
     /** Error between predicted and observed rating */
     double err = 0d;
 
@@ -82,47 +85,51 @@ DoubleWritable, MessageWrapper> {
     // Initialize vertex latent vector in the first superstep for both users
     // and items.
     if (getSuperstep() == 0) {
-      initLatentVector(vectorSize);
+      initLatentVector(vertex, vectorSize);
     }
     
     // Item vertices do not do anything on the first superstep
-    if (getSuperstep() == 0 && getId().toString().startsWith(ITEM_ID_PREFIX)) {
+    if (getSuperstep() == 0 && 
+        vertex.getId().toString().startsWith(ITEM_ID_PREFIX)) {
       return;
     }
     
-    initialValue = getValue();
+    initialValue = vertex.getValue();
 
     for (MessageWrapper message : messages) {
       // Calculate error
-      double observed = (double) getEdgeValue(message.getSourceId()).get();
-      err = getError(getValue(), message.getMessage(), observed);
+      double observed = 
+          (double) vertex.getEdgeValue(message.getSourceId()).get();
+      err = getError(vertex.getValue(), message.getMessage(), observed);
       // Change the Vertex Latent Vector based on SGD equation
-      runSgdAlgorithm(message.getMessage(), lambda, gamma, err);
+      runSgdAlgorithm(vertex, message.getMessage(), lambda, gamma, err);
     }
 
-    double diff = getL2Norm(initialValue, getValue());
+    double diff = getL2Norm(initialValue, vertex.getValue());
 
     if (getSuperstep()<maxIterations) {
       // The diff is not defined for the first two supersteps 
       if (diff>tolerance || getSuperstep()<2) {
-        sendMessage();
+        sendMessage(vertex);
       }
     }
 
-    voteToHalt();
+    vertex.voteToHalt();
   } 
 
   /** Initialize Vertex Latent Vector
    * @param vectorSize Latent Vector Size
    */
-  public void initLatentVector(int vectorSize) {
+  public void initLatentVector(
+      Vertex<Text, DoubleArrayListWritable, DoubleWritable> vertex,
+      int vectorSize) {
     DoubleArrayListWritable value = new DoubleArrayListWritable();
     for (int i = 0; i < vectorSize; i++) {
       value.add(new DoubleWritable(
-          ((double) (getId().toString().hashCode()+i) % 100d) / 100d));
+          ((double) (vertex.getId().toString().hashCode()+i) % 100d) / 100d));
     }
     keepXdecimals(value, DECIMALS);
-    setValue(value);
+    vertex.setValue(value);
   }
 
   /**
@@ -134,6 +141,7 @@ DoubleWritable, MessageWrapper> {
    * @param gamma learning rate
    */
   public void runSgdAlgorithm(
+      Vertex<Text, DoubleArrayListWritable, DoubleWritable> vertex,
       DoubleArrayListWritable vvertex, float lambda, float gamma, double err) {
     /**
      * vertex_vector = vertex_vector + part3
@@ -144,15 +152,15 @@ DoubleWritable, MessageWrapper> {
      * part3 = - GAMMA * (part1 + part2)
      */    
     DoubleArrayListWritable part1 = 
-        numMatrixProduct((double) lambda, getValue());
+        numMatrixProduct((double) lambda, vertex.getValue());
     DoubleArrayListWritable part2 = 
         numMatrixProduct((double) err, vvertex);
     DoubleArrayListWritable part3 = 
         numMatrixProduct((double) -gamma, dotAddition(part1, part2));
     DoubleArrayListWritable value = 
-        dotAddition(getValue(), part3);
+        dotAddition(vertex.getValue(), part3);
     keepXdecimals(value, DECIMALS);
-    setValue(value);
+    vertex.setValue(value);
   }
 
   /**
@@ -172,11 +180,12 @@ DoubleWritable, MessageWrapper> {
   }
 
   /*** Send messages to neighbours */
-  private void sendMessage() {
+  private void sendMessage(
+      Vertex<Text, DoubleArrayListWritable, DoubleWritable> vertex) {
     MessageWrapper message = new MessageWrapper();
-    message.setSourceId(getId());
-    message.setMessage(getValue());
-    sendMessageToAllEdges(message);
+    message.setSourceId(vertex.getId());
+    message.setMessage(vertex.getValue());
+    sendMessageToAllEdges(vertex, message);
   }
 
   /**

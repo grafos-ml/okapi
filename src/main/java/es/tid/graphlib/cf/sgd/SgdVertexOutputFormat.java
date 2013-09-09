@@ -64,9 +64,9 @@ public class SgdVertexOutputFormat
     }
 
     @Override
-    protected Text convertVertexToLine(Vertex
-      <Text, SgdVertexValue, DoubleWritable, ?> vertex)
-      throws IOException {
+    protected Text convertVertexToLine(
+        Vertex<Text, SgdVertexValue, DoubleWritable> vertex)
+            throws IOException {
       boolean isErrorFlag = getContext().getConfiguration().getBoolean(
         "sgd.print.error", false);
       boolean isUpdatesFlag = getContext().getConfiguration().getBoolean(
