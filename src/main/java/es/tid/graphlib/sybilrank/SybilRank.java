@@ -46,23 +46,12 @@ import es.tid.graphlib.common.ConverterUpdateEdges;
  *
  */
 public class SybilRank {
-  private static final String AGGREGATOR_LOAD_PREFIX = "AGG_LOAD_";
-  private static final String AGGREGATOR_DEMAND_PREFIX = "AGG_DEMAND_";
-  private static final String AGGREGATOR_STATE = "AGG_STATE";
-  private static final String AGGREGATOR_MIGRATIONS = "AGG_MIGRATIONS";
-  private static final String AGGREGATOR_LOCALS = "AGG_LOCALS";
-  private static final String NUM_PARTITIONS = "socc.numberOfPartitions";
-  private static final int DEFAULT_NUM_PARTITIONS = 32;
-  private static final String ADDITIONAL_CAPACITY = "socc.additionalCapacity";
-  private static final float DEFAULT_ADDITIONAL_CAPACITY = 0.05f;
-  private static final String LAMBDA = "socc.lambda";
-  private static final float DEFAULT_LAMBDA = 1.0f;
   private static final String MAX_ITERATIONS = "socc.maxIterations";
   private static final int DEFAULT_MAX_ITERATIONS = 290;
-  private static final String CONVERGENCE_THRESHOLD = "socc.threshold";
-  private static final float DEFAULT_CONVERGENCE_THRESHOLD = 0.001f;
   public static final String EDGE_WEIGHT = "socc.weight";
   public static final byte DEFAULT_EDGE_WEIGHT = 2;
+  public static final String AGGREGATOR_NUM_TRUSTED = "AGG_NUM_TRUSTED";
+  public static final LongWritable ONE = new LongWritable(1);
 
   public static class ComputeNewPartition
   extends AbstractComputation<LongWritable, VertexValue, EdgeValue, PartitionMessage, NullWritable> {
@@ -79,132 +68,6 @@ public class SybilRank {
     private double computeW(int newPartition) {
       //return weights[newPartition];
       return new BigDecimal(((double) loads[newPartition]) / totalCapacity).setScale(3, BigDecimal.ROUND_CEILING).doubleValue();
-    }
-
-    /*
-     * Request migration to a new partition
-     */
-    private void requestMigration(Vertex<LongWritable, VertexValue, EdgeValue> vertex,
-        int numberOfEdges, short currentPartition, short newPartition) {
-      vertex.getValue().setNewPartition(newPartition);
-      aggregate(demandAggregatorNames[newPartition], new LongWritable(numberOfEdges));
-      loads[newPartition]     += numberOfEdges;
-      loads[currentPartition] -= numberOfEdges;
-    }
-
-    /*
-     * Update the neighbor labels when they migrate
-     */
-    private void updateNeighborsPartitions(
-        Vertex<LongWritable, VertexValue, EdgeValue> vertex,
-        Iterable<PartitionMessage> messages) {
-      for (PartitionMessage message : messages) {
-        LongWritable otherId = new LongWritable(message.getSourceId());
-        EdgeValue oldValue = vertex.getEdgeValue(otherId);
-        vertex.setEdgeValue(otherId, new EdgeValue(message.getPartition(), oldValue.getWeight()));
-      }
-    }
-
-    /*
-     * Compute the occurrences of the labels in the neighborhood
-     */
-    private int computeNeighborsLabels(Vertex<LongWritable, VertexValue, EdgeValue> vertex) {
-      Arrays.fill(partitionFrequency, 0);
-      int totalLabels = 0;
-      int localEdges = 0;
-      for (Edge<LongWritable, EdgeValue> e : vertex.getEdges()) {
-        partitionFrequency[e.getValue().getPartition()] += e.getValue().getWeight();
-        totalLabels += e.getValue().getWeight();
-        if (e.getValue().getPartition() == vertex.getValue().getCurrentPartition()) {
-          localEdges++;
-        }
-      }
-      // update cut edges stats
-      aggregate(AGGREGATOR_LOCALS, new LongWritable(localEdges));
-
-      return totalLabels;
-    }
-
-    /*
-     * Choose a random partition with preference to the current
-     */
-    private short chooseRandomPartitionOrCurrent(short currentPartition) {
-      short newPartition;
-      if (maxIndices.size() == 1) {
-        newPartition = maxIndices.get(0);
-      } else {
-        // break ties randomly unless current
-        if (maxIndices.contains(currentPartition)) {
-          newPartition = currentPartition;
-        } else {
-          newPartition = maxIndices.get(rnd.nextInt(maxIndices.size()));
-        }
-      }
-      return newPartition;
-    }
-
-    /*
-     * Choose deterministically on the label with preference to the current
-     */
-    private short chooseMinLabelPartition(short currentPartition) {
-      short newPartition;
-      if (maxIndices.size() == 1) {
-        newPartition = maxIndices.get(0);
-      } else {
-        if (maxIndices.contains(currentPartition)) {
-          newPartition = currentPartition;
-        } else {
-          newPartition = maxIndices.get(0);
-        }
-      }
-      return newPartition;
-    }
-
-    /*
-     * Choose a random partition regardless
-     */
-    private short chooseRandomPartition() {
-      short newPartition;
-      if (maxIndices.size() == 1) {
-        newPartition = maxIndices.get(0);
-      } else {
-        newPartition = maxIndices.get(rnd.nextInt(maxIndices.size()));
-      }
-      return newPartition;
-    }
-
-    /*
-     *  Compute the new partition according to the neighborhood labels and the partitions' loads 
-     */
-    private short computeNewPartition(Vertex<LongWritable, VertexValue, EdgeValue> vertex, int totalLabels) {
-      short currentPartition = vertex.getValue().getCurrentPartition();
-      short newPartition = -1;
-      double bestState = - Double.MAX_VALUE;
-      double currentState = 0;
-      maxIndices.clear();
-      for (short i = 0; i < numberOfPartitions; i++) {
-        // original LPA
-        double LPA = ((double) partitionFrequency[i]) / totalLabels;
-        // penalty function
-        double PF  = lambda * computeW(i);  
-        // compute the rank and make sure the result is > 0
-        double H = lambda + LPA - PF;
-        if (i == currentPartition) {
-          currentState = H;
-        } 
-        if (H > bestState) {
-          bestState = H;
-          maxIndices.clear();
-          maxIndices.add(i);
-        } else if (H == bestState) {
-          maxIndices.add(i);
-        }
-      }
-      newPartition = chooseRandomPartitionOrCurrent(currentPartition);
-      // update state stats
-      aggregate(AGGREGATOR_STATE, new DoubleWritable(currentState));
-
-      return newPartition;
     }
 
     @Override
@@ -251,97 +114,25 @@ public class SybilRank {
     }
   }
 
-  public static class ComputeMigration
-  extends AbstractComputation<LongWritable, VertexValue, EdgeValue, NullWritable, PartitionMessage> {
-    private Random rnd = new Random();
-    private String[] loadAggregatorNames;
-    private double[] migrationProbabilities;
-    private short numberOfPartitions;
-    private double additionalCapacity;
 
-    private void migrate(Vertex<LongWritable, VertexValue, EdgeValue> vertex,
-        short currentPartition, short newPartition) {
-      vertex.getValue().setCurrentPartition(newPartition);
-      // update partitions loads
-      int numberOfEdges = vertex.getNumEdges();
-      aggregate(loadAggregatorNames[currentPartition], new LongWritable(- numberOfEdges));
-      aggregate(loadAggregatorNames[newPartition], new LongWritable(numberOfEdges));
-      aggregate(AGGREGATOR_MIGRATIONS, new LongWritable(1));
-      // inform the neighbors
-      PartitionMessage message = new PartitionMessage(vertex.getId().get(), newPartition);
-      sendMessageToAllEdges(vertex, message);
-    }
+  /**
+   * This computation class is used to calculate the aggregate number of
+   * trusted nodes. This value is necessary to initialize the rank of the nodes
+   * before the power iterations starts.
+   * 
+   * @author dl
+   *
+   */
+  public static class TrustAggregation 
+  extends AbstractComputation<LongWritable, VertexValue, EdgeValue, Writable, 
+  Writable> {
 
     @Override
     public void compute(
         Vertex<LongWritable, VertexValue, EdgeValue> vertex,
-        Iterable<NullWritable> messages) throws IOException {
-      if (messages.iterator().hasNext()) {
-        throw new RuntimeException("messages in the migration step!");
-      }
-      short currentPartition = vertex.getValue().getCurrentPartition();
-      short newPartition     = vertex.getValue().getNewPartition();
-      if (currentPartition == newPartition) {
-        return;
-      }
-      double migrationProbability = migrationProbabilities[newPartition];
-      if (rnd.nextDouble() < migrationProbability) {
-        migrate(vertex, currentPartition, newPartition);
-      } else {
-        vertex.getValue().setNewPartition(currentPartition);
-      }
-    }
-
-    @Override
-    public void preSuperstep() {
-      additionalCapacity = getContext().getConfiguration().getFloat(ADDITIONAL_CAPACITY, DEFAULT_ADDITIONAL_CAPACITY);
-      numberOfPartitions = (short) getContext().getConfiguration().getInt(NUM_PARTITIONS, DEFAULT_NUM_PARTITIONS);
-      long totalCapacity = (long) Math.round(((double) getTotalNumEdges() * (1 + additionalCapacity) / numberOfPartitions));
-      migrationProbabilities = new double[numberOfPartitions];
-      loadAggregatorNames = new String[numberOfPartitions];
-      // cache migration probabilities per destination partition
-      for (int i = 0; i < numberOfPartitions; i++) {
-        loadAggregatorNames[i] = AGGREGATOR_LOAD_PREFIX + i;
-        long load   = ((LongWritable) getAggregatedValue(loadAggregatorNames[i])).get();
-        long demand = ((LongWritable) getAggregatedValue(AGGREGATOR_DEMAND_PREFIX + i)).get();
-        long remainingCapacity = totalCapacity - load;
-        if (demand == 0 || remainingCapacity <= 0) {
-          migrationProbabilities[i] = 0;
-        } else {
-          migrationProbabilities[i] = ((double) (remainingCapacity)) / demand;
-        }
-      }
-      //System.out.println("migration probabilities: " + Arrays.toString(migrationProbabilities));
-    }
-  }
-
-  public static class Initializer
-  extends AbstractComputation<LongWritable, VertexValue, EdgeValue, PartitionMessage, PartitionMessage> {
-    private Random rnd = new Random();
-    private String[] loadAggregatorNames;
-    private int numberOfPartitions;
-
-    @Override
-    public void compute(
-        Vertex<LongWritable, VertexValue, EdgeValue> vertex,
-        Iterable<PartitionMessage> messages) throws IOException {
-      short partition = vertex.getValue().getCurrentPartition();
-      if (partition == -1) {
-        partition = (short) rnd.nextInt(numberOfPartitions);
-      }
-      aggregate(loadAggregatorNames[partition], new LongWritable(vertex.getNumEdges()));
-      vertex.getValue().setCurrentPartition(partition);
-      vertex.getValue().setNewPartition(partition);
-      PartitionMessage message = new PartitionMessage(vertex.getId().get(), partition);
-      sendMessageToAllEdges(vertex, message);
-    }
-
-    @Override
-    public void preSuperstep() {
-      numberOfPartitions = getContext().getConfiguration().getInt(NUM_PARTITIONS, DEFAULT_NUM_PARTITIONS);
-      loadAggregatorNames = new String[numberOfPartitions];
-      for (int i = 0; i < numberOfPartitions; i++) {
-        loadAggregatorNames[i] = AGGREGATOR_LOAD_PREFIX + i;
+        Iterable<Writable> messages) throws IOException {
+      if (vertex.getValue().isTrusted()) {
+        aggregate(AGGREGATOR_NUM_TRUSTED, ONE);
       }
     }
   }
@@ -358,27 +149,14 @@ public class SybilRank {
     public void initialize() throws InstantiationException,
     IllegalAccessException {
       maxIterations = getContext().getConfiguration().getInt(MAX_ITERATIONS, DEFAULT_MAX_ITERATIONS);
-      numberOfPartitions = getContext().getConfiguration().getInt(NUM_PARTITIONS, DEFAULT_NUM_PARTITIONS);
-      convergenceThreshold = getContext().getConfiguration().getFloat(CONVERGENCE_THRESHOLD, DEFAULT_CONVERGENCE_THRESHOLD);
-      // Create aggregators for each partition
-      loadAggregatorNames = new String[numberOfPartitions];
-      for (int i = 0; i < numberOfPartitions; i++) {
-        loadAggregatorNames[i] = AGGREGATOR_LOAD_PREFIX + i;
-        registerPersistentAggregator(loadAggregatorNames[i],
-            LongSumAggregator.class);
-        registerAggregator(AGGREGATOR_DEMAND_PREFIX + i,
-            LongSumAggregator.class);
-      }
-      registerAggregator(AGGREGATOR_STATE,
-          DoubleSumAggregator.class);
-      registerAggregator(AGGREGATOR_LOCALS,
-          LongSumAggregator.class);
-      registerAggregator(AGGREGATOR_MIGRATIONS,
+      registerPersistentAggregator(AGGREGATOR_NUM_TRUSTED,
           LongSumAggregator.class);
     }
 
     private void printStats(int superstep) {
       System.out.println("superstep " + superstep);
+      
+      /*
       long migrations = ((LongWritable) getAggregatedValue(AGGREGATOR_MIGRATIONS)).get();
       long localEdges = ((LongWritable) getAggregatedValue(AGGREGATOR_LOCALS)).get();
       if (superstep > 2) {
@@ -405,6 +183,7 @@ public class SybilRank {
           break;
         }
       }
+      */
     }
 
     private boolean algorithmConverged(int superstep) {
@@ -427,7 +206,7 @@ public class SybilRank {
       } else if (superstep == 1) {
         setComputation(ConverterUpdateEdges.class);
       } else if (superstep == 2) {
-        setComputation(Initializer.class);
+        setComputation(TrustAggregation.class);
       } else {
         switch (superstep % 2) {
         case 0:
@@ -570,148 +349,15 @@ public class SybilRank {
     }
   }
 
-  public static class PartitionMessage
-  implements Writable {
-    private long sourceId;
-    private short partition;
-
-    public PartitionMessage() { }
-
-    public PartitionMessage(long sourceId, short partition) {
-      this.sourceId = sourceId;
-      this.partition = partition;
-    }
-
-    public long getSourceId() {
-      return sourceId;
-    }
-
-    public void setSourceId(long sourceId) {
-      this.sourceId = sourceId;
-    }
-
-    public short getPartition() {
-      return partition;
-    }
-
-    public void setPartition(short partition) {
-      this.partition = partition;
-    }
-
-    @Override
-    public void readFields(DataInput input) throws IOException {
-      sourceId = input.readLong();
-      partition = input.readShort();
-    }
-
-    @Override
-    public void write(DataOutput output) throws IOException {
-      output.writeLong(sourceId);
-      output.writeShort(partition);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      PartitionMessage that = (PartitionMessage) o;
-      if (partition != that.partition || sourceId != that.sourceId) {
-        return false;
-      }
-      return true;
-    }
-  }
-
-  public static class SoccPartitionStatsVertexOutputFormat extends
-  TextVertexOutputFormat<LongWritable, VertexValue, EdgeValue> {
-    /** Specify the output delimiter */
-    public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
-    /** Default output delimiter */
-    public static final String LINE_TOKENIZE_VALUE_DEFAULT = " ";
-
-    public TextVertexWriter
-    createVertexWriter(TaskAttemptContext context) {
-      return new TextIntIntVertexWriter();
-    }
-
-    protected class TextIntIntVertexWriter
-    extends TextVertexWriterToEachLine {
-      /** Saved delimiter */
-      private String delimiter;
-
-      @Override
-      public void initialize(TaskAttemptContext context)
-          throws IOException, InterruptedException {
-        super.initialize(context);
-        Configuration conf = context.getConfiguration();
-        delimiter = conf
-            .get(LINE_TOKENIZE_VALUE, LINE_TOKENIZE_VALUE_DEFAULT);
-      }
-
-      @Override
-      protected Text convertVertexToLine
-      (Vertex<LongWritable, VertexValue, EdgeValue> vertex)
-          throws IOException {
-        StringBuilder sb = new StringBuilder();
-        sb.append(vertex.getId().toString()).append(delimiter).
-        append(vertex.getValue().getCurrentPartition());
-        int numberOfEdges = vertex.getNumEdges();
-        int localEdges = 0;
-        for (Edge<LongWritable, EdgeValue> edge : vertex.getEdges()) {
-          if (edge.getValue().getPartition() == vertex.getValue().getCurrentPartition()) {
-            localEdges++;
-          }
-        }
-        return new Text(sb.append(delimiter).
-            append(localEdges).append(delimiter).
-            append(numberOfEdges).toString());
-      }
-    }
-  }
-
-  public static class IdWithPartitionTextOutputFormat extends
-  TextVertexOutputFormat<LongWritable, VertexValue, EdgeValue> {
-    /** Specify the output delimiter */
-    public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
-    /** Default output delimiter */
-    public static final String LINE_TOKENIZE_VALUE_DEFAULT = "\t";
-
-    public TextVertexWriter
-    createVertexWriter(TaskAttemptContext context) {
-      return new IdWithPartitionVertexWriter();
-    }
-
-    protected class IdWithPartitionVertexWriter
-    extends TextVertexWriterToEachLine {
-      /** Saved delimiter */
-      private String delimiter;
-
-      @Override
-      public void initialize(TaskAttemptContext context)
-          throws IOException, InterruptedException {
-        super.initialize(context);
-        Configuration conf = context.getConfiguration();
-        delimiter = conf
-            .get(LINE_TOKENIZE_VALUE, LINE_TOKENIZE_VALUE_DEFAULT);
-      }
-
-      @Override
-      protected Text convertVertexToLine
-      (Vertex<LongWritable, VertexValue, EdgeValue> vertex)
-          throws IOException {
-        return new Text(vertex.getId().get() + delimiter +
-            vertex.getValue().getCurrentPartition());
-      }
-    }
-  }
-
-  public static class LongShortVertexValueInputFormat extends
+  /**
+   * This InputFormat class is used to read the set of vertices that are 
+   * considered untrusted. The actual input is expected to contain one vertex
+   * ID per line.
+   * @author dl
+   *
+   */
+  public static class SybilRankVertexValueInputFormat extends
   TextVertexValueInputFormat<LongWritable, VertexValue, EdgeValue> {
-    private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
 
     @Override
     public LongShortTextVertexValueReader createVertexValueReader(
@@ -720,26 +366,22 @@ public class SybilRank {
     }
 
     public class LongShortTextVertexValueReader extends
-    TextVertexValueReaderFromEachLineProcessed<String[]> {
+    TextVertexValueReaderFromEachLineProcessed<String> {
 
       @Override
-      protected String[] preprocessLine(Text line) throws IOException {
-        return SEPARATOR.split(line.toString());
+      protected String preprocessLine(Text line) throws IOException {
+        return line.toString();
       }
 
       @Override
-      protected LongWritable getId(String[] data) throws IOException {
-        return new LongWritable(Long.parseLong(data[0]));
+      protected LongWritable getId(String data) throws IOException {
+        return new LongWritable(Long.parseLong(data));
       }
 
       @Override
-      protected VertexValue getValue(String[] data) throws IOException {
+      protected VertexValue getValue(String data) throws IOException {
         VertexValue value = new VertexValue();
-        if (data.length > 1) {
-          short partition = Short.parseShort(data[1]);
-          value.setCurrentPartition(partition);
-          value.setNewPartition(partition);
-        }
+        value.setTrusted(false);
         return value;
       }
     }
