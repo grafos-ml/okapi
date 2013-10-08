@@ -1,4 +1,4 @@
-package es.tid.graphlib.clustering.semiClustering;
+package es.tid.graphlib.clustering.semiclustering;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -8,7 +8,7 @@ import org.apache.giraph.conf.ImmutableClassesGiraphConfiguration;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.WritableComparable;
 
-import es.tid.graphlib.clustering.semiClustering.SemiClusteringMessageWrapper.SemiClusterTreeSetWritable;
+import es.tid.graphlib.clustering.semiclustering.SemiClusteringMessageWrapper.SemiClusterTreeSetWritable;
 
 /** This class provides the wrapper for the sending message.*/
 public class MessageWrapper implements WritableComparable<MessageWrapper> {

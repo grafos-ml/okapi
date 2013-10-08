@@ -1,4 +1,4 @@
-package es.tid.graphlib.clustering.semiClustering;
+package es.tid.graphlib.clustering.semiclustering;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -17,7 +17,7 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
-import es.tid.graphlib.clustering.semiClustering.SemiClusteringMessageWrapper.SemiClusterTreeSetWritable;
+import es.tid.graphlib.clustering.semiclustering.SemiClusteringMessageWrapper.SemiClusterTreeSetWritable;
 
 /**
  * Demonstrates the Semi Clustering implementation.

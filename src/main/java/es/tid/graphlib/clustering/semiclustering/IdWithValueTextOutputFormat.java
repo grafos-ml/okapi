@@ -1,4 +1,4 @@
-package es.tid.graphlib.clustering.semiClustering;
+package es.tid.graphlib.clustering.semiclustering;
 
 import java.io.IOException;
 
