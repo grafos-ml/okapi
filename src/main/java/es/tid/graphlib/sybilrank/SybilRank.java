@@ -3,35 +3,24 @@ package es.tid.graphlib.sybilrank;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.math.BigDecimal;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Random;
 import java.util.regex.Pattern;
 
-import org.apache.giraph.aggregators.DoubleSumAggregator;
 import org.apache.giraph.aggregators.LongSumAggregator;
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.AbstractComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
-import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
 import org.apache.giraph.master.DefaultMasterCompute;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
-import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 
 import es.tid.graphlib.common.PropagateId;
 import es.tid.graphlib.common.ConverterUpdateEdges;
@@ -39,78 +28,66 @@ import es.tid.graphlib.common.ConverterUpdateEdges;
 /**
  * This is an implementation of the SybilRank algorithm. In fact, this is an
  * extension of the original SybilRank algorithm published by Cao et al at
- * NSDI'12 that assumes a weighted graph. The modified algorithm has been 
- * developed by Boshmaf et al.
+ * NSDI'12. This version of the algorithm assumes a weighted graph. The modified
+ * algorithm has been developed by Boshmaf et al.
  * 
  * @author dl
  *
  */
 public class SybilRank {
-  private static final String MAX_ITERATIONS = "socc.maxIterations";
-  private static final int DEFAULT_MAX_ITERATIONS = 290;
+  
   public static final String EDGE_WEIGHT = "socc.weight";
   public static final byte DEFAULT_EDGE_WEIGHT = 2;
+  
+  /**
+   * Property name for the total trust.
+   */
+  public static final String TOTAL_TRUST = "sybilrank.total.trust";
+  
+  /**
+   * Default total trust.
+   */
+  public static final Double TOTAL_TRUST_DEFAULT = 1.0;
+  
+  /**
+   * Name of aggregator used to calculate the total number of trusted nodes.
+   */
   public static final String AGGREGATOR_NUM_TRUSTED = "AGG_NUM_TRUSTED";
+  
+  // Final value of 1L used by the aggregators.
   public static final LongWritable ONE = new LongWritable(1);
 
-  public static class ComputeNewPartition
-  extends AbstractComputation<LongWritable, VertexValue, EdgeValue, PartitionMessage, NullWritable> {
-    private List<Short> maxIndices = Lists.newArrayList();
-    private Random rnd = new Random();
-    private String[] demandAggregatorNames;
-    private int[] partitionFrequency;
-    private long[] loads;
-    private long totalCapacity;
-    private short numberOfPartitions;
-    private double additionalCapacity;
-    private double lambda;
-
-    private double computeW(int newPartition) {
-      //return weights[newPartition];
-      return new BigDecimal(((double) loads[newPartition]) / totalCapacity).setScale(3, BigDecimal.ROUND_CEILING).doubleValue();
-    }
-
+  /**
+   * This class implements the main part of the SybilRank algorithms, that is,
+   * the power iterations.
+   * 
+   * @author dl
+   *
+   */
+  public static class SybilRankComputation
+  extends AbstractComputation<LongWritable, VertexValue, DoubleWritable, 
+  DoubleWritable, DoubleWritable> {
+    
     @Override
     public void compute(
-        Vertex<LongWritable, VertexValue, EdgeValue> vertex,
-        Iterable<PartitionMessage> messages) throws IOException {
-      boolean isActive = messages.iterator().hasNext();
-      short currentPartition  = vertex.getValue().getCurrentPartition();
-      int numberOfEdges = vertex.getNumEdges();
-
-      // update neighbors partitions
-      updateNeighborsPartitions(vertex, messages);
-
-      // count labels occurrences in the neighborhood
-      int totalLabels = computeNeighborsLabels(vertex);
-
-      // compute the most attractive partition
-      short newPartition = computeNewPartition(vertex, totalLabels);
-
-      // request migration to the new destination
-      if (newPartition != currentPartition && isActive) {
-        requestMigration(vertex, numberOfEdges, currentPartition, newPartition);
+        Vertex<LongWritable, VertexValue, DoubleWritable> vertex,
+        Iterable<DoubleWritable> messages) throws IOException {
+      
+      // Aggregate rank from friends.
+      double newRank = 0;
+      for (DoubleWritable message : messages) {
+        newRank += message.get();
       }
-
-      //IntermediateResultsPrinterWorkerContext wc = (IntermediateResultsPrinterWorkerContext) getWorkerContext();
-      //wc.writeVertex(vertex);
-    }
-
-    @Override
-    public void preSuperstep() {
-      additionalCapacity = getContext().getConfiguration().getFloat(ADDITIONAL_CAPACITY, DEFAULT_ADDITIONAL_CAPACITY);
-      numberOfPartitions = (short) getContext().getConfiguration().getInt(NUM_PARTITIONS, DEFAULT_NUM_PARTITIONS);
-      lambda = getContext().getConfiguration().getFloat(LAMBDA, DEFAULT_LAMBDA);
-      partitionFrequency = new int[numberOfPartitions];
-      loads = new long[numberOfPartitions];
-      demandAggregatorNames = new String[numberOfPartitions];
-      totalCapacity = (long) Math.round(((double) getTotalNumEdges() * (1 + additionalCapacity) / numberOfPartitions));
-      // cache loads for the penalty function
-      for (int i = 0; i < numberOfPartitions; i++) {
-        demandAggregatorNames[i] = AGGREGATOR_DEMAND_PREFIX + i;
-        loads[i] = ((LongWritable) getAggregatedValue(AGGREGATOR_LOAD_PREFIX + i)).get();
+      
+      // This is the new rank of this vertex.
+      vertex.getValue().setRank(newRank);
+      
+      // Distribute rank to edges proportionally to the edge weights
+      for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
+        double distRank = vertex.getValue().getRank()*
+            (edge.getValue().get()/(double)vertex.getNumEdges());
+        sendMessage(edge.getTargetVertexId(), new DoubleWritable(distRank));
       }
-      //System.out.println("weights " + Arrays.toString(loads));
     }
   }
 
@@ -124,12 +101,12 @@ public class SybilRank {
    *
    */
   public static class TrustAggregation 
-  extends AbstractComputation<LongWritable, VertexValue, EdgeValue, Writable, 
-  Writable> {
+  extends AbstractComputation<WritableComparable, VertexValue, Writable, 
+  Writable, Writable> {
 
     @Override
     public void compute(
-        Vertex<LongWritable, VertexValue, EdgeValue> vertex,
+        Vertex<WritableComparable, VertexValue, Writable> vertex,
         Iterable<Writable> messages) throws IOException {
       if (vertex.getValue().isTrusted()) {
         aggregate(AGGREGATOR_NUM_TRUSTED, ONE);
@@ -137,65 +114,77 @@ public class SybilRank {
     }
   }
 
-  public static class SybilRankMasterCompute
-  extends DefaultMasterCompute {
-    private String[] loadAggregatorNames;
-    private int maxIterations;
-    private int numberOfPartitions;
-    private double previousState;
-    private double convergenceThreshold;
+  /**
+   * This class is used only to initialize the rank of the vertices. It assumes
+   * that the trust aggregation computations has occurred in the previous step.
+   * 
+   * After the initialization it also distributes the rank of every vertex to
+   * it friends, so that the power iterations start. 
+   * 
+   * @author dl
+   *
+   */
+  public static class Initializer 
+  extends AbstractComputation<LongWritable, VertexValue, DoubleWritable, 
+  Writable, DoubleWritable> {
+
+    private double totalTrust; 
+    
+    @Override
+    public void compute(
+        Vertex<LongWritable, VertexValue, DoubleWritable> vertex,
+        Iterable<Writable> messages) throws IOException {
+      
+      if (vertex.getValue().isTrusted()) {
+        vertex.getValue().setRank(
+            totalTrust/(double)((LongWritable)getAggregatedValue(
+                AGGREGATOR_NUM_TRUSTED)).get());
+      } else {
+        vertex.getValue().setRank(0.0);
+      }
+      
+      // Distribute rank to edges proportionally to the edge weights
+      for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
+        double distRank = vertex.getValue().getRank()*
+            (edge.getValue().get()/(double)vertex.getNumEdges());
+        sendMessage(edge.getTargetVertexId(), new DoubleWritable(distRank));
+      }
+    }
+    
+    @Override
+    public void preSuperstep() {
+      String s_totalTrust = getContext().getConfiguration().get(TOTAL_TRUST); 
+      if (s_totalTrust != null) {
+        totalTrust = Double.parseDouble(s_totalTrust);
+      } else {
+        totalTrust = TOTAL_TRUST_DEFAULT;
+      }
+    }
+  }
+  
+  
+  /**
+   * This implementation coordinates the execution of the SybilRank algorithm.
+   * 
+   * @author dl
+   *
+   */
+  public static class SybilRankMasterCompute extends DefaultMasterCompute {
+    
+    private int maxPowerIterations;
 
     @Override
     public void initialize() throws InstantiationException,
     IllegalAccessException {
-      maxIterations = getContext().getConfiguration().getInt(MAX_ITERATIONS, DEFAULT_MAX_ITERATIONS);
+            
+      // Register the aggregator that will be used to count the number of 
+      // trusted nodes.
       registerPersistentAggregator(AGGREGATOR_NUM_TRUSTED,
           LongSumAggregator.class);
-    }
-
-    private void printStats(int superstep) {
-      System.out.println("superstep " + superstep);
       
-      /*
-      long migrations = ((LongWritable) getAggregatedValue(AGGREGATOR_MIGRATIONS)).get();
-      long localEdges = ((LongWritable) getAggregatedValue(AGGREGATOR_LOCALS)).get();
-      if (superstep > 2) {
-        switch (superstep % 2) {
-        case 0:
-          System.out.println(((double) localEdges) / getTotalNumEdges() + " local edges");
-          long minLoad = Long.MAX_VALUE;
-          long maxLoad = - Long.MAX_VALUE;
-          for (int i = 0; i < numberOfPartitions; i++) {
-            long load = ((LongWritable) getAggregatedValue(loadAggregatorNames[i])).get();
-            if (load < minLoad) {
-              minLoad = load;
-            }
-            if (load > maxLoad) {
-              maxLoad = load;
-            }
-          }
-          double expectedLoad = ((double) getTotalNumEdges()) / numberOfPartitions;
-          System.out.println((((double) maxLoad) / minLoad) + " max-min unbalance");
-          System.out.println((((double) maxLoad) / expectedLoad) + " maximum normalized load");
-          break;
-        case 1:
-          System.out.println(migrations + " migrations");
-          break;
-        }
-      }
-      */
-    }
-
-    private boolean algorithmConverged(int superstep) {
-      double newState = ((DoubleWritable) getAggregatedValue(AGGREGATOR_STATE)).get();
-      boolean converged = false;
-      if (superstep > 5) {
-        double step = Math.abs(1 - newState / previousState);
-        converged = step < convergenceThreshold;
-        System.out.println("PreviousState=" + previousState + " NewState=" + newState + " " + step);
-      }
-      previousState = newState;
-      return converged;
+      // The number of power iterations we execute is equal to log10(N), where
+      // N is the number of vertices in the graph.
+      maxPowerIterations = (int)Math.log10((double)getTotalNumVertices());
     }
 
     @Override
@@ -207,80 +196,17 @@ public class SybilRank {
         setComputation(ConverterUpdateEdges.class);
       } else if (superstep == 2) {
         setComputation(TrustAggregation.class);
+      } else if (superstep == 3) {
+        setComputation(Initializer.class);
       } else {
-        switch (superstep % 2) {
-        case 0:
-          setComputation(ComputeMigration.class);
-          break;
-        case 1:
-          setComputation(ComputeNewPartition.class);
-          break;
-        }
+        setComputation(SybilRankComputation.class);
       }
-      boolean hasConverged = false;
-      if (superstep > 3) {
-        if (superstep % 2 == 0) {
-          hasConverged = algorithmConverged(superstep);
-        }
-      }
-      printStats(superstep);
-      if (hasConverged || superstep >= maxIterations) {
-        System.out.println("Halting computation: " + hasConverged);
+      
+      // Before the power iterations, we execute 4 initial supersteps, so we 
+      // count those in when deciding to stop. 
+      if (4+superstep > maxPowerIterations) {
         haltComputation();
       }
-    }
-  }
-
-  public static class EdgeValue implements Writable {
-    private short partition = -1;
-    //private byte weight = 1;
-
-    public EdgeValue() { }
-
-    public EdgeValue(short partition, byte weight) {
-      setPartition(partition);
-      setWeight(weight);
-    }
-
-    public short getPartition() {
-      return partition;
-    }
-
-    public void setPartition(short partition) {
-      this.partition = partition;
-    }
-
-    public byte getWeight() {
-      //return weight;
-      return 1;
-    }
-
-    public void setWeight(byte weight) {
-      //this.weight = weight;
-    }
-
-    @Override
-    public void readFields(DataInput in) throws IOException {
-      partition = in.readShort();
-      //weight = in.readByte();
-    }
-
-    @Override
-    public void write(DataOutput out) throws IOException {
-      out.writeShort(partition);
-      //out.writeByte(weight);
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      EdgeValue that = (EdgeValue) o;
-      return this.partition == that.partition;
     }
   }
 
@@ -357,7 +283,7 @@ public class SybilRank {
    *
    */
   public static class SybilRankVertexValueInputFormat extends
-  TextVertexValueInputFormat<LongWritable, VertexValue, EdgeValue> {
+  TextVertexValueInputFormat<LongWritable, VertexValue, Writable> {
 
     @Override
     public LongShortTextVertexValueReader createVertexValueReader(
@@ -387,18 +313,31 @@ public class SybilRank {
     }
   }
 
-  public static class LongShortTextEdgeInputFormat extends
-  TextEdgeInputFormat<LongWritable, EdgeValue> {
+  /**
+   * This input format is used to read the graph structure. It assumes a set
+   * of weighted edges in the form of:
+   * 
+   * <src id> <dst id> <edge weight>
+   * ...
+   * 
+   * The vertex IDs are expected to be of type long and the weights are
+   * expected to be of type double.
+   * 
+   * @author dl
+   *
+   */
+  public static class LongDoubleTextEdgeInputFormat extends
+  TextEdgeInputFormat<LongWritable, DoubleWritable> {
     /** Splitter for endpoints */
     private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
 
     @Override
-    public EdgeReader<LongWritable, EdgeValue> createEdgeReader(
+    public EdgeReader<LongWritable, DoubleWritable> createEdgeReader(
         InputSplit split, TaskAttemptContext context) throws IOException {
-      return new LongShortTextEdgeReader();
+      return new LongDoubleTextEdgeReader();
     }
 
-    public class LongShortTextEdgeReader extends
+    public class LongDoubleTextEdgeReader extends
     TextEdgeReaderFromEachLineProcessed<String[]> {
       @Override
       protected String[] preprocessLine(Text line) throws IOException {
@@ -406,24 +345,20 @@ public class SybilRank {
       }
 
       @Override
-      protected LongWritable getSourceVertexId(String[] endpoints)
+      protected LongWritable getSourceVertexId(String[] tokens)
           throws IOException {
-        return new LongWritable(Long.parseLong(endpoints[0]));
+        return new LongWritable(Long.parseLong(tokens[0]));
       }
 
       @Override
-      protected LongWritable getTargetVertexId(String[] endpoints)
+      protected LongWritable getTargetVertexId(String[] tokens)
           throws IOException {
-        return new LongWritable(Long.parseLong(endpoints[1]));
+        return new LongWritable(Long.parseLong(tokens[1]));
       }
 
       @Override
-      protected EdgeValue getValue(String[] endpoints) throws IOException {
-        EdgeValue value = new EdgeValue();
-        if (endpoints.length == 3) {
-          value.setWeight((byte) Byte.parseByte(endpoints[2]));
-        }
-        return value;
+      protected DoubleWritable getValue(String[] tokens) throws IOException {
+        return new DoubleWritable(Double.parseDouble(tokens[2]));
       }
     }
   }

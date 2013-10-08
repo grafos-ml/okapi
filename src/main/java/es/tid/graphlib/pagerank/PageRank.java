@@ -9,7 +9,10 @@ import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.LongWritable;
 
 /**
- * Demonstrates the basic Pregel PageRank implementation.
+ * This an alternative implementation of PageRank where vertices limit the 
+ * precision of their rank up to a specified number of decimal digits and also
+ * do not propagate their value if it hasn't changed by a lot since the last
+ * iteration. 
  */
 @Algorithm(
   name = "Page rank - modified")

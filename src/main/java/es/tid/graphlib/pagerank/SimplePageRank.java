@@ -32,7 +32,7 @@ import org.apache.log4j.Logger;
  *
  * The maximum number of supersteps is configurable.
  */
-public class SimplePageRankVertex extends BasicComputation<LongWritable,
+public class SimplePageRank extends BasicComputation<LongWritable,
   DoubleWritable, FloatWritable, DoubleWritable> {
   /** Default number of supersteps */
   public static final int MAX_SUPERSTEPS_DEFAULT = 30;
@@ -41,7 +41,7 @@ public class SimplePageRankVertex extends BasicComputation<LongWritable,
 
   /** Logger */
   private static final Logger LOG =
-    Logger.getLogger(SimplePageRankVertex.class);
+    Logger.getLogger(SimplePageRank.class);
 
   @Override
   public void compute(
