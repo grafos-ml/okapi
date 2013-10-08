@@ -28,13 +28,11 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import es.tid.graphlib.utils.LongPairVal;
-
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
- * weighted graphs with int ids int values.
+ * weighted graphs with long ids float values.
  *
- * Each line consists of: source_vertex, target_vertex
+ * Each line consists of: <src id> <target id> <edge weight>
  */
 public class LongFloatTextEdgeInputFormat extends
     TextEdgeInputFormat<LongWritable, FloatWritable> {
@@ -52,30 +50,28 @@ public class LongFloatTextEdgeInputFormat extends
    * {@link LongLongDoubleTextEdgeInputFormat}.
    */
   public class LongLongFloatTextEdgeReader extends
-      TextEdgeReaderFromEachLineProcessed<LongPairVal> {
+      TextEdgeReaderFromEachLineProcessed<String[]> {
     @Override
-    protected LongPairVal preprocessLine(Text line) throws IOException {
-      String[] tokens = SEPARATOR.split(line.toString());
-      return new LongPairVal(Long.valueOf(tokens[0]),
-          Long.valueOf(tokens[1]), Float.valueOf(tokens[2]));
+    protected String[] preprocessLine(Text line) throws IOException {
+      return SEPARATOR.split(line.toString());
     }
 
     @Override
-    protected LongWritable getSourceVertexId(LongPairVal endpoints)
+    protected LongWritable getSourceVertexId(String[] tokens)
       throws IOException {
-      return new LongWritable(endpoints.getFirst());
+      return new LongWritable(Long.parseLong(tokens[0]));
     }
 
     @Override
-    protected LongWritable getTargetVertexId(LongPairVal endpoints)
+    protected LongWritable getTargetVertexId(String[] tokens)
       throws IOException {
-      return new LongWritable(endpoints.getSecond());
+      return new LongWritable(Long.parseLong(tokens[1]));
     }
 
     @Override
-    protected FloatWritable getValue(LongPairVal endpoints)
+    protected FloatWritable getValue(String[] tokens)
       throws IOException {
-      return new FloatWritable((float) endpoints.getValue());
+      return new FloatWritable(Float.parseFloat(tokens[2]));
     }
   }
 }

@@ -7,7 +7,7 @@ import java.io.IOException;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Writable;
 
-import es.tid.graphlib.utils.DoubleArrayListWritable;
+import es.tid.graphlib.common.data.DoubleArrayListWritable;
 
 /**
  * A Writable implementation of a DoubleArrayList.

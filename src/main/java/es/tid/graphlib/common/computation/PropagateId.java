@@ -1,4 +1,4 @@
-package es.tid.graphlib.common;
+package es.tid.graphlib.common.computation;
 
 import java.io.IOException;
 
@@ -9,9 +9,8 @@ import org.apache.hadoop.io.WritableComparable;
 
 /**
  * This computation is used simply to propagate the ID of a vertex to all its
- * neighbors. This is typically used as an initial step to convert an undirected
- * graph to a directed one by letting a vertex know what other vertices point to
- * it. 
+ * neighbors. 
+ * 
  * @author dl
  *
  * @param <I>

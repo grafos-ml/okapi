@@ -28,13 +28,11 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import es.tid.graphlib.utils.IntPairIntVal;
-
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
  * weighted graphs with int ids int values.
  *
- * Each line consists of: source_vertex, target_vertex
+ * Each line consists of: <src id> <target id> <edge weight>
  */
 public class IntIntTextEdgeInputFormat extends
     TextEdgeInputFormat<IntWritable, IntWritable> {
@@ -52,29 +50,27 @@ public class IntIntTextEdgeInputFormat extends
    * {@link IntNullTextEdgeInputFormat}.
    */
   public class IntIntTextEdgeReader extends
-      TextEdgeReaderFromEachLineProcessed<IntPairIntVal> {
+      TextEdgeReaderFromEachLineProcessed<String[]> {
     @Override
-    protected IntPairIntVal preprocessLine(Text line) throws IOException {
-      String[] tokens = SEPARATOR.split(line.toString());
-      return new IntPairIntVal(Integer.valueOf(tokens[0]),
-          Integer.valueOf(tokens[1]), Integer.valueOf(tokens[2]));
+    protected String[] preprocessLine(Text line) throws IOException {
+      return SEPARATOR.split(line.toString());
     }
 
     @Override
-    protected IntWritable getSourceVertexId(IntPairIntVal endpoints)
+    protected IntWritable getSourceVertexId(String[] tokens)
       throws IOException {
-      return new IntWritable(endpoints.getFirst());
+      return new IntWritable(Integer.parseInt(tokens[0]));
     }
 
     @Override
-    protected IntWritable getTargetVertexId(IntPairIntVal endpoints)
+    protected IntWritable getTargetVertexId(String[] tokens)
       throws IOException {
-      return new IntWritable(endpoints.getSecond());
+      return new IntWritable(Integer.parseInt(tokens[1]));
     }
 
     @Override
-    protected IntWritable getValue(IntPairIntVal endpoints) throws IOException {
-      return new IntWritable(endpoints.getValue());
+    protected IntWritable getValue(String[] tokens) throws IOException {
+      return new IntWritable(Integer.parseInt(tokens[2]));
     }
   }
 }

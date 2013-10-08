@@ -2,6 +2,9 @@ package es.tid.graphlib.utils;
 
 import org.apache.hadoop.io.Text;
 
+import es.tid.graphlib.common.data.DoubleArrayListWritable;
+import es.tid.graphlib.common.data.MessageWrapper;
+
 
 /** This class provides the wrapper for the sending message.*/
 public class TextMessageWrapper

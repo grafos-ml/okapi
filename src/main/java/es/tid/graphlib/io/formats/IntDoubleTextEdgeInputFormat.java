@@ -29,13 +29,11 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import es.tid.graphlib.utils.IntPairDoubleVal;
-
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
- * weighted graphs with int ids int values.
+ * weighted graphs with int ids double values.
  *
- * Each line consists of: source_vertex, target_vertex
+ * Each line consists of: <src id> <target id> <edge weight>
  */
 public class IntDoubleTextEdgeInputFormat extends
     TextEdgeInputFormat<IntWritable, DoubleWritable> {
@@ -53,29 +51,27 @@ public class IntDoubleTextEdgeInputFormat extends
    * {@link IntNullTextEdgeInputFormat}.
    */
   public class IntDoubleTextEdgeReader extends
-      TextEdgeReaderFromEachLineProcessed<IntPairDoubleVal> {
+      TextEdgeReaderFromEachLineProcessed<String[]> {
     @Override
-    protected IntPairDoubleVal preprocessLine(Text line) throws IOException {
-      String[] tokens = SEPARATOR.split(line.toString());
-      return new IntPairDoubleVal(Integer.valueOf(tokens[0]),
-          Integer.valueOf(tokens[1]), Double.valueOf(tokens[2]));
+    protected String[] preprocessLine(Text line) throws IOException {
+      return SEPARATOR.split(line.toString());
     }
 
     @Override
-    protected IntWritable getSourceVertexId(IntPairDoubleVal endpoints)
+    protected IntWritable getSourceVertexId(String[] tokens)
       throws IOException {
-      return new IntWritable(endpoints.getFirst());
+      return new IntWritable(Integer.parseInt(tokens[0]));
     }
 
     @Override
-    protected IntWritable getTargetVertexId(IntPairDoubleVal endpoints)
+    protected IntWritable getTargetVertexId(String[] tokens)
       throws IOException {
-      return new IntWritable(endpoints.getSecond());
+      return new IntWritable(Integer.parseInt(tokens[1]));
     }
 
     @Override
-    protected DoubleWritable getValue(IntPairDoubleVal endpoints) throws IOException {
-      return new DoubleWritable(endpoints.getValue());
+    protected DoubleWritable getValue(String[] tokens) throws IOException {
+      return new DoubleWritable(Double.parseDouble(tokens[2]));
     }
   }
 }

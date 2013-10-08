@@ -7,7 +7,7 @@ import java.io.IOException;
 import org.apache.hadoop.io.DoubleWritable;
 
 import es.tid.graphlib.cf.CfVertexValue;
-import es.tid.graphlib.utils.DoubleArrayListWritable;
+import es.tid.graphlib.common.data.DoubleArrayListWritable;
 
 /**
  * A Writable extension of the DoubleArrayListHashMapWritable.

@@ -1,4 +1,4 @@
-package es.tid.graphlib.utils;
+package es.tid.graphlib.common.data;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -8,7 +8,16 @@ import org.apache.giraph.conf.ImmutableClassesGiraphConfiguration;
 import org.apache.giraph.utils.ReflectionUtils;
 import org.apache.hadoop.io.WritableComparable;
 
-/** This class provides the wrapper for the sending message.
+/**
+ * A common operation in several algorithms is for a vertex to send a message  
+ * that also contains the sending vertex's ID. 
+ * 
+ * This class serves as a wrapper of such messages. It contains and ID as well
+ * as the main payload of the message.
+ * 
+ * Users must subclass this abstract class and define what the classes of the
+ * vertex ID and the main message are.
+ * 
  * @param <I> SourceId
  * @param <M> Message
  */

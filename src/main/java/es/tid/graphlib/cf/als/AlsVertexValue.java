@@ -9,7 +9,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
 import es.tid.graphlib.cf.CfVertexValue;
-import es.tid.graphlib.utils.DoubleArrayListWritable;
+import es.tid.graphlib.common.data.DoubleArrayListWritable;
 
 /**
  * A Writable implementation for 2 elements.

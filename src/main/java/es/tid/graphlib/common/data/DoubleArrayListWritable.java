@@ -1,4 +1,4 @@
-package es.tid.graphlib.utils;
+package es.tid.graphlib.common.data;
 
 import org.apache.giraph.utils.ArrayListWritable;
 import org.apache.hadoop.io.DoubleWritable;
@@ -49,34 +49,34 @@ public class DoubleArrayListWritable
   /**
    * Compare function
    *
-   * @param message Message to be compared
+   * @param other Other array to be compared
    *
    * @return 0
    */
-  public int compareTo(DoubleArrayListWritable message) {
-    if (message==null) {
+  public int compareTo(DoubleArrayListWritable other) {
+    if (other==null) {
       return 1;
     }
-    if (this.size() < message.size()) {
+    if (this.size() < other.size()) {
       return -1;
     }
-    if (this.size() > message.size()) {
+    if (this.size() > other.size()) {
       return 1;
     }
     for (int i=0; i < this.size(); i++) {
-      if (this.get(i) == null && message.get(i) == null) {
+      if (this.get(i) == null && other.get(i) == null) {
         continue;
       }
       if (this.get(i) == null) {
         return -1;
       }
-      if (message.get(i) == null) {
+      if (other.get(i) == null) {
         return 1;
       }
-      if (this.get(i).get() < message.get(i).get()) {
+      if (this.get(i).get() < other.get(i).get()) {
         return -1;
       }
-      if (this.get(i).get() > message.get(i).get()) {
+      if (this.get(i).get() > other.get(i).get()) {
         return 1;
       }
     }

@@ -14,7 +14,7 @@ import org.apache.hadoop.io.Text;
 import org.jblas.DoubleMatrix;
 import org.jblas.Solve;
 
-import es.tid.graphlib.utils.DoubleArrayListWritable;
+import es.tid.graphlib.common.data.DoubleArrayListWritable;
 import es.tid.graphlib.utils.TextMessageWrapper;
 
 /**

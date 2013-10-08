@@ -8,7 +8,7 @@ import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 
-import es.tid.graphlib.utils.DoubleArrayListWritable;
+import es.tid.graphlib.common.data.DoubleArrayListWritable;
 import es.tid.graphlib.utils.TextMessageWrapper;
 
 /** This class provides the wrapper for the sending message.*/

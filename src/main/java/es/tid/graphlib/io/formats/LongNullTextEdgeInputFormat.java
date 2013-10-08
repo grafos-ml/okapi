@@ -31,9 +31,9 @@ import java.util.regex.Pattern;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for
- * unweighted graphs with int ids.
+ * unweighted graphs with long ids.
  *
- * Each line consists of: source_vertex, target_vertex
+ * Each line consists of: <src id> <target id>
  */
 public class LongNullTextEdgeInputFormat extends
     TextEdgeInputFormat<LongWritable, NullWritable> {
@@ -51,28 +51,26 @@ public class LongNullTextEdgeInputFormat extends
    * {@link LongNullTextEdgeInputFormat}.
    */
   public class LongNullTextEdgeReader extends
-      TextEdgeReaderFromEachLineProcessed<LongPair> {
+      TextEdgeReaderFromEachLineProcessed<String[]> {
     @Override
-    protected LongPair preprocessLine(Text line) throws IOException {
-      String[] tokens = SEPARATOR.split(line.toString());
-      return new LongPair(Long.valueOf(tokens[0]),
-          Long.valueOf(tokens[1]));
+    protected String[] preprocessLine(Text line) throws IOException {
+      return SEPARATOR.split(line.toString());
     }
 
     @Override
-    protected LongWritable getSourceVertexId(LongPair endpoints)
+    protected LongWritable getSourceVertexId(String[] tokens)
       throws IOException {
-      return new LongWritable(endpoints.getFirst());
+      return new LongWritable(Long.parseLong(tokens[0]));
     }
 
     @Override
-    protected LongWritable getTargetVertexId(LongPair endpoints)
+    protected LongWritable getTargetVertexId(String[] tokens)
       throws IOException {
-      return new LongWritable(endpoints.getSecond());
+      return new LongWritable(Long.parseLong(tokens[1]));
     }
 
     @Override
-    protected NullWritable getValue(LongPair endpoints) throws IOException {
+    protected NullWritable getValue(String[] tokens) throws IOException {
       return NullWritable.get();
     }
   }

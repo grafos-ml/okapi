@@ -1,4 +1,4 @@
-package es.tid.graphlib.utils;
+package es.tid.graphlib.common.data;
 
 import org.apache.giraph.utils.ArrayListWritable;
 import org.apache.hadoop.io.IntWritable;
@@ -6,7 +6,7 @@ import org.apache.hadoop.io.WritableComparable;
 
 public class IntArrayListWritable
   extends ArrayListWritable<IntWritable>
-  implements WritableComparable {
+  implements WritableComparable<IntArrayListWritable> {
   /** Default constructor for reflection */
   public IntArrayListWritable() {
     super();
@@ -28,6 +28,7 @@ public class IntArrayListWritable
    * @param message Message to be compared
    * @return 0 value
    */
+  @Override
   public int compareTo(IntArrayListWritable message) {
     if (message==null) {
       return 1;
@@ -55,12 +56,6 @@ public class IntArrayListWritable
         return 1;
       }
     }
-    return 0;
-  }
-
-  @Override
-  public int compareTo(Object o) {
-    // TODO Auto-generated method stub
     return 0;
   }
 }

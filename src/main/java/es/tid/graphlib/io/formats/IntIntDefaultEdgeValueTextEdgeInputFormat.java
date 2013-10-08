@@ -17,7 +17,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * weighted graphs with int ids int values. In this format however,
  * the value of the edge is not expected in the input.
  *
- * Each line consists of: source_vertex, target_vertex
+ * Each line consists of: <src id> <dst id>
  */
 public class IntIntDefaultEdgeValueTextEdgeInputFormat extends
     TextEdgeInputFormat<IntWritable, IntWritable> {
@@ -35,28 +35,26 @@ public class IntIntDefaultEdgeValueTextEdgeInputFormat extends
    * {@link IntNullTextEdgeInputFormat}.
    */
   public class IntIntTextEdgeReader extends
-      TextEdgeReaderFromEachLineProcessed<IntPair> {
+      TextEdgeReaderFromEachLineProcessed<String[]> {
     @Override
-    protected IntPair preprocessLine(Text line) throws IOException {
-      String[] tokens = SEPARATOR.split(line.toString());
-      return new IntPair(Integer.valueOf(tokens[0]),
-          Integer.valueOf(tokens[1]));
+    protected String[] preprocessLine(Text line) throws IOException {
+      return SEPARATOR.split(line.toString());
     }
 
     @Override
-    protected IntWritable getSourceVertexId(IntPair endpoints)
+    protected IntWritable getSourceVertexId(String[] tokens)
       throws IOException {
-      return new IntWritable(endpoints.getFirst());
+      return new IntWritable(Integer.parseInt(tokens[0]));
     }
 
     @Override
-    protected IntWritable getTargetVertexId(IntPair endpoints)
+    protected IntWritable getTargetVertexId(String[] tokens)
       throws IOException {
-      return new IntWritable(endpoints.getSecond());
+      return new IntWritable(Integer.parseInt(tokens[1]));
     }
 
     @Override
-    protected IntWritable getValue(IntPair line) throws IOException {
+    protected IntWritable getValue(String tokens[]) throws IOException {
       return new IntWritable(-1);
     }
   }

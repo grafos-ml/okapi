@@ -3,14 +3,11 @@ package es.tid.graphlib.sybilrank;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.regex.Pattern;
 
 import org.apache.giraph.aggregators.LongSumAggregator;
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.AbstractComputation;
 import org.apache.giraph.graph.Vertex;
-import org.apache.giraph.io.EdgeReader;
-import org.apache.giraph.io.formats.TextEdgeInputFormat;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
 import org.apache.giraph.master.DefaultMasterCompute;
 
@@ -22,9 +19,6 @@ import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
-import es.tid.graphlib.common.PropagateId;
-import es.tid.graphlib.common.ConverterUpdateEdges;
-
 /**
  * This is an implementation of the SybilRank algorithm. In fact, this is an
  * extension of the original SybilRank algorithm published by Cao et al at
@@ -35,10 +29,6 @@ import es.tid.graphlib.common.ConverterUpdateEdges;
  *
  */
 public class SybilRank {
-  
-  public static final String EDGE_WEIGHT = "socc.weight";
-  public static final byte DEFAULT_EDGE_WEIGHT = 2;
-  
   /**
    * Property name for the total trust.
    */
@@ -191,20 +181,16 @@ public class SybilRank {
     public void compute() {
       int superstep = (int) getSuperstep();
       if (superstep == 0) {
-        setComputation(PropagateId.class);
-      } else if (superstep == 1) {
-        setComputation(ConverterUpdateEdges.class);
-      } else if (superstep == 2) {
         setComputation(TrustAggregation.class);
-      } else if (superstep == 3) {
+      } else if (superstep == 1) {
         setComputation(Initializer.class);
       } else {
         setComputation(SybilRankComputation.class);
       }
       
-      // Before the power iterations, we execute 4 initial supersteps, so we 
+      // Before the power iterations, we execute 2 initial supersteps, so we 
       // count those in when deciding to stop. 
-      if (4+superstep > maxPowerIterations) {
+      if (superstep > 2+maxPowerIterations) {
         haltComputation();
       }
     }
@@ -312,55 +298,4 @@ public class SybilRank {
       }
     }
   }
-
-  /**
-   * This input format is used to read the graph structure. It assumes a set
-   * of weighted edges in the form of:
-   * 
-   * <src id> <dst id> <edge weight>
-   * ...
-   * 
-   * The vertex IDs are expected to be of type long and the weights are
-   * expected to be of type double.
-   * 
-   * @author dl
-   *
-   */
-  public static class LongDoubleTextEdgeInputFormat extends
-  TextEdgeInputFormat<LongWritable, DoubleWritable> {
-    /** Splitter for endpoints */
-    private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
-
-    @Override
-    public EdgeReader<LongWritable, DoubleWritable> createEdgeReader(
-        InputSplit split, TaskAttemptContext context) throws IOException {
-      return new LongDoubleTextEdgeReader();
-    }
-
-    public class LongDoubleTextEdgeReader extends
-    TextEdgeReaderFromEachLineProcessed<String[]> {
-      @Override
-      protected String[] preprocessLine(Text line) throws IOException {
-        return SEPARATOR.split(line.toString());
-      }
-
-      @Override
-      protected LongWritable getSourceVertexId(String[] tokens)
-          throws IOException {
-        return new LongWritable(Long.parseLong(tokens[0]));
-      }
-
-      @Override
-      protected LongWritable getTargetVertexId(String[] tokens)
-          throws IOException {
-        return new LongWritable(Long.parseLong(tokens[1]));
-      }
-
-      @Override
-      protected DoubleWritable getValue(String[] tokens) throws IOException {
-        return new DoubleWritable(Double.parseDouble(tokens[2]));
-      }
-    }
-  }
-  
 }
