@@ -15,7 +15,6 @@ import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 
@@ -35,52 +34,36 @@ public class SybilRank {
   public static final String TOTAL_TRUST = "sybilrank.total.trust";
   
   /**
-   * Default total trust.
+   * Property name for the iteration multiplier.
    */
-  public static final Double TOTAL_TRUST_DEFAULT = 1.0;
+  public static final String ITERATION_MULTIPLIER = 
+      "sybilrank.iteration.multiplier";
+  
+  /**
+   * Default multiplier for the iterations.
+   */
+  public static final int ITERATION_MULTIPLIER_DEFAULT = 1;
   
   /**
    * Name of aggregator used to calculate the total number of trusted nodes.
    */
   public static final String AGGREGATOR_NUM_TRUSTED = "AGG_NUM_TRUSTED";
   
-  // Final value of 1L used by the aggregators.
   public static final LongWritable ONE = new LongWritable(1);
 
   /**
-   * This class implements the main part of the SybilRank algorithms, that is,
-   * the power iterations.
-   * 
-   * @author dl
-   *
+   * This method computes the degree of a vertex as the sum of its edge weights.
+   * @param v
+   * @return
    */
-  public static class SybilRankComputation
-  extends AbstractComputation<LongWritable, VertexValue, DoubleWritable, 
-  DoubleWritable, DoubleWritable> {
-    
-    @Override
-    public void compute(
-        Vertex<LongWritable, VertexValue, DoubleWritable> vertex,
-        Iterable<DoubleWritable> messages) throws IOException {
-      
-      // Aggregate rank from friends.
-      double newRank = 0;
-      for (DoubleWritable message : messages) {
-        newRank += message.get();
-      }
-      
-      // This is the new rank of this vertex.
-      vertex.getValue().setRank(newRank);
-      
-      // Distribute rank to edges proportionally to the edge weights
-      for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
-        double distRank = vertex.getValue().getRank()*
-            (edge.getValue().get()/(double)vertex.getNumEdges());
-        sendMessage(edge.getTargetVertexId(), new DoubleWritable(distRank));
-      }
-    }
+  public static double computeDegree(
+      Vertex<LongWritable,VertexValue,DoubleWritable> v) {
+    double degree = 0.0;
+    for (Edge<LongWritable, DoubleWritable> edge : v.getEdges()) {
+      degree += edge.getValue().get();
+    }    
+    return degree;
   }
-
 
   /**
    * This computation class is used to calculate the aggregate number of
@@ -91,13 +74,13 @@ public class SybilRank {
    *
    */
   public static class TrustAggregation 
-  extends AbstractComputation<WritableComparable, VertexValue, Writable, 
-  Writable, Writable> {
+  extends AbstractComputation<LongWritable, VertexValue, DoubleWritable, 
+  DoubleWritable, DoubleWritable> {
 
     @Override
     public void compute(
-        Vertex<WritableComparable, VertexValue, Writable> vertex,
-        Iterable<Writable> messages) throws IOException {
+        Vertex<LongWritable, VertexValue, DoubleWritable> vertex,
+        Iterable<DoubleWritable> messages) throws IOException {
       if (vertex.getValue().isTrusted()) {
         aggregate(AGGREGATOR_NUM_TRUSTED, ONE);
       }
@@ -116,14 +99,14 @@ public class SybilRank {
    */
   public static class Initializer 
   extends AbstractComputation<LongWritable, VertexValue, DoubleWritable, 
-  Writable, DoubleWritable> {
+  DoubleWritable, DoubleWritable> {
 
     private double totalTrust; 
     
     @Override
     public void compute(
         Vertex<LongWritable, VertexValue, DoubleWritable> vertex,
-        Iterable<Writable> messages) throws IOException {
+        Iterable<DoubleWritable> messages) throws IOException {
       
       if (vertex.getValue().isTrusted()) {
         vertex.getValue().setRank(
@@ -133,10 +116,12 @@ public class SybilRank {
         vertex.getValue().setRank(0.0);
       }
       
+      double degree = computeDegree(vertex);
+      
       // Distribute rank to edges proportionally to the edge weights
       for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
-        double distRank = vertex.getValue().getRank()*
-            (edge.getValue().get()/(double)vertex.getNumEdges());
+        double distRank = 
+            vertex.getValue().getRank()*(edge.getValue().get()/degree);
         sendMessage(edge.getTargetVertexId(), new DoubleWritable(distRank));
       }
     }
@@ -147,11 +132,47 @@ public class SybilRank {
       if (s_totalTrust != null) {
         totalTrust = Double.parseDouble(s_totalTrust);
       } else {
-        totalTrust = TOTAL_TRUST_DEFAULT;
+        // The default value of the total trust is equal to the number of
+        // vertices in the graph.
+        totalTrust = getTotalNumVertices();
       }
     }
   }
   
+  /**
+   * This class implements the main part of the SybilRank algorithms, that is,
+   * the power iterations.
+   * 
+   * @author dl
+   *
+   */
+  public static class SybilRankComputation
+  extends AbstractComputation<LongWritable, VertexValue, DoubleWritable, 
+  DoubleWritable, DoubleWritable> {
+    
+    @Override
+    public void compute(
+        Vertex<LongWritable, VertexValue, DoubleWritable> vertex,
+        Iterable<DoubleWritable> messages) throws IOException {
+      
+      // Aggregate rank from friends.
+      double newRank = 0.0;
+      for (DoubleWritable message : messages) {
+        newRank += message.get();
+      }
+      
+      double degree = computeDegree(vertex);
+      
+      // Distribute rank to edges proportionally to the edge weights
+      for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
+        double distRank = newRank*(edge.getValue().get()/degree);
+        sendMessage(edge.getTargetVertexId(), new DoubleWritable(distRank));
+      }
+      
+      // The final value of the rank is normalized by the degree of the vertex.
+      vertex.getValue().setRank(newRank/degree);
+    }
+  }
   
   /**
    * This implementation coordinates the execution of the SybilRank algorithm.
@@ -160,26 +181,24 @@ public class SybilRank {
    *
    */
   public static class SybilRankMasterCompute extends DefaultMasterCompute {
-    
-    private int maxPowerIterations;
+    private int iterationMultiplier;
 
     @Override
     public void initialize() throws InstantiationException,
     IllegalAccessException {
-            
+      
+      iterationMultiplier = getContext().getConfiguration().getInt(
+          ITERATION_MULTIPLIER, ITERATION_MULTIPLIER_DEFAULT);       
+      
       // Register the aggregator that will be used to count the number of 
       // trusted nodes.
       registerPersistentAggregator(AGGREGATOR_NUM_TRUSTED,
           LongSumAggregator.class);
-      
-      // The number of power iterations we execute is equal to log10(N), where
-      // N is the number of vertices in the graph.
-      maxPowerIterations = (int)Math.log10((double)getTotalNumVertices());
     }
 
     @Override
     public void compute() {
-      int superstep = (int) getSuperstep();
+      long superstep = getSuperstep();
       if (superstep == 0) {
         setComputation(TrustAggregation.class);
       } else if (superstep == 1) {
@@ -188,10 +207,17 @@ public class SybilRank {
         setComputation(SybilRankComputation.class);
       }
       
-      // Before the power iterations, we execute 2 initial supersteps, so we 
-      // count those in when deciding to stop. 
-      if (superstep > 2+maxPowerIterations) {
-        haltComputation();
+      // The number of power iterations we execute is equal to c*log10(N), where
+      // N is the number of vertices in the graph and c is the iteration
+      // multiplier.
+      if (superstep>0) {
+        int maxPowerIterations = (int)Math.ceil(
+            iterationMultiplier*Math.log10((double)getTotalNumVertices()));
+        // Before the power iterations, we execute 2 initial supersteps, so we 
+        // count those in when deciding to stop. 
+        if (superstep >= 2+maxPowerIterations) {
+          haltComputation();
+        }
       }
     }
   }
@@ -201,7 +227,7 @@ public class SybilRank {
    * the current rank of the vertex and whether this vertex is considered
    * trusted or not.
    * 
-   * Unless explicitly set, a vertex is initialized to be trusted.
+   * Unless explicitly set, a vertex is initialized to be untrusted.
    * 
    * @author dl
    *
@@ -213,7 +239,7 @@ public class SybilRank {
     private double rank;
 
     public VertexValue() {
-      isTrusted = true;
+      isTrusted = false;
     }
 
     public void setRank(double rank) {
@@ -259,25 +285,30 @@ public class SybilRank {
       }
       return true;
     }
+    
+    @Override
+    public String toString() {
+      return isTrusted+" "+rank;
+    }
   }
 
   /**
    * This InputFormat class is used to read the set of vertices that are 
-   * considered untrusted. The actual input is expected to contain one vertex
+   * considered trusted. The actual input is expected to contain one vertex
    * ID per line.
    * @author dl
    *
    */
   public static class SybilRankVertexValueInputFormat extends
-  TextVertexValueInputFormat<LongWritable, VertexValue, Writable> {
+  TextVertexValueInputFormat<LongWritable, VertexValue, DoubleWritable> {
 
     @Override
-    public LongShortTextVertexValueReader createVertexValueReader(
+    public SybilRankVertexValueReader createVertexValueReader(
         InputSplit split, TaskAttemptContext context) throws IOException {
-      return new LongShortTextVertexValueReader();
+      return new SybilRankVertexValueReader();
     }
 
-    public class LongShortTextVertexValueReader extends
+    public class SybilRankVertexValueReader extends
     TextVertexValueReaderFromEachLineProcessed<String> {
 
       @Override
@@ -293,7 +324,7 @@ public class SybilRank {
       @Override
       protected VertexValue getValue(String data) throws IOException {
         VertexValue value = new VertexValue();
-        value.setTrusted(false);
+        value.setTrusted(true);
         return value;
       }
     }
