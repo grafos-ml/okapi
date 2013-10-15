@@ -288,7 +288,7 @@ public class SybilRank {
     
     @Override
     public String toString() {
-      return isTrusted+" "+rank;
+      return String.valueOf(rank);
     }
   }
 
