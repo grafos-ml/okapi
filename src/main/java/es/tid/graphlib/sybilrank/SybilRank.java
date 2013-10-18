@@ -242,6 +242,11 @@ public class SybilRank {
       isTrusted = false;
     }
 
+    public VertexValue(double rank, boolean isTrusted) {
+      this.rank = rank;
+      this.isTrusted = isTrusted;
+    }
+    
     public void setRank(double rank) {
       this.rank = rank;
     }
