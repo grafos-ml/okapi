@@ -91,16 +91,10 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       myCluster.addVertex(vertex, boundaryEdgeScoreFactor);
       clusterList.add(myCluster);
       vertex.setValue(clusterList);
-      System.out.println("---S: " + getSuperstep() + ", id: " + vertex.getId()
-        + ", clusterList: " + vertex.getValue());
-      //sendMessageToAllEdges(getValue());
       for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
         SemiClusterTreeSetWritable message = new SemiClusterTreeSetWritable();
         message.addAll(vertex.getValue());
-
         sendMessage(edge.getTargetVertexId(), message);
-        //System.out.println("send " + message.getMessage().toString() +
-        //" to " + edge.getTargetVertexId());
       }
       vertex.voteToHalt();
       return;
@@ -122,27 +116,16 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       new SemiClusterTreeSetWritable(scoreComparator);
     tempList.addAll(vertex.getValue());
 
-    // FOR LOOP - for each message/list
     for (SemiClusterTreeSetWritable  message : messages) {
-      System.out.println("S:" + getSuperstep() + ", id:" + vertex.getId()
-        + ", message received " + message.toString());
       for (SemiCluster cluster: message) {
-      //Iterator<SemiCluster> clusterIter = message.iterator();
-      // WHILE LOOP - for each cluster in the message/list
-      //while (clusterIter.hasNext()) {
-        //SemiCluster cluster = new SemiCluster(clusterIter.next());
         if (!cluster.verticesList.contains(vertex.getId())
           && cluster.verticesList.size() < clusterCapacity) {
           SemiCluster newCluster = new SemiCluster(cluster);
           newCluster.addVertex(vertex, boundaryEdgeScoreFactor);
           boolean added = tempList.add(newCluster);
-          //tempList.addCluster(newCluster);
-          System.out.println("Cluster: " + cluster.verticesList.toString()
-            + ", newCluster: " + newCluster.toString() + "added: " + added
-            + ", tempList: " + tempList.toString());
         }
-      } // END OF WHILE LOOP - (for each cluster)
-    } // END OF FOR LOOP - (for each message/list)
+      }
+    }
     vertex.getValue().clear();
     SemiClusterTreeSetWritable value =
       new SemiClusterTreeSetWritable(scoreComparator);
@@ -153,8 +136,6 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
         vertex.setValue(value);
       }
     }
-    System.out.println("---S: " + getSuperstep() + ", id: " + vertex.getId()
-      + ", clusterList: " + vertex.getValue());
 
     SemiClusterTreeSetWritable message = new SemiClusterTreeSetWritable();
     message.addAll(vertex.getValue());
@@ -163,13 +144,11 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
     }
     sendMessageToAllEdges(vertex, message);
     vertex.voteToHalt();
-  } // END OF Compute()
+  }
 
-  /***************************************************************************
-   ***************************************************************************
-   ***************************************************************************
+  /** 
+   * Utility class for facilitating the sorting of the cluster list. 
    */
-  /** Utility class for facilitating the  sorting of the cluster list. */
   private class ClusterScoreComparator implements Comparator<SemiCluster> {
     @Override
     /**
@@ -193,20 +172,15 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       }
       return 0;
     }
-  } // End of class ClusterScoreComparator
-  /***************************************************************************
-   ***************************************************************************
-   ***************************************************************************
-   */
+  } 
+  
   /**
    * Utility class for delivering the array of clusters
    * THIS vertex belongs to.
    */
   public static class SemiClusterTreeSetWritable extends TreeSet<SemiCluster>
   implements WritableComparable<SemiClusterTreeSetWritable> {
-    /**
-     * Serialization Number.
-     */
+    
     private static final long serialVersionUID = 2187166892916963064L;
 
     /**
@@ -214,7 +188,6 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
      */
     public SemiClusterTreeSetWritable() {
       super();
-      //clusterList = new TreeSet<SemiCluster>();
     }
 
     /**
@@ -224,7 +197,6 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
      */
     public SemiClusterTreeSetWritable(final ClusterScoreComparator c) {
       super(c);
-      //clusterList = new TreeSet<SemiCluster>();
     }
 
     /** Add a semi cluster in the list of clusters.
@@ -238,8 +210,8 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
     /**
      * CompareTo method.
      * Two lists of semi clusters are the same when:
-     * --> they have the same number of clusters
-     * --> all their clusters are the same, i.e. contain the same vertices
+     * (i) they have the same number of clusters,
+     * (ii) all their clusters are the same, i.e. contain the same vertices
      * For each cluster, check if it exists in the other list of semi clusters
      *
      * @param other A list with clusters to be compared with the current list
@@ -271,7 +243,6 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
      */
     @Override
     public final void readFields(final DataInput input) throws IOException {
-      //clusterList = new TreeSet<SemiCluster>();
       int size = input.readInt();
       for (int i = 0; i < size; i++) {
         SemiCluster c = new SemiCluster();
@@ -308,14 +279,10 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       builder.append("\n");
       return builder.toString();
     }
-  } // END OF class SemiClusterTreeSetWritable
+  }
 
- /****************************************************************************
-  ****************************************************************************
-  ****************************************************************************
-  */
   /**
-   * Class SemiCluster.
+   * This class represents a semi-cluster.
    */
   public static class SemiCluster
     implements Writable, Comparable<SemiCluster> {
@@ -386,10 +353,6 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
     private void computeScore(
         final Vertex<LongWritable, ?, DoubleWritable> vertex, 
         final double boundaryEdgeScoreFactor) {
-      /*for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
-        System.out.println("v:" + vertex.getId() + ", target:" +
-          edge.getTargetVertexId() + ", edgeValue:" + edge.getValue());
-      }*/
       if (getSize() == 1) {
         score = 1d;
         for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
@@ -404,13 +367,8 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
             boundaryScore += edge.getValue().get();
           }
         }
-        System.out.println("inner: " + innerScore + " - (boundary: "
-        + boundaryScore + " * " + boundaryEdgeScoreFactor
-        + ") / size:" + getSize());
-        score = (innerScore - (boundaryEdgeScoreFactor * boundaryScore))
-          / (getSize() * (getSize() - 1) / 2);
       }
-    } // End of computeScore()
+    }
 
     /**
      * Return the list of vertices belonging to current semi cluster.
@@ -423,8 +381,8 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
 
     /** CompareTo method.
      * Two semi clusters are the same when:
-     * --> they have the same number of vertices
-     * --> all their vertices are the same
+     * (i) they have the same number of vertices,
+     * (ii) all their vertices are the same
      * For each vertex, check if it exists in the other cluster
      *
      * @param other Cluster to be compared with current cluster
@@ -558,5 +516,5 @@ SemiClusterTreeSetWritable, DoubleWritable, SemiClusterTreeSetWritable> {
       output.writeDouble(innerScore);
       output.writeDouble(boundaryScore);
     }
-  } // End of SemiCluster Child Class
-} // End of SemiClustering Parent Class
+  }
+}
