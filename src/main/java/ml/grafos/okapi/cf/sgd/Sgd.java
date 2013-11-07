@@ -17,7 +17,7 @@ import org.apache.hadoop.io.Text;
 
 
 /**
- * Demonstrates the Pregel Stochastic Gradient Descent (SGD) implementation.
+ * Demonstrates the Stochastic Gradient Descent (SGD) implementation.
  */
 @Algorithm(
   name = "Stochastic Gradient Descent (SGD)",
@@ -25,53 +25,46 @@ import org.apache.hadoop.io.Text;
 
 public class Sgd extends BasicComputation<Text, SgdVertexValue,
 DoubleWritable, TextMessageWrapper> {
-  /** Keyword for parameter enabling delta caching. */
-  public static final String DELTA_CACHING = "sgd.delta.caching";
-  /** Default value for parameter enabling delta caching. */
-  public static final boolean DELTA_CACHING_DEFAULT = false;
   /** Keyword for RMSE aggregator tolerance. */
-  public static final String RMSE_AGGREGATOR = "sgd.rmse.aggregator";
+  public static final String RMSE_TARGET = "sgd.rmse.target";
   /** Default value for parameter enabling the RMSE aggregator. */
-  public static final float RMSE_AGGREGATOR_DEFAULT = 0f;
-  /** Keyword for parameter choosing the halt factor. */
-  public static final String HALT_FACTOR = "sgd.halt.factor";
-  /** Default value for parameter choosing the halt factor. */
-  public static final String HALT_FACTOR_DEFAULT = "basic";
+  public static final float RMSE_TARGET_DEFAULT = -1f;
   /** Keyword for parameter setting the convergence tolerance parameter
    *  depending on the version enabled; l2norm or rmse. */
-  public static final String TOLERANCE_KEYWORD = "sgd.halting.tolerance";
+  public static final String TOLERANCE = "sgd.halting.tolerance";
   /** Default value for TOLERANCE. */
   public static final float TOLERANCE_DEFAULT = 1f;
   /** Keyword for parameter setting the number of iterations. */
-  public static final String ITERATIONS_KEYWORD = "sgd.iterations";
+  public static final String ITERATIONS = "sgd.iterations";
   /** Default value for ITERATIONS. */
   public static final int ITERATIONS_DEFAULT = 10;
-  /** Keyword for parameter setting the Regularization parameter LAMBDA. */
-  public static final String LAMBDA_KEYWORD = "sgd.lambda";
+  /** Keyword for parameter setting the regularization parameter LAMBDA. */
+  public static final String LAMBDA = "sgd.lambda";
   /** Default value for LABDA. */
   public static final float LAMBDA_DEFAULT = 0.01f;
   /** Keyword for parameter setting the learning rate GAMMA. */
-  public static final String GAMMA_KEYWORD = "sgd.gamma";
+  public static final String GAMMA = "sgd.gamma";
   /** Default value for GAMMA. */
   public static final float GAMMA_DEFAULT = 0.005f;
   /** Keyword for parameter setting the Latent Vector Size. */
-  public static final String VECTOR_SIZE_KEYWORD = "sgd.vector.size";
+  public static final String VECTOR_SIZE = "sgd.vector.size";
   /** Default value for GAMMA. */
   public static final int VECTOR_SIZE_DEFAULT = 2;
+  
   /** Max rating. */
-  public static final double MAX = 5;
+  public static final double MAX_RATING = 5;
   /** Min rating. */
-  public static final double MIN = 0;
-  /** Decimals to be kept in values. */
-  public static final int DECIMALS = 4;
+  public static final double MIN_RATING = 0;
   /** Number used in the initialization of values. */
   public static final double HUNDRED = 100;
-  /** Number used in the keepXdecimals method. */
-  public static final int TEN = 10;
+  
+  /** Aggregator used to compute the RMSE */
+  public static final String RMSE_AGGREGATOR = "sgd.rmse.aggregator";
+  
   /** Factor Error: it may be RMSD or L2NORM on initial & final vector. */
   private double haltFactor = 0d;
-  /** Number of updates - used in the Output Format. */
-  private int updatesNum = 0;
+//  /** Number of updates - used in the Output Format. */
+//  private int updatesNum = 0;
   /** Type of vertex 0 for user, 1 for item - used in the Output Format. */
   private boolean isItem = false;
   /**
@@ -92,39 +85,22 @@ DoubleWritable, TextMessageWrapper> {
    */
   public final void compute(Vertex<Text, SgdVertexValue,
       DoubleWritable> vertex, final Iterable<TextMessageWrapper> messages) {
-    /** Error between predicted and observed rating */
-    double err = 0d;
 
     /* Flag for checking if parameter for RMSE aggregator received */
-    float rmseTolerance = getContext().getConfiguration().getFloat(
-      RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
-    /*
-     * Flag for checking which termination factor to use:
-     * basic, rmse, l2norm
-     */
-    String factorFlag = getContext().getConfiguration().get(
-      HALT_FACTOR, HALT_FACTOR_DEFAULT);
-    /* Flag for checking if delta caching is enabled */
-    boolean isDeltaEnabled = getContext().getConfiguration().getBoolean(
-      DELTA_CACHING, DELTA_CACHING_DEFAULT);
-    /* Set the number of iterations */
+//    float rmseTarget = getContext().getConfiguration().getFloat(
+//      RMSE_TARGET, RMSE_TARGET_DEFAULT);
+    
     int iterations = getContext().getConfiguration().getInt(
-      ITERATIONS_KEYWORD, ITERATIONS_DEFAULT);
-    /* Set the Convergence Tolerance */
+      ITERATIONS, ITERATIONS_DEFAULT);
     float tolerance = getContext().getConfiguration().getFloat(
-      TOLERANCE_KEYWORD, TOLERANCE_DEFAULT);
-    /* Set the Regularization Parameter LAMBDA */
+      TOLERANCE, TOLERANCE_DEFAULT);
     float lambda = getContext().getConfiguration().getFloat(
-      LAMBDA_KEYWORD, LAMBDA_DEFAULT);
-    /* Set the Learning Rate GAMMA */
+      LAMBDA, LAMBDA_DEFAULT);
     float gamma = getContext().getConfiguration().getFloat(
-      GAMMA_KEYWORD, GAMMA_DEFAULT);
-    /* Set the size of the Latent Vector*/
+      GAMMA, GAMMA_DEFAULT);
     int vectorSize = getContext().getConfiguration().getInt(
-      VECTOR_SIZE_KEYWORD, VECTOR_SIZE_DEFAULT);
-    /* Flag becomes true if at least one neighbour latent vector gets updated */
-    boolean isNeighUpdated = false;
-
+      VECTOR_SIZE, VECTOR_SIZE_DEFAULT);
+    
     // First superstep for users (superstep 0) & items (superstep 1)
     // Initialize vertex latent vector
     if (getSuperstep() < 2) {
@@ -139,9 +115,8 @@ DoubleWritable, TextMessageWrapper> {
     }
 
     // Used if RMSE version or RMSE aggregator is enabled
-    double rmseErr = 0d;
+    double rmsePartialSum = 0d;
 
-    // FOR LOOP - for each message
     for (TextMessageWrapper message : messages) {
       messagesNum++;
       // First superstep for items:
@@ -158,73 +133,31 @@ DoubleWritable, TextMessageWrapper> {
         // Remove the last value from message
         // It's there only for the 1st round of items
         message.getMessage().remove(message.getMessage().size() - 1);
-      } // END OF IF CLAUSE - superstep==1
-
-      // IF (delta caching is enabled) THEN
-      // For the 1st superstep of either user or item: initialize their values
-      // For the rest supersteps:
-      // update their values based on the message received
-      if (isDeltaEnabled) {
-        DoubleArrayListWritable currVal =
-          vertex.getValue().getNeighValue(message.getSourceId());
-        DoubleArrayListWritable newVal = message.getMessage();
-        if (currVal == null || currVal.compareTo(newVal) != 0) {
-          vertex.getValue().setNeighborValue(message.getSourceId(), newVal);
-          isNeighUpdated = true;
-        }
-      } // END OF IF CLAUSE - delta caching is enabled
+      }
 
       // If delta caching is NOT enabled
-      if (!isDeltaEnabled) {
-        // Calculate error
-        double observed = (double) vertex.getEdgeValue(
-            message.getSourceId()).get();
-        err = getError(vertex.getValue().getLatentVector(),
+      // Calculate error
+      double observed = (double) vertex.getEdgeValue(
+          message.getSourceId()).get();
+      double err = getError(vertex.getValue().getLatentVector(),
           message.getMessage(), observed);
-        // Change the Vertex Latent Vector based on SGD equation
-        updateValue(vertex, message.getMessage(), lambda, gamma, err);
-        err = getError(vertex.getValue().getLatentVector(),
+      // Change the Vertex Latent Vector based on SGD equation
+      updateValue(vertex, message.getMessage(), lambda, gamma, err);
+      err = getError(vertex.getValue().getLatentVector(),
           message.getMessage(),
           observed);
-        // If termination flag is set to RMSE OR RMSE aggregator is enabled
-        if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
-          rmseErr += Math.pow(err, 2);
-        }
-      } // END OF IF CLAUSE - delta caching is NOT enabled
-    } // END OF LOOP - for each message
+      
+      // If termination flag is set to RMSE OR RMSE aggregator is enabled
+      if (factorFlag.equals("rmse") || rmseTarget != 0f) {
+        rmsePartialSum += Math.pow(err, 2);
+      }
+    } 
 
-    // If delta caching is enabled
-    // Go through the edges and execute the SGD computation
-    if (isDeltaEnabled) {
-      // FOR LOOP - for each edge
-      for (Entry<Text, DoubleArrayListWritable> vvertex : vertex.getValue()
-        .getAllNeighValue().entrySet()) {
-        // Calculate error
-        double observed = (double) vertex.getEdgeValue(vvertex.getKey()).get();
-        err = getError(vertex.getValue().getLatentVector(),
-          vvertex.getValue(),
-          observed);
-        // If at least one neighbor has changed its latent vector,
-        // then calculation of vertex can not be avoided
-        if (isNeighUpdated) {
-          // Change the Vertex Latent Vector based on SGD equation
-          updateValue(vertex, vvertex.getValue(), lambda, gamma, err);
-          err = getError(vertex.getValue().getLatentVector(),
-            vvertex.getValue(), observed);
-        } // END OF IF CLAUSE - (neighUpdated)
-        // If termination flag is set to RMSE or RMSE aggregator is true
-        if (factorFlag.equals("rmse") || rmseTolerance != 0f) {
-          rmseErr += Math.pow(err, 2);
-        }
-      }  // END OF LOOP - for each edge
-    } // END OF IF CLAUSE - (isDeltaEnabled)
-
-    haltFactor = defineFactor(
-        vertex, factorFlag, initialValue, tolerance, rmseErr);
+    haltFactor = getL2Norm(initialValue, vertex.getValue().getLatentVector());
 
     // If RMSE aggregator flag is true - send rmseErr to aggregator
-    if (rmseTolerance != 0f) {
-      this.aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmseErr));
+    if (rmseTarget != 0f) {
+      this.aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmsePartialSum));
     }
 
     if (getSuperstep() == 0
@@ -232,12 +165,14 @@ DoubleWritable, TextMessageWrapper> {
       (haltFactor > tolerance && getSuperstep() < iterations)) {
       sendMessage(vertex);
     }
+    
     // haltFactor is used in the OutputFormat file. --> To print the error
-    if (factorFlag.equals("basic")) {
-      haltFactor = err;
-    }
+//    if (factorFlag.equals("basic")) {
+//      haltFactor = err;
+//    }
+    
     vertex.voteToHalt();
-  } // END OF compute()
+  }
 
   /**
    * Return type of current vertex.
@@ -295,27 +230,8 @@ DoubleWritable, TextMessageWrapper> {
     part3 = numMatrixProduct((double) -gamma,
       dotAddition(part1, part2));
     value = dotAddition(vertex.getValue().getLatentVector(), part3);
-    keepXdecimals(value, DECIMALS);
     vertex.getValue().setLatentVector(value);
-    updatesNum++;
-  }
-
-  /**
-   * Decimal Precision of latent vector values.
-   *
-   * @param value Value to be truncated
-   * @param x Number of decimals to keep
-   */
-  public final void keepXdecimals(final DoubleArrayListWritable value,
-    final int x) {
-    for (int i = 0; i < value.size(); i++) {
-      value.set(i,
-        new DoubleWritable(
-          (double) (Math.round(
-            value.get(i).get() * Math.pow(TEN, x - 1))
-            /
-            Math.pow(TEN, x - 1))));
-    }
+//    updatesNum++;
   }
 
   /**
@@ -377,8 +293,8 @@ DoubleWritable, TextMessageWrapper> {
   public final double getError(final DoubleArrayListWritable vectorA,
     final DoubleArrayListWritable vectorB, final double observed) {
     double predicted = dotProduct(vectorA, vectorB);
-    predicted = Math.min(predicted, MAX);
-    predicted = Math.max(predicted, MIN);
+    predicted = Math.min(predicted, MAX_RATING);
+    predicted = Math.max(predicted, MIN_RATING);
     return predicted - observed;
   }
 
@@ -432,14 +348,14 @@ DoubleWritable, TextMessageWrapper> {
     return result;
   }
 
-  /**
-   * Return amount of vertex updates.
-   *
-   * @return updatesNum
-   * */
-  public final int getUpdates() {
-    return updatesNum;
-  }
+//  /**
+//   * Return amount of vertex updates.
+//   *
+//   * @return updatesNum
+//   * */
+//  public final int getUpdates() {
+//    return updatesNum;
+//  }
 
   /**
    * Return amount messages received.
@@ -450,45 +366,8 @@ DoubleWritable, TextMessageWrapper> {
     return messagesNum;
   }
 
-  /** Return amount of vertex updates.
-   *
-   * @return haltFactor
-   * */
-  public final double getHaltFactor() {
-    return haltFactor;
-  }
-
   /**
-   * Define whether the halt factor is "basic", "rmse" or "l2norm".
-   *
-   * @param factorFlag  Halt factor
-   * @param pInitialValue Vertex initial value
-   * @param pTolerance Tolerance
-   * @param rmseErr  RMSE error
-   *
-   * @return factor number of halting barrier
-   */
-  public final double defineFactor(Vertex<Text, SgdVertexValue,
-      DoubleWritable> vertex, final String factorFlag,
-      final DoubleArrayListWritable pInitialValue, final float pTolerance,
-      final double rmseErr) {
-    double factor = 0d;
-    if (factorFlag.equals("basic")) {
-      factor = pTolerance + 1d;
-    } else if (factorFlag.equals("rmse")) {
-      factor = getRMSE(rmseErr);
-    } else if (factorFlag.equals("l2norm")) {
-      factor = getL2Norm(pInitialValue, vertex.getValue().getLatentVector());
-    } else {
-      throw new RuntimeException("BUG: halt factor " + factorFlag
-        +
-        " is not included in the recognized options");
-    }
-    return factor;
-  }
-
-  /**
-   * MasterCompute used with {@link SimpleMasterComputeVertex}.
+   * Coordinates the execution of the algorithm.
    */
   public static class MasterCompute
   extends DefaultMasterCompute {
@@ -521,7 +400,7 @@ DoubleWritable, TextMessageWrapper> {
       if (totalRMSE < rmseTolerance) {
         haltComputation();
       }
-    } // END OF compute()
+    }
 
     @Override
     public final void initialize() throws InstantiationException,
