@@ -9,10 +9,24 @@ import java.nio.FloatBuffer;
 import org.apache.hadoop.io.Writable;
 import org.jblas.FloatMatrix;
 
+/**
+ * Extension to the jblas FloatMatrix class that also implements the Writable
+ * interface.
+ * 
+ * This class currently implements only a basic subset of the FloatMatrix 
+ * constructors.
+ * 
+ * @author dl
+ *
+ */
 public class FloatMatrixWritable extends FloatMatrix implements Writable {
 
   public FloatMatrixWritable() {
     super();
+  }
+  
+  public FloatMatrixWritable(int rows) {
+    super(rows);
   }
   
   public FloatMatrixWritable(int rows, int columns, float... array) {
