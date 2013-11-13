@@ -33,7 +33,7 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
   /** Default value for parameter enabling the RMSE aggregator. */
   public static final float RMSE_TARGET_DEFAULT = -1f;
   /** Keyword for parameter setting the convergence tolerance */
-  public static final String TOLERANCE = "sgd.halting.tolerance";
+  public static final String TOLERANCE = "sgd.tolerance";
   /** Default value for TOLERANCE. */
   public static final float TOLERANCE_DEFAULT = -1f;
   /** Keyword for parameter setting the number of iterations. */
@@ -51,7 +51,7 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
   /** Keyword for parameter setting the Latent Vector Size. */
   public static final String VECTOR_SIZE = "sgd.vector.size";
   /** Default value for GAMMA. */
-  public static final int VECTOR_SIZE_DEFAULT = 2;
+  public static final int VECTOR_SIZE_DEFAULT = 50;
 
   /** Max rating. */
   public static final float MAX_RATING = 5.0f;
@@ -252,9 +252,9 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
       
       long superstep = getSuperstep();
       if (superstep == 0) {
-        setComputation(InitUsersComputation.class);
+        setComputation(Sgd.InitUsersComputation.class);
       } else if (superstep == 1) {
-        setComputation(InitItemsComputation.class);
+        setComputation(Sgd.InitItemsComputation.class);
       } else {
         setComputation(Sgd.class);
       }

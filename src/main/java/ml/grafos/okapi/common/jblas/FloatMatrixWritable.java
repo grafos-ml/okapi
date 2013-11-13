@@ -8,6 +8,7 @@ import java.nio.FloatBuffer;
 
 import org.apache.hadoop.io.Writable;
 import org.jblas.FloatMatrix;
+import org.jblas.JavaBlas;
 
 /**
  * Extension to the jblas FloatMatrix class that also implements the Writable
@@ -31,6 +32,20 @@ public class FloatMatrixWritable extends FloatMatrix implements Writable {
   
   public FloatMatrixWritable(int rows, int columns, float... array) {
     super(rows, columns, array);
+  }
+  
+  public FloatMatrixWritable(int rows, int columns) {
+    super(rows, columns);
+  }
+  
+  /**
+   * Creates a copy of the input matrix.
+   * 
+   * @param m
+   */
+  public FloatMatrixWritable(FloatMatrix m) {
+    super(m.rows, m.columns);
+    JavaBlas.rcopy(m.length, m.data, 0, 1, this.data, 0, 1);
   }
   
   @Override
