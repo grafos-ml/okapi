@@ -10,6 +10,9 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
+import junit.framework.Assert;
+
+import org.jblas.FloatMatrix;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -41,6 +44,16 @@ public class FloatMatrixWritableTest {
     float[] input = { 0.1f, 0.5f, Float.NaN, Float.MAX_VALUE, Float.MIN_VALUE,
         Float.NEGATIVE_INFINITY };
     assertArrayEquals(input, fmw.toFloatArray(fmw.toByteArray(input)), 0.001f);
+  }
+  
+  @Test
+  public void testConstructor() {
+    FloatMatrix fm = 
+        new FloatMatrix(2, 2, 0.1f, 0.5f, Float.NaN, Float.MAX_VALUE);
+    FloatMatrixWritable fmw = 
+        new FloatMatrixWritable(2, 2, 0.1f, 0.5f, Float.NaN, Float.MAX_VALUE);
+    FloatMatrixWritable fmwDup = new FloatMatrixWritable(fm); 
+    Assert.assertEquals(fmwDup, fmw);
   }
 
 }
