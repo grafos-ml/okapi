@@ -3,7 +3,7 @@ package ml.grafos.okapi.cf.sgd;
 import java.io.IOException;
 import java.util.Random;
 
-import ml.grafos.okapi.cf.CfId;
+import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 
@@ -20,12 +20,12 @@ import org.apache.hadoop.io.FloatWritable;
 import org.jblas.FloatMatrix;
 
 /**
- * Demonstrates the Stochastic Gradient Descent (SGD) implementation.
+ * Stochastic Gradient Descent (SGD) implementation.
  */
 @Algorithm(
     name = "Stochastic Gradient Descent (SGD)", 
     description = "Minimizes the error in users preferences predictions")
-public class Sgd extends BasicComputation<CfId, FloatMatrixWritable, 
+public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable, 
   FloatWritable, FloatMatrixMessage> {
   
   /** Keyword for RMSE aggregator tolerance. */
@@ -81,7 +81,7 @@ public class Sgd extends BasicComputation<CfId, FloatMatrixWritable,
    *          Messages received
    */
   public final void compute(
-      Vertex<CfId, FloatMatrixWritable, FloatWritable> vertex,
+      Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex,
       final Iterable<FloatMatrixMessage> messages) {
     
     double rmsePartialSum = 0d;
@@ -121,6 +121,8 @@ public class Sgd extends BasicComputation<CfId, FloatMatrixWritable,
       sendMessageToAllEdges(vertex, 
           new FloatMatrixMessage(vertex.getId(), vertex.getValue(), 0.0f));
     }
+    
+    vertex.voteToHalt();
   }
 
   /**
@@ -162,11 +164,11 @@ public class Sgd extends BasicComputation<CfId, FloatMatrixWritable,
    * @author dl
    *
    */
-  public static class InitUsersComputation extends BasicComputation<CfId, 
+  public static class InitUsersComputation extends BasicComputation<CfLongId, 
   FloatMatrixWritable, FloatWritable, FloatMatrixMessage> {
 
     @Override
-    public void compute(Vertex<CfId, FloatMatrixWritable, FloatWritable> vertex,
+    public void compute(Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex,
         Iterable<FloatMatrixMessage> messages) throws IOException {
       
       FloatMatrixWritable vector = 
@@ -178,11 +180,12 @@ public class Sgd extends BasicComputation<CfId, FloatMatrixWritable,
       }
       vertex.setValue(vector);
       
-      for (Edge<CfId, FloatWritable> edge : vertex.getEdges()) {
+      for (Edge<CfLongId, FloatWritable> edge : vertex.getEdges()) {
         FloatMatrixMessage msg = new FloatMatrixMessage(
             vertex.getId(), vertex.getValue(), edge.getValue().get());
         sendMessage(edge.getTargetVertexId(), msg);
       }
+      vertex.voteToHalt();
     }
   }
   
@@ -193,12 +196,12 @@ public class Sgd extends BasicComputation<CfId, FloatMatrixWritable,
    * @author dl
    *
    */
-  public static class InitItemsComputation extends AbstractComputation<CfId, 
+  public static class InitItemsComputation extends AbstractComputation<CfLongId, 
   FloatMatrixWritable, FloatWritable, FloatMatrixMessage,
   FloatMatrixMessage> {
 
     @Override
-    public void compute(Vertex<CfId, FloatMatrixWritable, FloatWritable> vertex,
+    public void compute(Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex,
         Iterable<FloatMatrixMessage> messages) throws IOException {
       
       FloatMatrixWritable vector = 
@@ -211,8 +214,8 @@ public class Sgd extends BasicComputation<CfId, FloatMatrixWritable,
       vertex.setValue(vector);
       
       for (FloatMatrixMessage msg : messages) {
-        DefaultEdge<CfId, FloatWritable> edge = 
-            new DefaultEdge<CfId, FloatWritable>();
+        DefaultEdge<CfLongId, FloatWritable> edge = 
+            new DefaultEdge<CfLongId, FloatWritable>();
         edge.setTargetVertexId(msg.getSenderId());
         edge.setValue(new FloatWritable(msg.getScore()));
         vertex.addEdge(edge);
@@ -221,6 +224,8 @@ public class Sgd extends BasicComputation<CfId, FloatMatrixWritable,
       // The score does not matter at this point.
       sendMessageToAllEdges(vertex, 
           new FloatMatrixMessage(vertex.getId(), vertex.getValue(), 0.0f));
+      
+      vertex.voteToHalt();
     }
   }
   

@@ -16,7 +16,7 @@ import org.apache.hadoop.io.Writable;
  *
  */
 public class FloatMatrixMessage implements Writable {
-  CfId senderId;
+  CfLongId senderId;
   FloatMatrixWritable factors;
   float score;
 
@@ -29,18 +29,18 @@ public class FloatMatrixMessage implements Writable {
     this.score = msg.score;
   }
 
-  public FloatMatrixMessage(CfId senderId, FloatMatrixWritable factors,
+  public FloatMatrixMessage(CfLongId senderId, FloatMatrixWritable factors,
       float score) {
     this.senderId = senderId;
     this.factors = factors;
     this.score = score;
   }
 
-  public CfId getSenderId() {
+  public CfLongId getSenderId() {
     return senderId;
   }
 
-  public void setSenderId(CfId senderId) {
+  public void setSenderId(CfLongId senderId) {
     this.senderId = senderId;
   }
 
@@ -61,7 +61,7 @@ public class FloatMatrixMessage implements Writable {
   }
 
   public void readFields(DataInput input) throws IOException {
-    senderId = new CfId(); 
+    senderId = new CfLongId(); 
     senderId.readFields(input);  
     factors = new FloatMatrixWritable();
     factors.readFields(input);

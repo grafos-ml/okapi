@@ -9,24 +9,22 @@ import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
-
 import org.junit.Test;
 
-public class CfIdTest {
+public class CfLongIdTest {
 
   @Test
   public void testEmptySerialization() throws IOException {
     ByteArrayOutputStream baos = new ByteArrayOutputStream(10000);
     DataOutput output = new DataOutputStream(baos);
     
-    CfId id = new CfId();
+    CfLongId id = new CfLongId();
     id.write(output);
     
     DataInputStream input = new DataInputStream(new ByteArrayInputStream(
         baos.toByteArray()));
     
-    CfId idCopy = new CfId();
+    CfLongId idCopy = new CfLongId();
     idCopy.readFields(input);
     
     assertTrue(id.equals(idCopy));
@@ -37,13 +35,13 @@ public class CfIdTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream(10000);
     DataOutput output = new DataOutputStream(baos);
     
-    CfId id = new CfId(100, 200);
+    CfLongId id = new CfLongId((byte)100, 200);
     id.write(output);
     
     DataInputStream input = new DataInputStream(new ByteArrayInputStream(
         baos.toByteArray()));
     
-    CfId idCopy = new CfId();
+    CfLongId idCopy = new CfLongId();
     idCopy.readFields(input);
     
     assertTrue(idCopy.getType()==100);
@@ -53,10 +51,10 @@ public class CfIdTest {
   
   @Test
   public void testCompare() {
-    CfId id1 = new CfId(100, 200);
-    CfId id2 = new CfId(100, 200);
-    CfId id3 = new CfId(101, 200);
-    CfId id4 = new CfId(100, 199);
+    CfLongId id1 = new CfLongId((byte)100, 200);
+    CfLongId id2 = new CfLongId((byte)100, 200);
+    CfLongId id3 = new CfLongId((byte)101, 200);
+    CfLongId id4 = new CfLongId((byte)100, 199);
     assertEquals(id1, id2);
     assertTrue(!id1.equals(id3));
     assertTrue(!id1.equals(null));

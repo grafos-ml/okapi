@@ -20,7 +20,7 @@ public class FloatMatrixMessageTest {
     ByteArrayOutputStream baos = new ByteArrayOutputStream(10000);
     DataOutput output = new DataOutputStream(baos);
     
-    CfId id = new CfId(9, 111);
+    CfLongId id = new CfLongId((byte)9, 111);
     FloatMatrixWritable fmw = 
         new FloatMatrixWritable(2, 2, 0.1f, 0.5f, Float.NaN, Float.MAX_VALUE);
     FloatMatrixMessage msg = new FloatMatrixMessage(id, fmw, 1.2f);
@@ -40,23 +40,23 @@ public class FloatMatrixMessageTest {
   @Test
   public void testCompare() {
     FloatMatrixMessage msg1 = new FloatMatrixMessage(
-        new CfId(9,111), 
+        new CfLongId((byte)9,111), 
         new FloatMatrixWritable(2, 2, 0.1f, 0.5f, Float.NaN, Float.MAX_VALUE), 
         1.2f);
     FloatMatrixMessage msg2 = new FloatMatrixMessage(
-        new CfId(9,111), 
+        new CfLongId((byte)9,111), 
         new FloatMatrixWritable(2, 2, 0.1f, 0.5f, Float.NaN, Float.MAX_VALUE), 
         1.2f);
     FloatMatrixMessage msg3 = new FloatMatrixMessage(
-        new CfId(10,111), 
+        new CfLongId((byte)10,111), 
         new FloatMatrixWritable(2, 2, 0.1f, 0.5f, Float.NaN, Float.MAX_VALUE), 
         1.2f);
     FloatMatrixMessage msg4 = new FloatMatrixMessage(
-        new CfId(9,111), 
+        new CfLongId((byte)9,111), 
         new FloatMatrixWritable(2, 2, 0.2f, 0.5f, Float.NaN, Float.MAX_VALUE), 
         1.2f);
     FloatMatrixMessage msg5 = new FloatMatrixMessage(
-        new CfId(9,111), 
+        new CfLongId((byte)9,111), 
         new FloatMatrixWritable(2, 2, 0.1f, 0.5f, Float.NaN, Float.MAX_VALUE), 
         1.3f);
     assertEquals(msg1, msg2);
