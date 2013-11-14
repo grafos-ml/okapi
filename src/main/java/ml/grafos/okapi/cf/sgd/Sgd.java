@@ -52,11 +52,14 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
   public static final String VECTOR_SIZE = "sgd.vector.size";
   /** Default value for GAMMA. */
   public static final int VECTOR_SIZE_DEFAULT = 50;
-
   /** Max rating. */
-  public static final float MAX_RATING = 5.0f;
+  public static final String MAX_RATING = "sgd.max.rating";
+  /** Default maximum rating */
+  public static final float MAX_RATING_DEFAULT = 5.0f;
   /** Min rating. */
-  public static final float MIN_RATING = 0.0f;
+  public static final String MIN_RATING = "sgd.min.rating";
+  /** Default minimum rating */
+  public static final float MIN_RATING_DEFAULT = 0.0f;
 
   /** Aggregator used to compute the RMSE */
   public static final String RMSE_AGGREGATOR = "sgd.rmse.aggregator";
@@ -64,6 +67,8 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
   private float tolerance;
   private float lambda;
   private float gamma;
+  protected float minRating;
+  protected float maxRating;
   private FloatMatrixWritable oldValue;
 
   @Override
@@ -72,6 +77,10 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
     gamma = getContext().getConfiguration().getFloat(GAMMA, GAMMA_DEFAULT);
     tolerance = getContext().getConfiguration().getFloat(TOLERANCE,
         TOLERANCE_DEFAULT);
+    minRating = getContext().getConfiguration().getFloat(MIN_RATING, 
+        MIN_RATING_DEFAULT);
+    maxRating = getContext().getConfiguration().getFloat(MAX_RATING, 
+        MAX_RATING_DEFAULT);
   }
 
   /**
@@ -102,8 +111,8 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
       
       // Calculate new error
       float predicted = vertex.getValue().dot(msg.getFactors());
-      predicted = Math.min(predicted, MAX_RATING);
-      predicted = Math.max(predicted, MIN_RATING);
+      predicted = Math.min(predicted, maxRating);
+      predicted = Math.max(predicted, minRating);
       float err = predicted - rating;
 
       rmsePartialSum += Math.pow(err, 2);
@@ -139,15 +148,15 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
    * @param gamma
    * @param err
    */
-  public final void updateValue(FloatMatrix value, 
+  protected final void updateValue(FloatMatrix value, 
       FloatMatrix update, final float rating, final float lambda, 
       final float gamma) {
     
     float predicted = value.dot(update);
     
     // Correct the predicted rating
-    predicted = Math.min(predicted, MAX_RATING);
-    predicted = Math.max(predicted, MIN_RATING);
+    predicted = Math.min(predicted, maxRating);
+    predicted = Math.max(predicted, minRating);
     
     float err = predicted - rating;
     
@@ -201,8 +210,9 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
   FloatMatrixMessage> {
 
     @Override
-    public void compute(Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex,
-        Iterable<FloatMatrixMessage> messages) throws IOException {
+    public void compute(Vertex<CfLongId, FloatMatrixWritable, 
+        FloatWritable> vertex, Iterable<FloatMatrixMessage> messages) 
+            throws IOException {
       
       FloatMatrixWritable vector = 
           new FloatMatrixWritable(getContext().getConfiguration().getInt(
@@ -249,7 +259,6 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
 
     @Override
     public final void compute() {
-      
       long superstep = getSuperstep();
       if (superstep == 0) {
         setComputation(Sgd.InitUsersComputation.class);
@@ -262,19 +271,16 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
       double numRatings = 0;
       double rmse = 0;
 
-      if (getSuperstep() > 1) {
-        // In superstep=1 only half edges are created (users to items)
-        if (getSuperstep() == 2) {
-          numRatings = getTotalNumEdges();
-        } else {
-          numRatings = getTotalNumEdges() / 2;
-        }
+      // Until superstep 2 only half edges are created (users to items)
+      if (getSuperstep() <= 2) {
+        numRatings = getTotalNumEdges();
+      } else {
+        numRatings = getTotalNumEdges() / 2;
       }
 
       if (rmseTarget>0f) {
         rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
             .get() / numRatings);
-//        System.out.println("Superstep:"+getSuperstep() + ", RMSE: "+rmse);
       }
 
       if (rmseTarget>0f && rmse<rmseTarget) {

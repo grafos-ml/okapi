@@ -18,6 +18,7 @@ import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
 import org.jblas.FloatMatrix;
+import org.jblas.JavaBlas;
 import org.jblas.Solve;
 
 
@@ -36,11 +37,7 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
   public static final String RMSE_TARGET = "als.rmse.target";
   /** Default value of RMSE target. */
   public static final float RMSE_TARGET_DEFAULT = -1f;
-//  /** Keyword for parameter setting of the convergence tolerance */
-//  public static final String TOLERANCE = "als.tolerance";
-//  /** Default value for TOLERANCE. */
-//  public static final float TOLERANCE_DEFAULT = -1f;
-//  /** Keyword for parameter setting the number of iterations. */
+  /** Keyword for parameter setting the number of iterations. */
   public static final String ITERATIONS = "als.iterations";
   /** Default value for ITERATIONS. */
   public static final int ITERATIONS_DEFAULT = 10;
@@ -52,14 +49,6 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
   public static final String VECTOR_SIZE = "als.vector.size";
   /** Default value for GAMMA. */
   public static final int VECTOR_SIZE_DEFAULT = 50;
-//  /** Max rating. */
-//  public static final String MAX_RATING = "als.max.rating";
-//  /** Max rating default. */
-//  public static final double MAX_RATING_DEFAULT = 5;
-//  /** Min rating. */
-//  public static final double MIN_RATING = 0;
-//  /** Min rating default */
-//  public static final double MIN_RATING_DEFAULT = 0;
   
   /** Aggregator used to compute the RMSE */
   public static final String RMSE_AGGREGATOR = "als.rmse.aggregator";
@@ -97,31 +86,22 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
       final Iterable<FloatMatrixMessage> messages) {
     
     FloatMatrix mat_M = new FloatMatrix(vectorSize, vertex.getNumEdges());
-    FloatMatrix mat_R = new FloatMatrix(vertex.getNumEdges(), 1); 
+    FloatMatrix mat_R = new FloatMatrix(vertex.getNumEdges(), 1);
     
     // Build the matrices of the linear system
     int i=0;
     for (FloatMatrixMessage msg : messages) {
       mat_M.putColumn(i, msg.getFactors());
-      mat_R.put(0, i, vertex.getEdgeValue(msg.getSenderId()).get());
+      mat_R.put(i, 0, vertex.getEdgeValue(msg.getSenderId()).get());
       i++;
     } 
      
-    // We do all the matrix operations in-place to save memory
-    
-    mat_M.mmuli(mat_R, mat_R); // mat_R now contains the value of V
-    mat_M.mmuli(mat_M.transpose(), mat_M); // mat_M now is M*M^T
-    mat_M.addi(FloatMatrix.eye(vectorSize).muli(lambda*vertex.getNumEdges()));
-    
-    FloatMatrix mat_U = Solve.solve(mat_M, mat_R);
-    
-    // We need a copy that is Writable to set as the vertex value
-    vertex.setValue(new FloatMatrixWritable(mat_U));
+    updateValue(vertex.getValue(), mat_M, mat_R, lambda);
     
     // Calculate errors and add squares to the RMSE aggregator
     double rmsePartialSum = 0d;
     for (int j=0; j<mat_M.columns; j++) {    
-        float prediction = mat_U.dot(mat_M.getColumn(j));
+        float prediction = vertex.getValue().dot(mat_M.getColumn(j));
         double error = prediction - mat_R.get(j);
         rmsePartialSum += Math.pow(error, 2);
     }
@@ -135,6 +115,18 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
     vertex.voteToHalt();
   } 
 
+  protected void updateValue(FloatMatrix value, FloatMatrix mat_M, 
+      FloatMatrix mat_R, final float lambda) {
+    
+    FloatMatrix mat_V = mat_M.mmul(mat_R);
+    FloatMatrix mat_A = mat_M.mmul(mat_M.transpose());
+    mat_A.addi(FloatMatrix.eye(mat_M.rows).muli(lambda*mat_R.rows)); 
+    
+    FloatMatrix mat_U = Solve.solve(mat_A, mat_V);
+    value.rows = mat_U.rows;
+    value.columns = mat_U.columns;
+    JavaBlas.rcopy(mat_U.length, mat_U.data, 0, 1, value.data, 0, 1);
+  }
 
   /**
    * This computation class is used to initialize the factors of the user nodes
@@ -239,19 +231,16 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
       double numRatings = 0;
       double rmse = 0;
 
-      if (getSuperstep() > 1) {
-        // In superstep=1 only half edges are created (users to items)
-        if (getSuperstep() == 2) {
-          numRatings = getTotalNumEdges();
-        } else {
-          numRatings = getTotalNumEdges() / 2;
-        }
+      // Until superstep 2 only half edges are created (users to items)
+      if (getSuperstep() <= 2) {
+        numRatings = getTotalNumEdges();
+      } else {
+        numRatings = getTotalNumEdges() / 2;
       }
 
       if (rmseTarget>0f) {
         rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
             .get() / numRatings);
-//        System.out.println("Superstep:"+getSuperstep() + ", RMSE: "+rmse);
       }
 
       if (rmseTarget>0f && rmse<rmseTarget) {
