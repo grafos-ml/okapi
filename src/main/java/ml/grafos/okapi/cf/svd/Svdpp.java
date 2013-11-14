@@ -1,6 +1,12 @@
 package ml.grafos.okapi.cf.svd;
 
+import java.io.IOException;
+import java.util.Random;
+
+import ml.grafos.okapi.cf.CfLongId;
+import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.common.data.DoubleArrayListWritable;
+import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
@@ -10,96 +16,74 @@ import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 
 
 /**
- * Demonstrates the Pregel Stochastic Gradient Descent (SGD) implementation.
+ * Singular Value Decomposition (SVD) implementation.
  */
 @Algorithm(
   name = "SVD++",
-  description = "Minimizes the error in users preferences predictions")
-public class Svdpp extends BasicComputation<Text,
-  SvdppVertexValue, DoubleWritable, SvdppMessageWrapper> {
+  description = "Minimizes the error in users' preferences predictions")
+public class Svdpp extends BasicComputation<CfLongId,
+  FloatMatrixWritable, FloatWritable, SvdppMessageWrapper> {
   /** Name of aggregator that aggregates all ratings. */
   public static final String OVERALL_RATING_AGGREGATOR =
-    "OVERALL_RATING_AGGREGATOR";
-  /** Keyword for RMSE aggregator tolerance. */
-  public static final String RMSE_AGGREGATOR = "svd.rmse.aggregator";
+    "svd.overall.rating.aggregator";
+  /** Keyword for RMSE target */
+  public static final String RMSE_TARGET = "svd.rmse.target";
   /** Default value for parameter enabling the RMSE aggregator. */
-  public static final float RMSE_AGGREGATOR_DEFAULT = 0f;
-  /** Keyword for parameter choosing the halt factor. */
-  public static final String HALT_FACTOR = "svd.halt.factor";
-  /** Default value for parameter choosing the halt factor. */
-  public static final String HALT_FACTOR_DEFAULT = "basic";
-  /**
-   * Keyword for parameter setting the convergence tolerance parameter.
-   * depending on the version enabled; l2norm or rmse
-   */
-  public static final String TOLERANCE_KEYWORD = "svd.halting.tolerance";
+  public static final float RMSE_TARGET_DEFAULT = -1f;
+  /** Keyword for parameter setting the update tolerance parameter. */
+  public static final String TOLERANCE = "svd.tolerance";
   /** Default value for TOLERANCE. */
   public static final float TOLERANCE_DEFAULT = 1f;
   /** Keyword for parameter setting the number of iterations. */
-  public static final String ITERATIONS_KEYWORD = "svd.iterations";
+  public static final String ITERATIONS = "svd.iterations";
   /** Default value for ITERATIONS. */
   public static final int ITERATIONS_DEFAULT = 10;
   /** Keyword for parameter setting the regularization parameter LAMBDA. */
-  public static final String LAMBDA_KEYWORD = "svd.lambda";
+  public static final String LAMBDA = "svd.lambda";
   /** Default value for LAMBDA. */
   public static final float LAMBDA_DEFAULT = 0.01f;
   /** Keyword for parameter setting the learning rate GAMMA. */
-  public static final String GAMMA_KEYWORD = "svd.gamma";
+  public static final String GAMMA = "svd.gamma";
   /** Default value for GAMMA. */
   public static final float GAMMA_DEFAULT = 0.005f;
   /** Keyword for parameter setting the Latent Vector Size. */
-  public static final String VECTOR_SIZE_KEYWORD = "svd.vector.size";
+  public static final String VECTOR_SIZE = "svd.vector.size";
   /** Default value for GAMMA. */
-  public static final int VECTOR_SIZE_DEFAULT = 2;
-  /** Max rating. */
-  public static final double MAX = 5;
-  /** Min rating. */
-  public static final double MIN = 0;
-  /** Decimals. */
-  public static final int DECIMALS = 4;
-  /** Number used in the initialization of values. */
-  public static final double HUNDRED = 100;
-  /** Number used in the keepXdecimals method. */
-  public static final int TEN = 10;
-  /** Factor Error: it may be RMSD or L2NORM on initial&final vector. */
-  private double haltFactor = 0d;
-  /** Number of updates - used in the Output Format. */
-  private int updatesNum = 0;
-  /** Type of vertex 0 for user, 1 for item - used in the Output Format. */
-  private boolean isItem = false;
-  /** Prefix of item IDs. Used to distinguish from users */
-  private final String ITEM_ID_PREFIX = "i_";
+  public static final int VECTOR_SIZE_DEFAULT = 50;
+  
+  /** Aggregator for the computation of RMSE */
+  public static final String RMSE_AGGREGATOR = "svd.rmse.aggregator";
+  
+  public static final int VALUE_INDEX = 0;
+  public static final int BASELINE_ESTIMATE_INDEX = 1;
+  public static final int RELATIVE_VALUE_INDEX = 2;
+  
   /**
    * Initial vector value to be used for the L2Norm case. Keep it outside the
    * compute() method value has to preserved throughout the supersteps
    */
   private DoubleArrayListWritable initialValue;
-  /**
-   * Counter of messages received. This is different from getNumEdges() because
-   * a neighbor may not send a message
-   */
-  private int messagesNum = 0;
 
   /**
-   * Compute method.
+   * Main SVD compute method.
    * 
    * @param messages
    *          Messages received
    */
-  public final void compute(
-      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex, 
-      final Iterable<SvdppMessageWrapper> messages) {
+  public final void compute(Vertex<CfLongId, FloatMatrixWritable, 
+      FloatWritable> vertex, final Iterable<SvdppMessageWrapper> messages) {
     /** Error between predicted and observed rating */
     double err = 0d;
 
     /* Flag for checking if parameter for RMSE aggregator received */
     float rmseTolerance = getContext().getConfiguration().getFloat(
-      RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
+      RMSE_AGGREGATOR, RMSE_TARGET_DEFAULT);
     /*
      * Flag for checking which termination factor to use: basic, rmse, l2norm
      */
@@ -107,41 +91,42 @@ public class Svdpp extends BasicComputation<Text,
       HALT_FACTOR, HALT_FACTOR_DEFAULT);
     /* Set the number of iterations */
     int iterations = getContext().getConfiguration().getInt(
-      ITERATIONS_KEYWORD, ITERATIONS_DEFAULT);
+      ITERATIONS, ITERATIONS_DEFAULT);
     /* Set the Convergence Tolerance */
     float tolerance = getContext().getConfiguration().getFloat(
-      TOLERANCE_KEYWORD, TOLERANCE_DEFAULT);
+      TOLERANCE, TOLERANCE_DEFAULT);
     /* Set the Regularization Parameter LAMBDA */
     float lambda = getContext().getConfiguration().getFloat(
-      LAMBDA_KEYWORD, LAMBDA_DEFAULT);
+      LAMBDA, LAMBDA_DEFAULT);
     /* Set the Learning Rate GAMMA */
     float gamma = getContext().getConfiguration().getFloat(
-      GAMMA_KEYWORD, GAMMA_DEFAULT);
+      GAMMA, GAMMA_DEFAULT);
     /* Set the size of the Latent Vector */
     int vectorSize = getContext().getConfiguration().getInt(
-      VECTOR_SIZE_KEYWORD, VECTOR_SIZE_DEFAULT);
+      VECTOR_SIZE, VECTOR_SIZE_DEFAULT);
 
     // First superstep for users (superstep 0) & items (superstep 1)
     // Initialize vertex latent vector and baseline estimate
-    if (getSuperstep() < 2) {
-      initValue(vertex, vectorSize);
-      // For L2Norm
-      initialValue = 
-          new DoubleArrayListWritable(vertex.getValue().getLatentVector());
-    }
+//    if (getSuperstep() < 2) {
+//      initValue(vertex, vectorSize);
+//      // For L2Norm
+//      initialValue = 
+//          new DoubleArrayListWritable(vertex.getValue().getLatentVector());
+//    }
 
-    // Send sum of ratings to aggregator
-    if (getSuperstep() == 0) {
-      double sum = 0;
-      for (Edge<Text, DoubleWritable> edge : vertex.getEdges()) {
-        sum += edge.getValue().get();
-      }
-      this.aggregate(OVERALL_RATING_AGGREGATOR, new DoubleWritable(sum));
-    }
-    // Set flag for items - used in the Output Format
-    if (getSuperstep() == 1) {
-      isItem = true;
-    }
+//    // Send sum of ratings to aggregator
+//    if (getSuperstep() == 0) {
+//      double sum = 0;
+//      for (Edge<Text, DoubleWritable> edge : vertex.getEdges()) {
+//        sum += edge.getValue().get();
+//      }
+//      this.aggregate(OVERALL_RATING_AGGREGATOR, new DoubleWritable(sum));
+//    }
+    
+//    // Set flag for items - used in the Output Format
+//    if (getSuperstep() == 1) {
+//      isItem = true;
+//    }
 
     // Used if RMSE version or RMSE aggregator is enabled
     double rmseErr = 0d;
@@ -227,44 +212,44 @@ public class Svdpp extends BasicComputation<Text,
     vertex.voteToHalt();
   } // END OF compute()
 
-  /**
-   * Return type of current vertex.
-   * 
-   * @return item
-   */
-  public final boolean isItem() {
-    return isItem;
-  }
+//  /**
+//   * Return type of current vertex.
+//   * 
+//   * @return item
+//   */
+//  public final boolean isItem() {
+//    return isItem;
+//  }
 
-  /**
-   * Initialize Vertex Latent Vector.
-   * 
-   * @param vectorSize
-   *          Latent Vector Size
-   */
-  public final void initValue(
-      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex, 
-      final int vectorSize) {
-    
-    SvdppVertexValue value = new SvdppVertexValue();
-    // Initialize Latent Vector
-    for (int i = 0; i < vectorSize; i++) {
-      value.setLatentVector(i, new DoubleWritable(
-        ((Double.parseDouble(
-          vertex.getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
-    }
-    // Initialize Baseline Estimate
-    value.setBaselineEstimate(new DoubleWritable(
-      (Double.parseDouble(
-        vertex.getId().toString().substring(2)) % HUNDRED) / HUNDRED));
-    // Initialize Relative Value
-    for (int i = 0; i < vectorSize; i++) {
-      value.setRelativeValue(i, new DoubleWritable(
-        ((Double.parseDouble(
-          vertex.getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
-    }
-    vertex.setValue(value);
-  }
+//  /**
+//   * Initialize Vertex Latent Vector.
+//   * 
+//   * @param vectorSize
+//   *          Latent Vector Size
+//   */
+//  public final void initValue(
+//      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex, 
+//      final int vectorSize) {
+//    
+//    SvdppVertexValue value = new SvdppVertexValue();
+//    // Initialize Latent Vector
+//    for (int i = 0; i < vectorSize; i++) {
+//      value.setLatentVector(i, new DoubleWritable(
+//        ((Double.parseDouble(
+//          vertex.getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
+//    }
+//    // Initialize Baseline Estimate
+//    value.setBaselineEstimate(new DoubleWritable(
+//      (Double.parseDouble(
+//        vertex.getId().toString().substring(2)) % HUNDRED) / HUNDRED));
+//    // Initialize Relative Value
+//    for (int i = 0; i < vectorSize; i++) {
+//      value.setRelativeValue(i, new DoubleWritable(
+//        ((Double.parseDouble(
+//          vertex.getId().toString().substring(2)) + i) % HUNDRED) / HUNDRED));
+//    }
+//    vertex.setValue(value);
+//  }
 
   /**
    * Compute the baseline. b = b + gamma * (error - lambda * b)
@@ -475,25 +460,7 @@ public class Svdpp extends BasicComputation<Text,
     return rating;
   }
 
-  /**
-   * Decimal Precision of latent vector values.
-   * 
-   * @param value
-   *          Value to be truncated
-   * @param x
-   *          Number of decimals to keep
-   */
-  public final void keepXdecimals(final DoubleArrayListWritable value,
-    final int x) {
-    
-    for (int i = 0; i < value.size(); i++) {
-      value.set(i,
-        new DoubleWritable(
-          (double) (Math.round(value.get(i).get() * Math.pow(TEN, x - 1))
-          / Math.pow(TEN, x - 1))));
-    }
-  }
-
+  
   /**
    * Send messages to neighbors.
    */
@@ -524,198 +491,238 @@ public class Svdpp extends BasicComputation<Text,
     }
   }
 
+//  /**
+//   * Calculate the RMSE on the errors calculated by the current vertex.
+//   * 
+//   * @param rmseErr
+//   *          RMSE error
+//   * @return RMSE result
+//   */
+//  public final double getRMSE(final double rmseErr) {
+//    return Math.sqrt(rmseErr / (double) messagesNum);
+//  }
+
+//  /**
+//   * Calculate the L2Norm on the initial and final value of vertex.
+//   * 
+//   * @param valOld
+//   *          Old value
+//   * @param valNew
+//   *          New value
+//   * @return result of L2Norm equation
+//   * */
+//  public final double getL2Norm(final DoubleArrayListWritable valOld,
+//    final DoubleArrayListWritable valNew) {
+//    double result = 0;
+//    for (int i = 0; i < valOld.size(); i++) {
+//      result += Math.pow(valOld.get(i).get() - valNew.get(i).get(), 2);
+//    }
+//    return Math.sqrt(result);
+//  }
+
+//  /**
+//   * Calculate the dot product of 2 vectors: vectorA * vectorB.
+//   * 
+//   * @param vectorA
+//   *          Vector A
+//   * @param vectorB
+//   *          Vector B
+//   * @return Result from dot product of 2 vectors
+//   */
+//  public final double dotProduct(final DoubleArrayListWritable vectorA,
+//    final DoubleArrayListWritable vectorB) {
+//    double result = 0d;
+//    for (int i = 0; i < vectorA.size(); i++) {
+//      result += vectorA.get(i).get() * vectorB.get(i).get();
+//    }
+//    return result;
+//  }
+
+//  /**
+//   * Calculate the dot addition of 2 vectors: vectorA + vectorB.
+//   * 
+//   * @param vectorA
+//   *          Vector A
+//   * @param vectorB
+//   *          Vector B
+//   * @return result Result from dot addition of the two vectors
+//   */
+//  public final DoubleArrayListWritable dotAddition(
+//    final DoubleArrayListWritable vectorA,
+//    final DoubleArrayListWritable vectorB) {
+//    DoubleArrayListWritable result = new DoubleArrayListWritable();
+//    for (int i = 0; i < vectorA.size(); i++) {
+//      result.add(new DoubleWritable(
+//        vectorA.get(i).get() + vectorB.get(i).get()));
+//    }
+//    return result;
+//  }
+
+//  /**
+//   * Calculate the dot addition of 2 vectors: vectorA + vectorB.
+//   * 
+//   * @param vectorA
+//   *          Vector A
+//   * @param vectorB
+//   *          Vector B
+//   * @return result Result from dot addition of the two vectors
+//   */
+//  public final DoubleArrayListWritable dotSub(
+//    final DoubleArrayListWritable vectorA,
+//    final DoubleArrayListWritable vectorB) {
+//    DoubleArrayListWritable result = new DoubleArrayListWritable();
+//    for (int i = 0; i < vectorA.size(); i++) {
+//      result.add(new DoubleWritable(
+//        vectorA.get(i).get() - vectorB.get(i).get()));
+//    }
+//    return result;
+//  }
+
+//  /**
+//   * Calculate the product num * matirx.
+//   * 
+//   * @param num
+//   *          Number to be multiplied with matrix
+//   * @param matrix
+//   *          Matrix to be multiplied with number
+//   * @return result Result from multiplication
+//   */
+//  public final DoubleArrayListWritable numMatrixProduct(
+//    final double num, final DoubleArrayListWritable matrix) {
+//    DoubleArrayListWritable result = new DoubleArrayListWritable();
+//    for (int i = 0; i < matrix.size(); i++) {
+//      result.add(new DoubleWritable(num * matrix.get(i).get()));
+//    }
+//    return result;
+//  }
+
+//  /**
+//   * Calculate the product num * matirx.
+//   * 
+//   * @param num
+//   *          Number to be multiplied with matrix
+//   * @param matrix
+//   *          Matrix to be multiplied with number
+//   * @return result Result from multiplication
+//   */
+//  public final DoubleArrayListWritable numMatrixAddition(
+//    final double num, final DoubleArrayListWritable matrix) {
+//    DoubleArrayListWritable result = new DoubleArrayListWritable();
+//    for (int i = 0; i < matrix.size(); i++) {
+//      result.add(new DoubleWritable(num + matrix.get(i).get()));
+//    }
+//    return result;
+//  }
+
+//  /**
+//   * Return amount of vertex updates.
+//   * 
+//   * @return updatesNum
+//   * */
+//  public final int getUpdates() {
+//    return updatesNum;
+//  }
+
+//  /**
+//   * Return amount messages received.
+//   * 
+//   * @return messagesNum
+//   * */
+//  public final int getMessages() {
+//    return messagesNum;
+//  }
+
+//  /**
+//   * Return amount of vertex updates.
+//   * 
+//   * @return haltFactor
+//   * */
+//  public final double getHaltFactor() {
+//    return haltFactor;
+//  }
+
+//  /**
+//   * Define whether the halt factor is "basic", "rmse" or "l2norm".
+//   * 
+//   * @param factorFlag
+//   *          Halt factor
+//   * @param pInitialValue
+//   *          Vertex initial value
+//   * @param pTolerance
+//   *          Tolerance
+//   * @param rmseErr
+//   *          RMSE error
+//   * 
+//   * @return factor number of halting barrier
+//   */
+//  public final double defineFactor(
+//      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex,
+//      final String factorFlag,final DoubleArrayListWritable pInitialValue, 
+//      final float pTolerance, final double rmseErr) {
+//    double factor = 0d;
+//    if (factorFlag.equals("basic")) {
+//      factor = pTolerance + 1d;
+//    } else if (factorFlag.equals("rmse")) {
+//      factor = getRMSE(rmseErr);
+//    } else if (factorFlag.equals("l2norm")) {
+//      factor = getL2Norm(pInitialValue, vertex.getValue().getLatentVector());
+//    } else {
+//      throw new RuntimeException("BUG: halt factor " + factorFlag
+//        + " is not included in the recognized options");
+//    }
+//    return factor;
+//  }
+
   /**
-   * Calculate the RMSE on the errors calculated by the current vertex.
-   * 
-   * @param rmseErr
-   *          RMSE error
-   * @return RMSE result
+   * This computation class is used to initialize the factors of the user nodes
+   * in the very first superstep, and send the first updates to the item nodes.
+   * @author dl
+   *
    */
-  public final double getRMSE(final double rmseErr) {
-    return Math.sqrt(rmseErr / (double) messagesNum);
-  }
+  public static class InitUsersComputation extends BasicComputation<CfLongId, 
+  FloatMatrixWritable, FloatWritable, FloatMatrixMessage> {
 
-  /**
-   * Calculate the L2Norm on the initial and final value of vertex.
-   * 
-   * @param valOld
-   *          Old value
-   * @param valNew
-   *          New value
-   * @return result of L2Norm equation
-   * */
-  public final double getL2Norm(final DoubleArrayListWritable valOld,
-    final DoubleArrayListWritable valNew) {
-    double result = 0;
-    for (int i = 0; i < valOld.size(); i++) {
-      result += Math.pow(valOld.get(i).get() - valNew.get(i).get(), 2);
+    @Override
+    public void compute(Vertex<CfLongId, FloatMatrixWritable, 
+        FloatWritable> vertex, Iterable<FloatMatrixMessage> messages) 
+            throws IOException {
+      
+      // Calculate aggregate of all ratings
+      double sum = 0;
+      for (Edge<CfLongId, FloatWritable> edge : vertex.getEdges()) {
+        sum += edge.getValue().get();
+      }
+      aggregate(OVERALL_RATING_AGGREGATOR, new DoubleWritable(sum));
+      
+      FloatMatrixWritable vector = new FloatMatrixWritable(
+          getContext().getConfiguration().getInt(
+              VECTOR_SIZE, VECTOR_SIZE_DEFAULT), 3);
+      
+      Random randGen = new Random();
+      for (int i=0; i<vector.length; i++) {
+        vector.put(i, 0.01f*randGen.nextFloat());
+      }
+      vertex.setValue(vector);
+      
+      for (Edge<CfLongId, FloatWritable> edge : vertex.getEdges()) {
+        FloatMatrixMessage msg = new FloatMatrixMessage(
+            vertex.getId(), vertex.getValue(), edge.getValue().get());
+        sendMessage(edge.getTargetVertexId(), msg);
+      }
+      vertex.voteToHalt();
     }
-    return Math.sqrt(result);
   }
-
-  /**
-   * Calculate the dot product of 2 vectors: vectorA * vectorB.
-   * 
-   * @param vectorA
-   *          Vector A
-   * @param vectorB
-   *          Vector B
-   * @return Result from dot product of 2 vectors
-   */
-  public final double dotProduct(final DoubleArrayListWritable vectorA,
-    final DoubleArrayListWritable vectorB) {
-    double result = 0d;
-    for (int i = 0; i < vectorA.size(); i++) {
-      result += vectorA.get(i).get() * vectorB.get(i).get();
-    }
-    return result;
-  }
-
-  /**
-   * Calculate the dot addition of 2 vectors: vectorA + vectorB.
-   * 
-   * @param vectorA
-   *          Vector A
-   * @param vectorB
-   *          Vector B
-   * @return result Result from dot addition of the two vectors
-   */
-  public final DoubleArrayListWritable dotAddition(
-    final DoubleArrayListWritable vectorA,
-    final DoubleArrayListWritable vectorB) {
-    DoubleArrayListWritable result = new DoubleArrayListWritable();
-    for (int i = 0; i < vectorA.size(); i++) {
-      result.add(new DoubleWritable(
-        vectorA.get(i).get() + vectorB.get(i).get()));
-    }
-    return result;
-  }
-
-  /**
-   * Calculate the dot addition of 2 vectors: vectorA + vectorB.
-   * 
-   * @param vectorA
-   *          Vector A
-   * @param vectorB
-   *          Vector B
-   * @return result Result from dot addition of the two vectors
-   */
-  public final DoubleArrayListWritable dotSub(
-    final DoubleArrayListWritable vectorA,
-    final DoubleArrayListWritable vectorB) {
-    DoubleArrayListWritable result = new DoubleArrayListWritable();
-    for (int i = 0; i < vectorA.size(); i++) {
-      result.add(new DoubleWritable(
-        vectorA.get(i).get() - vectorB.get(i).get()));
-    }
-    return result;
-  }
-
-  /**
-   * Calculate the product num * matirx.
-   * 
-   * @param num
-   *          Number to be multiplied with matrix
-   * @param matrix
-   *          Matrix to be multiplied with number
-   * @return result Result from multiplication
-   */
-  public final DoubleArrayListWritable numMatrixProduct(
-    final double num, final DoubleArrayListWritable matrix) {
-    DoubleArrayListWritable result = new DoubleArrayListWritable();
-    for (int i = 0; i < matrix.size(); i++) {
-      result.add(new DoubleWritable(num * matrix.get(i).get()));
-    }
-    return result;
-  }
-
-  /**
-   * Calculate the product num * matirx.
-   * 
-   * @param num
-   *          Number to be multiplied with matrix
-   * @param matrix
-   *          Matrix to be multiplied with number
-   * @return result Result from multiplication
-   */
-  public final DoubleArrayListWritable numMatrixAddition(
-    final double num, final DoubleArrayListWritable matrix) {
-    DoubleArrayListWritable result = new DoubleArrayListWritable();
-    for (int i = 0; i < matrix.size(); i++) {
-      result.add(new DoubleWritable(num + matrix.get(i).get()));
-    }
-    return result;
-  }
-
-  /**
-   * Return amount of vertex updates.
-   * 
-   * @return updatesNum
-   * */
-  public final int getUpdates() {
-    return updatesNum;
-  }
-
-  /**
-   * Return amount messages received.
-   * 
-   * @return messagesNum
-   * */
-  public final int getMessages() {
-    return messagesNum;
-  }
-
-  /**
-   * Return amount of vertex updates.
-   * 
-   * @return haltFactor
-   * */
-  public final double getHaltFactor() {
-    return haltFactor;
-  }
-
-  /**
-   * Define whether the halt factor is "basic", "rmse" or "l2norm".
-   * 
-   * @param factorFlag
-   *          Halt factor
-   * @param pInitialValue
-   *          Vertex initial value
-   * @param pTolerance
-   *          Tolerance
-   * @param rmseErr
-   *          RMSE error
-   * 
-   * @return factor number of halting barrier
-   */
-  public final double defineFactor(
-      Vertex<Text, SvdppVertexValue, DoubleWritable> vertex,
-      final String factorFlag,final DoubleArrayListWritable pInitialValue, 
-      final float pTolerance, final double rmseErr) {
-    double factor = 0d;
-    if (factorFlag.equals("basic")) {
-      factor = pTolerance + 1d;
-    } else if (factorFlag.equals("rmse")) {
-      factor = getRMSE(rmseErr);
-    } else if (factorFlag.equals("l2norm")) {
-      factor = getL2Norm(pInitialValue, vertex.getValue().getLatentVector());
-    } else {
-      throw new RuntimeException("BUG: halt factor " + factorFlag
-        + " is not included in the recognized options");
-    }
-    return factor;
-  }
-
+  
+  
   /**
    * MasterCompute used with {@link SimpleMasterComputeVertex}.
    */
-  public static class MasterCompute
-    extends DefaultMasterCompute {
+  public static class MasterCompute extends DefaultMasterCompute {
     @Override
     public final void compute() {
       // Set the Convergence Tolerance
       float rmseTolerance = getContext().getConfiguration()
-        .getFloat(RMSE_AGGREGATOR, RMSE_AGGREGATOR_DEFAULT);
+        .getFloat(RMSE_AGGREGATOR, RMSE_TARGET_DEFAULT);
       double numRatings = 0d;
       double totalRMSE = 0d;
       double totalRatings = 0d;
