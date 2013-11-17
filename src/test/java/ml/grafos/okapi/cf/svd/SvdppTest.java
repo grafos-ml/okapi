@@ -2,6 +2,15 @@ package ml.grafos.okapi.cf.svd;
 
 import static org.junit.Assert.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutput;
+import java.io.DataOutputStream;
+import java.io.IOException;
+
+import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+
 import org.jblas.FloatMatrix;
 import org.junit.Test;
 
@@ -100,6 +109,29 @@ public class SvdppTest {
     assertEquals(prediction, 0.805464772367745f , 0.000001f);
   }
   
+  @Test
+  public void testValueSerialization() throws IOException {
+    float baseline = 0.5f;
+    FloatMatrixWritable factors = 
+        new FloatMatrixWritable(3, 1, new float[]{0.1f, 0.2f, 0.3f});
+    FloatMatrixWritable weight = 
+        new FloatMatrixWritable(3, 1, new float[]{0.0f, Float.MAX_VALUE, 0.3f});
+    Svdpp.SvdppValue value = new Svdpp.SvdppValue(baseline, factors, weight);
+    
+    ByteArrayOutputStream baos = new ByteArrayOutputStream(10000);
+    DataOutput output = new DataOutputStream(baos);
+    value.write(output);
+
+    Svdpp.SvdppValue valueCopy = new Svdpp.SvdppValue();
+    DataInputStream input = new DataInputStream(new ByteArrayInputStream(
+        baos.toByteArray()));
+    valueCopy.readFields(input);
+    
+    assertEquals(value.getBaseline(), valueCopy.getBaseline(), 0.000001f);
+    assertEquals(value.getFactors(), valueCopy.getFactors());
+    assertEquals(value.getWeight(), valueCopy.getWeight());
+  }
+
   @Test
   public void testEndtoEnd() {
     fail("Not implemented yet!");

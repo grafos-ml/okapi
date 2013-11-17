@@ -1,5 +1,7 @@
 package ml.grafos.okapi.cf.svd;
 
+import java.io.DataInput;
+import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Random;
 
@@ -16,6 +18,7 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.Writable;
 import org.jblas.FloatMatrix;
 
 
@@ -81,30 +84,6 @@ public class Svdpp extends BasicComputation<CfLongId,
       FloatWritable> vertex, final Iterable<SvdppMessageWrapper> messages) {
     /** Error between predicted and observed rating */
     double err = 0d;
-
-    /* Flag for checking if parameter for RMSE aggregator received */
-    float rmseTolerance = getContext().getConfiguration().getFloat(
-      RMSE_AGGREGATOR, RMSE_TARGET_DEFAULT);
-//    /*
-//     * Flag for checking which termination factor to use: basic, rmse, l2norm
-//     */
-//    String factorFlag = getContext().getConfiguration().get(
-//      HALT_FACTOR, HALT_FACTOR_DEFAULT);
-//    /* Set the number of iterations */
-//    int iterations = getContext().getConfiguration().getInt(
-//      ITERATIONS, ITERATIONS_DEFAULT);
-    /* Set the Convergence Tolerance */
-//    float tolerance = getContext().getConfiguration().getFloat(
-//      TOLERANCE, TOLERANCE_DEFAULT);
-//    /* Set the Regularization Parameter LAMBDA */
-//    float lambda = getContext().getConfiguration().getFloat(
-//      LAMBDA, LAMBDA_DEFAULT);
-//    /* Set the Learning Rate GAMMA */
-//    float gamma = getContext().getConfiguration().getFloat(
-//      GAMMA, GAMMA_DEFAULT);
-    /* Set the size of the Latent Vector */
-    int vectorSize = getContext().getConfiguration().getInt(
-      VECTOR_SIZE, VECTOR_SIZE_DEFAULT);
 
     // Used if RMSE version or RMSE aggregator is enabled
     double rmseErr = 0d;
@@ -218,7 +197,7 @@ public class Svdpp extends BasicComputation<CfLongId,
    * @param minRating
    * @return
    */
-  protected final float computePredictedRating(final float baseline, 
+  protected final float computePredictedRating(final float baseline,
       FloatMatrix user, FloatMatrix item, final int numRatings, 
       FloatMatrix sumWeights, final float maxRating, final float minRating ) {
     
@@ -281,6 +260,47 @@ public class Svdpp extends BasicComputation<CfLongId,
 //    }
 //  }
 
+  /**
+   * A value in the Svdpp algorithm consists of (i) the baseline estimate, (ii)
+   * the latent vector, and (iii) the weight vector.
+   * 
+   * @author dl
+   *
+   */
+  public static class SvdppValue implements Writable {
+    private float baseline;
+    private FloatMatrixWritable factors;
+    private FloatMatrixWritable weight;
+
+    public SvdppValue() {}
+ 
+    public float getBaseline() { return baseline; }
+    public FloatMatrixWritable getFactors() { return factors; }
+    public FloatMatrixWritable getWeight() { return weight; }
+
+    public SvdppValue(float baseline, FloatMatrixWritable factors, 
+        FloatMatrixWritable weight) {
+      this.baseline = baseline;
+      this.factors = factors;
+      this.weight = weight;
+    }
+
+    @Override
+    public void readFields(DataInput input) throws IOException {
+      baseline = input.readFloat();
+      factors = new FloatMatrixWritable();
+      factors.readFields(input);
+      weight = new FloatMatrixWritable();
+      weight.readFields(input);
+    }
+
+    @Override
+    public void write(DataOutput output) throws IOException {
+      output.writeFloat(baseline);
+      factors.write(output);
+      weight.write(output);
+    }
+  }
 
   /**
    * This computation class is used to initialize the factors of the user nodes
@@ -349,7 +369,10 @@ public class Svdpp extends BasicComputation<CfLongId,
     
     @Override
     public void preSuperstep() {
-      
+      lambda = getContext().getConfiguration().getFloat(Svdpp.LAMBDA_USER, 
+          Svdpp.LAMBDA_USER_DEFAULT);
+      gamma = getContext().getConfiguration().getFloat(Svdpp.GAMMA_USER, 
+          Svdpp.GAMMA_USER_DEFAULT);
     }
     
     @Override
@@ -365,6 +388,9 @@ public class Svdpp extends BasicComputation<CfLongId,
   
   public static class ItemComputation extends BasicComputation<CfLongId, 
   FloatMatrixWritable, FloatWritable, FloatMatrixMessage> {
+    
+    private float lambda;
+    private float gamma;
 
     /**
      * Updates the item weight y based on the formula:
@@ -416,6 +442,14 @@ public class Svdpp extends BasicComputation<CfLongId,
     }
     
     @Override
+    public void preSuperstep() {
+      lambda = getContext().getConfiguration().getFloat(Svdpp.LAMBDA_ITEM, 
+          Svdpp.LAMBDA_ITEM_DEFAULT);
+      gamma = getContext().getConfiguration().getFloat(Svdpp.GAMMA_ITEM, 
+          Svdpp.GAMMA_ITEM_DEFAULT);  
+    }
+    
+    @Override
     public void compute(
         Vertex<CfLongId, FloatMatrixWritable, FloatWritable> arg0,
         Iterable<FloatMatrixMessage> arg1) throws IOException {
@@ -425,42 +459,11 @@ public class Svdpp extends BasicComputation<CfLongId,
   }
   
   /**
-   * MasterCompute used with {@link SimpleMasterComputeVertex}.
+   * Coordinates the execution of the algorithm.
    */
   public static class MasterCompute extends DefaultMasterCompute {
-    @Override
-    public final void compute() {
-      // Set the Convergence Tolerance
-      float rmseTolerance = getContext().getConfiguration()
-        .getFloat(RMSE_AGGREGATOR, RMSE_TARGET_DEFAULT);
-      double numRatings = 0d;
-      double totalRMSE = 0d;
-      double totalRatings = 0d;
-
-      if (getSuperstep() > 1) {
-        // In superstep=1 only half edges are created (users to items)
-        if (getSuperstep() == 2) {
-          numRatings = getTotalNumEdges();
-          totalRatings = ((DoubleWritable)
-            getAggregatedValue(OVERALL_RATING_AGGREGATOR)).get();
-          System.out.println("SS:" + getSuperstep() + ", totalRatings: "
-            + totalRatings);
-        } else {
-          numRatings = getTotalNumEdges() / 2;
-        }
-      }
-      if (rmseTolerance != 0f) {
-        totalRMSE = Math.sqrt(((DoubleWritable)
-          getAggregatedValue(RMSE_AGGREGATOR)).get() / numRatings);
-
-        System.out.println("SS:" + getSuperstep() + ", Total RMSE: "
-          + totalRMSE + " = sqrt(" + getAggregatedValue(RMSE_AGGREGATOR)
-          + " / " + numRatings + ")");
-      }
-      if (totalRMSE < rmseTolerance) {
-        haltComputation();
-      }
-    } // END OF compute()
+    private int maxIterations;
+    private float rmseTarget;
 
     @Override
     public final void initialize() throws InstantiationException,
@@ -468,6 +471,44 @@ public class Svdpp extends BasicComputation<CfLongId,
       registerAggregator(RMSE_AGGREGATOR, DoubleSumAggregator.class);
       registerPersistentAggregator(OVERALL_RATING_AGGREGATOR,
         DoubleSumAggregator.class);
+      maxIterations = getContext().getConfiguration().getInt(ITERATIONS,
+          ITERATIONS_DEFAULT);
+      rmseTarget = getContext().getConfiguration().getFloat(RMSE_TARGET,
+          RMSE_TARGET_DEFAULT);
+    }
+
+    @Override
+    public final void compute() {
+      long superstep = getSuperstep();
+      if (superstep == 0) {
+        setComputation(Svdpp.InitUsersComputation.class);
+      } else if (superstep == 1) {
+        setComputation(Svdpp.InitItemsComputation.class);
+      } else if (superstep%2==0){
+        setComputation(Svdpp.UserComputation.class);
+      } else {
+        setComputation(Svdpp.ItemComputation.class);
+      }
+
+      long numRatings = 0;
+      double rmse = 0;
+
+      if (superstep <= 2) {
+        numRatings = getTotalNumEdges();
+      } else {
+        numRatings = getTotalNumEdges() / 2;
+      }
+      
+      if (rmseTarget>0f) {
+        rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
+            .get() / numRatings);
+      }
+
+      if (rmseTarget>0f && rmse<rmseTarget) {
+        haltComputation();
+      } else if (superstep>maxIterations) {
+        haltComputation();
+      }
     }
   }
 }

@@ -272,7 +272,7 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
       double rmse = 0;
 
       // Until superstep 2 only half edges are created (users to items)
-      if (getSuperstep() <= 2) {
+      if (superstep <= 2) {
         numRatings = getTotalNumEdges();
       } else {
         numRatings = getTotalNumEdges() / 2;
@@ -285,7 +285,7 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
 
       if (rmseTarget>0f && rmse<rmseTarget) {
         haltComputation();
-      } else if (getSuperstep()>maxIterations) {
+      } else if (superstep>maxIterations) {
         haltComputation();
       }
     }
