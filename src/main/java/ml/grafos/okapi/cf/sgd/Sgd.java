@@ -107,7 +107,8 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
       float rating = vertex.getEdgeValue(msg.getSenderId()).get();
       
       // Update the factors
-      updateValue(vertex.getValue(), msg.getFactors(), rating, lambda, gamma);
+      updateValue(vertex.getValue(), msg.getFactors(), rating, 
+          minRating, maxRating, lambda, gamma);
       
       // Calculate new error
       float predicted = vertex.getValue().dot(msg.getFactors());
@@ -149,8 +150,8 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
    * @param err
    */
   protected final void updateValue(FloatMatrix value, 
-      FloatMatrix update, final float rating, final float lambda, 
-      final float gamma) {
+      FloatMatrix update, final float rating, final float minRatings, 
+      final float maxRating, final float lambda, final float gamma) {
     
     float predicted = value.dot(update);
     

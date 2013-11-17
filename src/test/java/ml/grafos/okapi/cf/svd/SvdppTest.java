@@ -23,9 +23,9 @@ public class SvdppTest {
     float error = 1f;
     
     //user = (0.1, 0.2, 0.3)
-    FloatMatrix user = new FloatMatrix(3, 1, new float[]{0.1f, 0.2f, 0.3f});
+    FloatMatrix user = new FloatMatrix(1, 3, new float[]{0.1f, 0.2f, 0.3f});
     //item = (0.2, 0.1, 0.4)
-    FloatMatrix item = new FloatMatrix(3, 1, new float[]{0.2f, 0.1f, 0.4f});
+    FloatMatrix item = new FloatMatrix(1, 3, new float[]{0.2f, 0.1f, 0.4f});
     
     Svdpp.UserComputation comp = new Svdpp.UserComputation();
     comp.updateValue(user, item, error, gamma, lambda);
@@ -42,11 +42,11 @@ public class SvdppTest {
     int numRatings = 10;
     
     //user = (0.1, 0.2, 0.3)
-    FloatMatrix user = new FloatMatrix(3, 1, new float[]{0.1f, 0.2f, 0.3f});
+    FloatMatrix user = new FloatMatrix(1, 3, new float[]{0.1f, 0.2f, 0.3f});
     //item = (0.2, 0.1, 0.4)
-    FloatMatrix item = new FloatMatrix(3, 1, new float[]{0.2f, 0.1f, 0.4f});
+    FloatMatrix item = new FloatMatrix(1, 3, new float[]{0.2f, 0.1f, 0.4f});
     //weights = (0.4, 0.6, 0.8)
-    FloatMatrix weights = new FloatMatrix(3, 1, new float[]{0.4f, 0.6f, 0.8f});
+    FloatMatrix weights = new FloatMatrix(1, 3, new float[]{0.4f, 0.6f, 0.8f});
     
     Svdpp.ItemComputation comp = new Svdpp.ItemComputation();
     comp.updateValue(item, user, weights, error, numRatings, gamma, lambda);
@@ -63,9 +63,9 @@ public class SvdppTest {
     int numRatings = 10;
     
     //weight = (0.1, 0.2, 0.3)
-    FloatMatrix weight = new FloatMatrix(3, 1, new float[]{0.1f, 0.2f, 0.3f});
+    FloatMatrix weight = new FloatMatrix(1, 3, new float[]{0.1f, 0.2f, 0.3f});
     //item = (0.2, 0.1, 0.4)
-    FloatMatrix item = new FloatMatrix(3, 1, new float[]{0.2f, 0.1f, 0.4f});
+    FloatMatrix item = new FloatMatrix(1, 3, new float[]{0.2f, 0.1f, 0.4f});
     
     Svdpp.ItemComputation comp = new Svdpp.ItemComputation();
     comp.updateWeight(weight, item, error, numRatings, gamma, lambda);
@@ -91,31 +91,39 @@ public class SvdppTest {
   
   @Test
   public void testPredictRating() {
-    float baseline = 0.5f;
+    float meanRating = 3;
+    float userBaseline = 4;
+    float itemBaseline = 2;
     float minRating = 0f;
     float maxRating = 5f;
     int numRatings = 10;
     //user = (0.1, 0.2, 0.3)
-    FloatMatrix user = new FloatMatrix(3, 1, new float[]{0.1f, 0.2f, 0.3f});
+    FloatMatrix user = new FloatMatrix(1, 3, new float[]{0.1f, 0.2f, 0.3f});
     //item = (0.2, 0.1, 0.4)
-    FloatMatrix item = new FloatMatrix(3, 1, new float[]{0.2f, 0.1f, 0.4f});
+    FloatMatrix item = new FloatMatrix(1, 3, new float[]{0.2f, 0.1f, 0.4f});
     //weights = (0.4, 0.6, 0.8)
-    FloatMatrix weights = new FloatMatrix(3, 1, new float[]{0.4f, 0.6f, 0.8f});
+    FloatMatrix weights = new FloatMatrix(1, 3, new float[]{0.4f, 0.6f, 0.8f});
     
     Svdpp svd = new Svdpp();
-    float prediction = svd.computePredictedRating(baseline, user, item, 
-        numRatings, weights, maxRating, minRating);
+    float prediction = svd.computePredictedRating(meanRating, userBaseline, 
+        itemBaseline, user, item, numRatings, weights, minRating, maxRating);
     
-    assertEquals(prediction, 0.805464772367745f , 0.000001f);
+    assertEquals(prediction, 5.0f , 0.000001f);
+    
+    userBaseline = -2;
+    prediction = svd.computePredictedRating(meanRating, userBaseline, 
+        itemBaseline, user, item, numRatings, weights, minRating, maxRating);
+
+    assertEquals(prediction, 3.305464f , 0.000001f);
   }
   
   @Test
   public void testValueSerialization() throws IOException {
     float baseline = 0.5f;
     FloatMatrixWritable factors = 
-        new FloatMatrixWritable(3, 1, new float[]{0.1f, 0.2f, 0.3f});
+        new FloatMatrixWritable(1, 3, new float[]{0.1f, 0.2f, 0.3f});
     FloatMatrixWritable weight = 
-        new FloatMatrixWritable(3, 1, new float[]{0.0f, Float.MAX_VALUE, 0.3f});
+        new FloatMatrixWritable(1, 3, new float[]{0.0f, Float.MAX_VALUE, 0.3f});
     Svdpp.SvdppValue value = new Svdpp.SvdppValue(baseline, factors, weight);
     
     ByteArrayOutputStream baos = new ByteArrayOutputStream(10000);

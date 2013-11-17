@@ -12,6 +12,7 @@ import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
+import org.apache.giraph.edge.DefaultEdge;
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
@@ -62,6 +63,14 @@ public class Svdpp extends BasicComputation<CfLongId,
   public static final String GAMMA_ITEM = "svd.gamma.item";
   /** Default value for item learning rate */
   public static final float GAMMA_ITEM_DEFAULT = 0.005f;
+  /** Max rating. */
+  public static final String MAX_RATING = "svd.max.rating";
+  /** Default maximum rating */
+  public static final float MAX_RATING_DEFAULT = 5.0f;
+  /** Min rating. */
+  public static final String MIN_RATING = "svd.min.rating";
+  /** Default minimum rating */
+  public static final float MIN_RATING_DEFAULT = 0.0f;
   /** Latent vector size. */
   public static final String VECTOR_SIZE = "svd.vector.size";
   /** Default latent vector size */
@@ -197,11 +206,12 @@ public class Svdpp extends BasicComputation<CfLongId,
    * @param minRating
    * @return
    */
-  protected final float computePredictedRating(final float baseline,
-      FloatMatrix user, FloatMatrix item, final int numRatings, 
-      FloatMatrix sumWeights, final float maxRating, final float minRating ) {
+  protected static final float computePredictedRating(final float meanRating, 
+      final float userBaseline, final float itemBaseline, FloatMatrix user, 
+      FloatMatrix item, final int numRatings, FloatMatrix sumWeights, 
+      final float minRating, final float maxRating ) {
     
-    float predicted = baseline+
+    float predicted = meanRating + userBaseline+ itemBaseline +
         item.dot(user.add(sumWeights.mul(1.0f/(float)(Math.sqrt(numRatings)))));
     
     // Correct the predicted rating to be between the min and max ratings
@@ -222,7 +232,7 @@ public class Svdpp extends BasicComputation<CfLongId,
    * @param gamma
    * @param lambda
    */
-  protected final float computeUpdatedBaseLine(float baseline, 
+  protected static final float computeUpdatedBaseLine(float baseline, 
       final float predictedRating, final float observedRating, 
       final float gamma, final float lambda) {
     
@@ -275,6 +285,7 @@ public class Svdpp extends BasicComputation<CfLongId,
     public SvdppValue() {}
  
     public float getBaseline() { return baseline; }
+    public void setBaseline(float baseline) { this.baseline = baseline; }
     public FloatMatrixWritable getFactors() { return factors; }
     public FloatMatrixWritable getWeight() { return weight; }
 
@@ -309,57 +320,105 @@ public class Svdpp extends BasicComputation<CfLongId,
    *
    */
   public static class InitUsersComputation extends BasicComputation<CfLongId, 
-  FloatMatrixWritable, FloatWritable, FloatMatrixMessage> {
+  SvdppValue, FloatWritable, FloatMatrixMessage> {
 
     @Override
-    public void compute(Vertex<CfLongId, FloatMatrixWritable, 
+    public void compute(Vertex<CfLongId, SvdppValue, 
         FloatWritable> vertex, Iterable<FloatMatrixMessage> messages) 
             throws IOException {
       
-      // Calculate aggregate of all ratings
+      // Aggregate ratings. Necessary to compute the mean rating.
       double sum = 0;
       for (Edge<CfLongId, FloatWritable> edge : vertex.getEdges()) {
         sum += edge.getValue().get();
       }
       aggregate(OVERALL_RATING_AGGREGATOR, new DoubleWritable(sum));
       
-      FloatMatrixWritable vector = new FloatMatrixWritable(
-          getContext().getConfiguration().getInt(
-              VECTOR_SIZE, VECTOR_SIZE_DEFAULT), 3);
+      // Initialize the baseline estimate and the factor vector.
+      
+      int vectorSize = getContext().getConfiguration().getInt(
+              VECTOR_SIZE, VECTOR_SIZE_DEFAULT);
+
+      FloatMatrixWritable factors = new FloatMatrixWritable(1, vectorSize);
       
       Random randGen = new Random();
-      for (int i=0; i<vector.length; i++) {
-        vector.put(i, 0.01f*randGen.nextFloat());
+      for (int i=0; i<factors.length; i++) {
+        factors.put(i, 0.01f*randGen.nextFloat());
       }
-      vertex.setValue(vector);
       
+      float baseline = randGen.nextFloat();
+
+      vertex.setValue(new SvdppValue(baseline, factors, 
+          new FloatMatrixWritable())); // The weights vector is empty for users
+      
+      // Send ratings to all items so that they can create the reverse edges.
       for (Edge<CfLongId, FloatWritable> edge : vertex.getEdges()) {
-        FloatMatrixMessage msg = new FloatMatrixMessage(
-            vertex.getId(), vertex.getValue(), edge.getValue().get());
+        FloatMatrixMessage msg = new FloatMatrixMessage(vertex.getId(), 
+            new FloatMatrixWritable(), // the matrix of this message is empty
+            edge.getValue().get());    // because we only need the rating
         sendMessage(edge.getTargetVertexId(), msg);
       }
+
       vertex.voteToHalt();
     }
   }
   
   public static class InitItemsComputation extends BasicComputation<CfLongId, 
-  FloatMatrixWritable, FloatWritable, FloatMatrixMessage> {
+  SvdppValue, FloatWritable, FloatMatrixMessage> {
 
     @Override
     public void compute(
-        Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex,
+        Vertex<CfLongId, SvdppValue, FloatWritable> vertex,
         Iterable<FloatMatrixMessage> messages) throws IOException {
-      // TODO Auto-generated method stub
       
+      // Create the reverse edges
+      for (FloatMatrixMessage msg : messages) {
+        DefaultEdge<CfLongId, FloatWritable> edge = 
+            new DefaultEdge<CfLongId, FloatWritable>();
+        edge.setTargetVertexId(msg.getSenderId());
+        edge.setValue(new FloatWritable(msg.getScore()));
+        vertex.addEdge(edge);
+      }
+      
+      // Initialize baseline estimate and the factor and weight vectors
+
+      int vectorSize = getContext().getConfiguration().getInt(
+          VECTOR_SIZE, VECTOR_SIZE_DEFAULT);
+
+      FloatMatrixWritable factors = new FloatMatrixWritable(1, vectorSize);
+      FloatMatrixWritable weight = new FloatMatrixWritable(1, vectorSize);
+
+      Random randGen = new Random();
+      for (int i=0; i<factors.length; i++) {
+        factors.put(i, 0.01f*randGen.nextFloat());
+        weight.put(i, 0.01f*randGen.nextFloat());
+      }
+      float baseline = randGen.nextFloat();
+
+      vertex.setValue(new SvdppValue(baseline, factors, weight));
+      
+      // Start iterations by sending vectors to users
+      FloatMatrixWritable packedVectors = 
+          new FloatMatrixWritable(2, vectorSize);
+      packedVectors.putRow(0, factors);
+      packedVectors.putRow(1, weight);
+
+      sendMessageToAllEdges(vertex, 
+          new FloatMatrixMessage(vertex.getId(), packedVectors, baseline));
+
       vertex.voteToHalt();
     }
   }
   
   public static class UserComputation extends BasicComputation<CfLongId, 
-  FloatMatrixWritable, FloatWritable, FloatMatrixMessage> {
+  SvdppValue, FloatWritable, FloatMatrixMessage> {
 
     private float lambda;
     private float gamma;
+    private float minRating;
+    private float maxRating;
+    private int vectorSize;
+    private float meanRating;
     
     protected void updateValue(FloatMatrix user, FloatMatrix item, 
         final float error, final float gamma, final float lambda) {
@@ -369,18 +428,54 @@ public class Svdpp extends BasicComputation<CfLongId,
     
     @Override
     public void preSuperstep() {
-      lambda = getContext().getConfiguration().getFloat(Svdpp.LAMBDA_USER, 
-          Svdpp.LAMBDA_USER_DEFAULT);
-      gamma = getContext().getConfiguration().getFloat(Svdpp.GAMMA_USER, 
-          Svdpp.GAMMA_USER_DEFAULT);
+      lambda = getContext().getConfiguration().getFloat(LAMBDA_USER, 
+          LAMBDA_USER_DEFAULT);
+      gamma = getContext().getConfiguration().getFloat(GAMMA_USER, 
+          GAMMA_USER_DEFAULT);
+      minRating = getContext().getConfiguration().getFloat(MIN_RATING, 
+          MIN_RATING_DEFAULT);
+      maxRating = getContext().getConfiguration().getFloat(MAX_RATING, 
+          MAX_RATING_DEFAULT);
+      vectorSize = getContext().getConfiguration().getInt(VECTOR_SIZE, 
+          VECTOR_SIZE_DEFAULT);
+      meanRating = (float) (((DoubleWritable)getAggregatedValue(
+          OVERALL_RATING_AGGREGATOR)).get()/getTotalNumEdges());
     }
     
     @Override
     public void compute(
-        Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex,
+        Vertex<CfLongId, SvdppValue, FloatWritable> vertex,
         Iterable<FloatMatrixMessage> messages) throws IOException {
-      // TODO Auto-generated method stub
       
+      float userBaseline = vertex.getValue().getBaseline();
+      
+      FloatMatrix sumWeights = new FloatMatrix(1,vectorSize);
+      for (FloatMatrixMessage msg : messages) {
+        // The weights are in the second row of the matrix
+        sumWeights.addi(msg.getFactors().getRow(1));
+      }
+      
+      for (FloatMatrixMessage msg : messages) {
+         // row 1 of the matrix in the message holds the item factors
+        FloatMatrix itemFactors = msg.getFactors().getRow(0);
+        // score holds the item baseline estimate
+        float itemBaseline = msg.getScore();
+
+        float observed = vertex.getEdgeValue(msg.getSenderId()).get();
+        float predicted = computePredictedRating(
+            meanRating, userBaseline, itemBaseline,
+            vertex.getValue().getFactors(), itemFactors,
+            vertex.getNumEdges(), sumWeights, minRating, maxRating);
+        float error = predicted - observed;
+        
+        // Update baseline
+        userBaseline = computeUpdatedBaseLine(userBaseline, predicted, 
+            observed, gamma, lambda);
+        
+        // Update the value
+        updateValue(vertex.getValue().getFactors(), itemFactors, error, 
+            gamma, lambda);
+      }
       
       vertex.voteToHalt();
     }
