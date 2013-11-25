@@ -28,7 +28,7 @@ public class PopularityRankingComputationTest {
 		List<String> res = new LinkedList<String>();
 		for (String string : results) {
 			res.add(string);
-            System.out.println(string);
+            //System.out.println(string);
         }
 		Assert.assertEquals(3, res.size());
         Assert.assertTrue(res.contains("1 0\t[1.000000]"));

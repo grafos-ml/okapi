@@ -28,11 +28,13 @@ public class RandomRankingComputationTest {
                 "2 1 1"
         };
 
+
         GiraphConfiguration conf = new GiraphConfiguration();
         conf.setComputationClass(RandomRankingComputation.class);
         conf.setEdgeInputFormatClass(CfLongIdFloatTextInputFormat.class);
         conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
 
+        RandomRankingComputation.setDim(2);
         Iterable<String> results = InternalVertexRunner.run(conf, null, graph);
         res = new LinkedList<String>();
         for (String string : results) {
