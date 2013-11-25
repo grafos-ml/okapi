@@ -1,17 +1,17 @@
 package ml.grafos.okapi.cf.ranking;
 
+import ml.grafos.okapi.cf.CfLongId;
+import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.cf.annotations.OkapiAutotuning;
 import ml.grafos.okapi.cf.eval.DoubleArrayListWritable;
-import ml.grafos.okapi.cf.eval.LongDoubleArrayListMessage;
+import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 import org.apache.giraph.graph.Vertex;
-import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.FloatWritable;
 import org.apache.log4j.Logger;
+import org.jblas.FloatMatrix;
 
 import java.util.ArrayList;
 import java.util.Iterator;
-import java.util.Random;
 
 
 /**
@@ -55,17 +55,17 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
     protected static final Logger logger = Logger.getLogger(BPRRankingComputation.class);
 
     public void computeModelUpdates(
-            Vertex<LongWritable, DoubleArrayListWritable, IntWritable> vertex,
-            Iterable<LongDoubleArrayListMessage> messages) {
-        if (vertex.getId().get() > 0){
+            Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex,
+            Iterable<FloatMatrixMessage> messages) {
+        if (vertex.getId().isUser()){
             //each user should receive exactly 2 messages as he sent request to 2 items. One from relevant and one from irrelevant item;
-            LongDoubleArrayListMessage i = null;
-            LongDoubleArrayListMessage j = null;
-            for (LongDoubleArrayListMessage msg : messages) {
+            FloatMatrixMessage i = null;
+            FloatMatrixMessage j = null;
+            for (FloatMatrixMessage msg : messages) {
                 if (isRelevant(msg)){
-                    i = new LongDoubleArrayListMessage(msg);
+                    i = new FloatMatrixMessage(msg);
                 }else{
-                    j = new LongDoubleArrayListMessage(msg);
+                    j = new FloatMatrixMessage(msg);
                 }
             }
             //now do the magic computation with relevant and irrelevant and send the updates to items.
@@ -74,18 +74,12 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
     }
 
 
-    protected void initFactorsIfNeeded(Vertex<LongWritable, DoubleArrayListWritable, IntWritable> vertex) {
-        if (vertex.getValue().size() != d+1){
-            Random r = new Random();
-            DoubleArrayListWritable randomValueVector = new DoubleArrayListWritable();
-            for (int i=0; i<this.d+1; i++){
-                if (i==0 && vertex.getId().get() > 0){ //for user first value is always 1, for items it is a item bias
-                    randomValueVector.add(new DoubleWritable(1.0));
-                }else{
-                    randomValueVector.add(new DoubleWritable(r.nextDouble()*0.01));
-                }
-            }
-            vertex.setValue(randomValueVector);
+    protected void initFactorsIfNeeded(Vertex<CfLongId,FloatMatrixWritable,FloatWritable> vertex) {
+        if (null == vertex.getValue() || vertex.getValue().columns != d+1){
+            vertex.setValue(new FloatMatrixWritable(FloatMatrix.rand(d + 1)));
+        }
+        if (vertex.getId().isUser()){//In BPR the first factor of the user is always 1, its to have item baselines
+            vertex.getValue().put(0, 1f);
         }
     }
 
@@ -99,45 +93,45 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
      * @param itemJid
      * @param vertex
      */
-    private void updateModel(DoubleArrayListWritable u,
-                             DoubleArrayListWritable i, long itemIid,
-                             DoubleArrayListWritable j, long itemJid,
-                             Vertex<LongWritable, DoubleArrayListWritable, IntWritable> vertex) {
+    private void updateModel(FloatMatrix u,
+                             FloatMatrix i, CfLongId itemIid,
+                             FloatMatrix j, CfLongId itemJid,
+                             Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex) {
 
         int ITEM_BIAS_INDEX = 0;
 
-        double x_uij = i.get(ITEM_BIAS_INDEX).get() - j.get(ITEM_BIAS_INDEX).get() + rowScalarProductWithRowDifference(u, i, j);
-        double one_over_one_plus_ex = 1 / (1 + Math.exp(x_uij));
+        float x_uij = i.get(ITEM_BIAS_INDEX) - j.get(ITEM_BIAS_INDEX) + rowScalarProductWithRowDifference(u, i, j);
+        float one_over_one_plus_ex = 1 / (1 + (float)Math.exp(x_uij));
 
         //compute item i and j bias terms
-        double updateI = one_over_one_plus_ex - reg * i.get(ITEM_BIAS_INDEX).get();
-        double updateJ = -one_over_one_plus_ex - reg * j.get(ITEM_BIAS_INDEX).get();
-        double newIBias = (learnRate * updateI);
-        double newJBias = (learnRate * updateJ);
+        float updateI = one_over_one_plus_ex - reg * i.get(ITEM_BIAS_INDEX);
+        float updateJ = -one_over_one_plus_ex - reg * j.get(ITEM_BIAS_INDEX);
+        float newIBias = (learnRate * updateI);
+        float newJBias = (learnRate * updateJ);
 
-        DoubleArrayListWritable uDelta = new DoubleArrayListWritable();
-        DoubleArrayListWritable iDelta = new DoubleArrayListWritable();
-        DoubleArrayListWritable jDelta = new DoubleArrayListWritable();
-        uDelta.add(new DoubleWritable(0));
-        iDelta.add(new DoubleWritable(newIBias));
-        jDelta.add(new DoubleWritable(newJBias));
+        FloatMatrix uDelta = FloatMatrix.zeros(u.columns);
+        FloatMatrix iDelta = FloatMatrix.zeros(u.columns);
+        FloatMatrix jDelta = FloatMatrix.zeros(u.columns);
+        uDelta.put(ITEM_BIAS_INDEX, 0); //because it is update for user, it should never update 1 into something else. therefore 0.
+        iDelta.put(ITEM_BIAS_INDEX, newIBias);
+        jDelta.put(ITEM_BIAS_INDEX, newJBias);
 
         // adjust factors
         for (int f = 1; f < d+1; f++){
-            double w_uf = u.get(f).get();
-            double h_if = i.get(f).get();
-            double h_jf = j.get(f).get();
-            double update = (h_if - h_jf) * one_over_one_plus_ex - reg * w_uf;
-            uDelta.add(new DoubleWritable(learnRate * update));
+            float w_uf = u.get(f);
+            float h_if = i.get(f);
+            float h_jf = j.get(f);
+            float update = (h_if - h_jf) * one_over_one_plus_ex - reg * w_uf;
+            uDelta.put(f, learnRate * update);
             update = w_uf * one_over_one_plus_ex - reg * h_if;
-            iDelta.add(new DoubleWritable(learnRate * update));
+            iDelta.put(f, learnRate * update);
             update = -w_uf * one_over_one_plus_ex - reg * h_jf;
-            jDelta.add(new DoubleWritable(learnRate * update));
+            jDelta.put(f, learnRate * update);
         }
         //do the real update
         applyUpdate(uDelta, vertex);
-        sendItemFactorsUpdate(itemIid, vertex.getId().get(), iDelta);
-        sendItemFactorsUpdate(itemJid, vertex.getId().get(), jDelta);
+        sendItemFactorsUpdate(itemIid, vertex.getId(), iDelta);
+        sendItemFactorsUpdate(itemJid, vertex.getId(), jDelta);
 
     }
 
@@ -149,13 +143,13 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
      * @param j
      * @return
      */
-    private double rowScalarProductWithRowDifference(DoubleArrayListWritable u,
-                                                     DoubleArrayListWritable i, DoubleArrayListWritable j) {
-        double res = 0;
-        for (int k=1; k<u.size(); k++){//we skip the index 0 as it is reserved for item biases.
-            res += u.get(k).get() * (i.get(k).get() - j.get(k).get());
-        }
-        return res;
+    private float rowScalarProductWithRowDifference(FloatMatrix u, FloatMatrix i, FloatMatrix j) {
+        FloatMatrix ret = u.mul(i.sub(j));
+        ret.put(0, 0);
+//        for (int k=1; k<u.size(); k++){//we skip the index 0 as it is reserved for item biases.
+//            res += u.get(k).get() * (i.get(k).get() - j.get(k).get());
+//        }
+        return ret.sum();
     }
 
     public static <T> ArrayList<T> copyIterator(Iterable<T> iter) {

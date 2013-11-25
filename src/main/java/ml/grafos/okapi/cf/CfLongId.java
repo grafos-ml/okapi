@@ -24,7 +24,15 @@ public class CfLongId implements CfId<Long> {
     this.type = type;
     this.id = id;
   }
-  
+
+  public boolean isItem(){
+    return type == 1;
+  }
+
+  public boolean isUser(){
+    return type == 0;
+  }
+
   public byte getType() {
     return type;
   }

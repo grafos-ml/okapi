@@ -28,6 +28,12 @@ public class FloatMatrixWritable extends FloatMatrix implements Writable {
   public FloatMatrixWritable(int rows) {
     super(rows);
   }
+
+  public FloatMatrixWritable(FloatMatrix init){
+      super(init.data);
+      this.columns = init.columns;
+      this.rows = init.rows;
+  }
   
   public FloatMatrixWritable(int rows, int columns, float... array) {
     super(rows, columns, array);

@@ -1,11 +1,16 @@
 package ml.grafos.okapi.cf.ranking;
 
+import ml.grafos.okapi.cf.CfLongId;
+import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.cf.eval.DoubleArrayListWritable;
 import ml.grafos.okapi.cf.eval.LongDoubleArrayListMessage;
+import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 import org.apache.giraph.graph.Vertex;
+import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.log4j.Logger;
+import org.jblas.FloatMatrix;
 
 
 /**
@@ -45,10 +50,10 @@ public class
     protected static final Logger logger = Logger.getLogger(ClimfRankingComputation.class);
 
     public void computeModelUpdates(
-            Vertex<LongWritable, DoubleArrayListWritable, IntWritable> vertex,
-            Iterable<LongDoubleArrayListMessage> messages) {
+            Vertex<CfLongId,FloatMatrixWritable,FloatWritable> vertex,
+            Iterable<FloatMatrixMessage> messages) {
         //now do the magic computation with relevant and send the updates to items.
-        if (vertex.getId().get() > 0) // only for users
+        if (vertex.getId().isUser()) // only for users
             updateModel(vertex.getValue(), messages, vertex);
     }
 
@@ -56,64 +61,65 @@ public class
     /**
      * Updates the model based on the factors received.
      * @param u   Model parameters for user u
+     * @param messages
      * @param vertex  Current user vertex
      */
-    private void updateModel(DoubleArrayListWritable u,
-                             Iterable<LongDoubleArrayListMessage> messages,
-                             Vertex<LongWritable, DoubleArrayListWritable, IntWritable> vertex) {
+    private void updateModel(FloatMatrix u,
+                             Iterable<FloatMatrixMessage> messages,
+                             Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex) {
         //Compute User update
         double tempdiff;
-        DoubleArrayListWritable uDelta = DoubleArrayListWritable.zeros(u.size());
-        DoubleArrayListWritable partialOneDelta;
-        DoubleArrayListWritable partialTwoDelta = new DoubleArrayListWritable();
+        FloatMatrix uDelta = FloatMatrix.zeros(u.columns);
+        FloatMatrix partialOneDelta;
+        FloatMatrix partialTwoDelta = FloatMatrix.zeros(u.columns);
 
-        for (LongDoubleArrayListMessage msg : messages) {
-            DoubleArrayListWritable V_j = msg.getFactors();
-            double fij = u.dot(V_j);
-            partialOneDelta = V_j.mul(logf(-1.0*fij));
-            for (LongDoubleArrayListMessage msginner : messages) {
-                DoubleArrayListWritable V_k = msginner.getFactors();
+        for (FloatMatrixMessage msg : messages) {
+            FloatMatrix V_j = msg.getFactors();
+            float fij = u.dot(V_j);
+            partialOneDelta = V_j.mul(logf(-1.0f*fij));
+            for (FloatMatrixMessage msginner : messages) {
+                FloatMatrix V_k = msginner.getFactors();
                 tempdiff = fij - u.dot(V_k);
-                partialTwoDelta = V_j.diff(V_k).mul(logfd(tempdiff)/(1-logf(tempdiff)));
+                partialTwoDelta = V_j.sub(V_k).mul(logfd(tempdiff)/(1-logf(tempdiff)));
             }
-            uDelta.sum(partialOneDelta);
-            uDelta.sum(partialTwoDelta);
+            uDelta.addi(partialOneDelta);
+            uDelta.addi(partialTwoDelta);
 
         }
-        uDelta.diff(u.mul(reg));
+        uDelta.sub(u.mul(reg));
         uDelta.mul(learnRate);
 
         //Compute Item Updates
-        for (LongDoubleArrayListMessage msg : messages) {
-            DoubleArrayListWritable vDelta = DoubleArrayListWritable.zeros(u.size());
-            DoubleArrayListWritable V_j = msg.getFactors();
-            long Itemid = msg.getSenderId();
-            double fij = u.dot(V_j);
-            double partialSumOne = logf(-1.0*fij);
-            double partialSumTwo = 0;
-            for (LongDoubleArrayListMessage msginner : messages) {
-                DoubleArrayListWritable V_k = msginner.getFactors();
+        for (FloatMatrixMessage msg : messages) {
+            FloatMatrix vDelta = FloatMatrix.zeros(u.columns);
+            FloatMatrix V_j = msg.getFactors();
+            CfLongId Itemid = msg.getSenderId();
+            float fij = u.dot(V_j);
+            float partialSumOne = logf(-1.0*fij);
+            float partialSumTwo = 0;
+            for (FloatMatrixMessage msginner : messages) {
+                FloatMatrix V_k = msginner.getFactors();
                 tempdiff = fij - u.dot(V_k);
                 partialSumTwo += logfd(tempdiff)*(1.0/(1.0-logf(-1.0*tempdiff)) - 1.0/(1.0 - logf(tempdiff) ) );
             }
 
-            vDelta.sum(u.mul(partialSumTwo + partialSumOne));
-            vDelta.sum(V_j.mul(reg));
+            vDelta.add(u.mul(partialSumTwo + partialSumOne));
+            vDelta.add(V_j.mul(reg));
             vDelta.mul(learnRate);
 
-            sendItemFactorsUpdate(Itemid, vertex.getId().get(), vDelta);
+            sendItemFactorsUpdate(Itemid, vertex.getId(), vDelta);
         }
 
         //do the user update
         applyUpdate(uDelta, vertex);
     }
 
-    private static double logf(double x){
-        return 1./(1+Math.exp(-x));
+    private static float logf(double x){
+        return 1.0f/(1+(float)Math.exp(-x));
     }
 
-    private static double logfd(double x){
-        return Math.exp(x)/(Math.pow(1+Math.exp(x),2));
+    private static float logfd(double x){
+        return (float)Math.exp(x)/(float)(Math.pow(1+Math.exp(x),2));
     }
 
 
