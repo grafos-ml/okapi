@@ -27,15 +27,16 @@ import org.jblas.FloatMatrix;
  */
 public class PopularityRankingComputation extends BasicComputation<CfLongId, FloatMatrixWritable, FloatWritable, FloatMatrixMessage> {
 
-    static final FloatMatrixWritable emptyList = new FloatMatrixWritable();
-    static final FloatMatrixMessage emptyMsg = new FloatMatrixMessage(null, emptyList, 0);
+    static final FloatMatrixWritable emptyList = new FloatMatrixWritable(0);
+    static final CfLongId nullId = new CfLongId();
+    static final FloatMatrixMessage emptyMsg = new FloatMatrixMessage(nullId, emptyList, 0);
 	
 	@Override
     public void compute(Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex, Iterable<FloatMatrixMessage> messages) throws IOException {
         if (getSuperstep() == 0){//send empty message with the count
 			if (vertex.getId().isUser()){
 				Iterable<Edge<CfLongId, FloatWritable>> edges = vertex.getEdges();
-				sendMessage(vertex.getId(), emptyMsg); //send message to myself in order to be exectured in the next superstep
+				sendMessage(vertex.getId(), emptyMsg); //send message to myself in order to be executed in the next super step
 				for (Edge<CfLongId, FloatWritable> edge : edges) {
 					sendMessage(edge.getTargetVertexId(), new FloatMatrixMessage(vertex.getId(), emptyList, edge.getValue().get()));
 				}

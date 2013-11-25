@@ -42,9 +42,10 @@ public abstract class AbstractCFRankingComputation
 	
 	int minItemId; //minimum item id in the system. Used for sampling the negative items.+
     int maxItemId; //maximum item id in the system
-    
-    static final FloatMatrixWritable emptyList = new FloatMatrixWritable();
-    static final FloatMatrixMessage emptyMsg = new FloatMatrixMessage(null, emptyList, 0);
+
+    static final FloatMatrixWritable emptyList = new FloatMatrixWritable(0);
+    static final CfLongId nullId = new CfLongId();
+    static final FloatMatrixMessage emptyMsg = new FloatMatrixMessage(nullId, emptyList, 0);
 
     float NOT_IMPORTANT = 0.0f;
 

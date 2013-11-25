@@ -114,15 +114,6 @@ public class
         applyUpdate(uDelta, vertex);
     }
 
-    private static float logf(double x){
-        return 1.0f/(1+(float)Math.exp(-x));
-    }
-
-    private static float logfd(double x){
-        return (float)Math.exp(x)/(float)(Math.pow(1+Math.exp(x),2));
-    }
-
-
     @Override
     int getBufferSize() {
         // TODO Auto-generated method stub
