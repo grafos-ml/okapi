@@ -8,9 +8,17 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
+import junit.framework.Assert;
+import ml.grafos.okapi.cf.CfLongIdFloatTextInputFormat;
+import ml.grafos.okapi.cf.sgd.Sgd;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 
+import org.apache.giraph.conf.GiraphConfiguration;
+import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
+import org.apache.giraph.utils.InternalVertexRunner;
 import org.jblas.FloatMatrix;
 import org.junit.Test;
 
@@ -34,45 +42,20 @@ public class SvdppTest {
         0.000001f );
   }
   
-//  @Test
-//  public void testItemUpdate() {
-//    float lambda = 0.01f;
-//    float gamma = 0.005f;
-//    float error = 1f;
-//    int numRatings = 10;
-//    
-//    //user = (0.1, 0.2, 0.3)
-//    FloatMatrix user = new FloatMatrix(1, 3, new float[]{0.1f, 0.2f, 0.3f});
-//    //item = (0.2, 0.1, 0.4)
-//    FloatMatrix item = new FloatMatrix(1, 3, new float[]{0.2f, 0.1f, 0.4f});
-//    //weights = (0.4, 0.6, 0.8)
-//    FloatMatrix weights = new FloatMatrix(1, 3, new float[]{0.4f, 0.6f, 0.8f});
-//    
-//    Svdpp.ItemComputation comp = new Svdpp.ItemComputation();
-//    comp.updateValue(item, user, weights, error, numRatings, gamma, lambda);
-//    
-//    assertArrayEquals(item.data, new float[] {
-//        0.201122455532034f, 0.101943683298051f, 0.402744911064067f}, 0.000001f);
-//  }
-  
-//  @Test
-//  public void testItemWeightUpdate() {
-//    float lambda = 0.01f;
-//    float gamma = 0.005f;
-//    float error = 1f;
-//    int numRatings = 10;
-//    
-//    //weight = (0.1, 0.2, 0.3)
-//    FloatMatrix weight = new FloatMatrix(1, 3, new float[]{0.1f, 0.2f, 0.3f});
-//    //item = (0.2, 0.1, 0.4)
-//    FloatMatrix item = new FloatMatrix(1, 3, new float[]{0.2f, 0.1f, 0.4f});
-//    
-//    Svdpp.ItemComputation comp = new Svdpp.ItemComputation();
-//    comp.updateWeight(weight, item, error, numRatings, gamma, lambda);
-//    
-//    assertArrayEquals(weight.data, new float[] {
-//        0.100311227766017f, 0.200148113883008f, 0.300617455532034f}, 0.000001f);
-//  }
+  @Test
+  public void testIncrementValue() {
+    float lambda = 0.01f;
+    float gamma = 0.005f;
+    
+    //value = (0.1, 0.2, 0.3)
+    FloatMatrix value = new FloatMatrix(1, 3, new float[]{0.1f, 0.2f, 0.3f});
+    //step = (0.2, 0.1, 0.4)
+    FloatMatrix step = new FloatMatrix(1, 3, new float[]{0.2f, 0.1f, 0.4f});
+    
+    Svdpp.incrementValue(value, step, gamma, lambda);
+    
+    assertArrayEquals(value.data, new float[] {0.3f, 0.3f, 0.7f}, 0.0001f);
+  }
   
   @Test
   public void testUpdateBaseline() {
@@ -139,7 +122,31 @@ public class SvdppTest {
   }
 
   @Test
-  public void testEndtoEnd() {
-    fail("Not implemented yet!");
+  public void testEndtoEnd() throws Exception {
+    String[] graph = { 
+        "1 1 1.0",
+        "1 2 2.0",
+        "2 1 3.0",
+        "2 2 4.0"
+    };
+
+    GiraphConfiguration conf = new GiraphConfiguration();
+    conf.setComputationClass(Svdpp.InitUsersComputation.class);
+    conf.setMasterComputeClass(Svdpp.MasterCompute.class);
+    conf.setEdgeInputFormatClass(CfLongIdFloatTextInputFormat.class);
+    conf.setFloat(Svdpp.BIAS_LAMBDA, 0.005f);
+    conf.setFloat(Svdpp.BIAS_GAMMA, 0.01f);
+    conf.setFloat(Svdpp.FACTOR_LAMBDA, 0.005f);
+    conf.setFloat(Svdpp.FACTOR_GAMMA, 0.01f);
+    conf.setInt(Svdpp.VECTOR_SIZE, 2);
+    conf.setInt(Svdpp.ITERATIONS, 4);
+    conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
+    Iterable<String> results = InternalVertexRunner.run(conf, null, graph);
+    List<String> res = new LinkedList<String>();
+    for (String string : results) {
+      res.add(string);
+    }
+    Assert.assertEquals(4, res.size());
+    
   }
 }

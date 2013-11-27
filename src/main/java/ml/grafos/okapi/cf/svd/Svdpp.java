@@ -28,21 +28,15 @@ import org.jblas.FloatMatrix;
 @Algorithm(
   name = "SVD++",
   description = "Minimizes the error in users' preferences predictions")
-public class Svdpp extends BasicComputation<CfLongId,
-  FloatMatrixWritable, FloatWritable, SvdppMessageWrapper> 
-{
+public class Svdpp {
   /** Name of aggregator that aggregates all ratings. */
   public static final String OVERALL_RATING_AGGREGATOR =
     "svd.overall.rating.aggregator";
-  /** Keyword for RMSE target */
+  /** RMSE target */
   public static final String RMSE_TARGET = "svd.rmse.target";
   /** Default value for parameter enabling the RMSE aggregator. */
   public static final float RMSE_TARGET_DEFAULT = -1f;
-  /** Keyword for parameter setting the update tolerance parameter. */
-  public static final String TOLERANCE = "svd.tolerance";
-  /** Default value for TOLERANCE. */
-  public static final float TOLERANCE_DEFAULT = -1f;
-  /** Keyword for parameter setting the number of iterations. */
+  /** Maximum number of iterations. */
   public static final String ITERATIONS = "svd.iterations";
   /** Default value for ITERATIONS. */
   public static final int ITERATIONS_DEFAULT = 10;
@@ -79,28 +73,6 @@ public class Svdpp extends BasicComputation<CfLongId,
   public static final String RMSE_AGGREGATOR = "svd.rmse.aggregator";
   
   
-
-  /**
-   * Main SVD compute method.
-   * 
-   * @param messages
-   *          Messages received
-   */
-  public final void compute(Vertex<CfLongId, FloatMatrixWritable, 
-      FloatWritable> vertex, final Iterable<SvdppMessageWrapper> messages) {
-    /** Error between predicted and observed rating */
-    double err = 0d;
-
-    // Used if RMSE version or RMSE aggregator is enabled
-    double rmseErr = 0d;
-
-    for (SvdppMessageWrapper message : messages) {
-      rmseErr += Math.pow(err, 2);
-    } 
-
-    aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmseErr));
-
-  } 
 
   /**
    * Computes the predicted rating r between a user and an item based on the
@@ -158,9 +130,9 @@ public class Svdpp extends BasicComputation<CfLongId,
   }
   
   /**
-   * Computes the updated baseline based on the formula:
+   * Increments a scalar value according to the formula:
    * 
-   * b:= b + step - gamma*lambda*b;
+   * v:= v + step - gamma*lambda*v;
    * 
    * @param baseline
    * @param step
@@ -174,7 +146,7 @@ public class Svdpp extends BasicComputation<CfLongId,
   }
 
   /**
-   * Updates the item weight y based on the formula
+   * Increments a vector according to the formula
    * 
    * v:= v + step - gamma*lambda*v
    * 
@@ -371,6 +343,8 @@ public class Svdpp extends BasicComputation<CfLongId,
         Vertex<CfLongId, SvdppValue, FloatWritable> vertex,
         Iterable<FloatMatrixMessage> messages) throws IOException {
       
+      double rmsePartialSum = 0d;
+      
       float userBaseline = vertex.getValue().getBaseline();
       int numRatings = vertex.getNumEdges();
       FloatMatrixWritable userFactors = vertex.getValue().getFactors();
@@ -430,11 +404,15 @@ public class Svdpp extends BasicComputation<CfLongId,
             new FloatMatrixWritable(2, vectorSize);
         packedVectors.putRow(0, itemFactorStep);
         packedVectors.putRow(1, itemWeightStep); 
+        
+        rmsePartialSum += (error*error);
 
         sendMessage(msg.getSenderId(), 
             new FloatMatrixMessage(
                 vertex.getId(), packedVectors, itemBiasStep));
       }
+
+      aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmsePartialSum));
 
       vertex.voteToHalt();
     }
@@ -448,58 +426,6 @@ public class Svdpp extends BasicComputation<CfLongId,
     private float factorLambda;
     private float factorGamma;
 
-//    /**
-//     * Updates the item weight y based on the formula:
-//     * 
-//     * y_j = y_j + gamma * (err * (1/sqrt(N) * q_i - lambda * y_j)
-//     * 
-//     * where
-//     * y: the item weight
-//     * N: the number ratings
-//     * 
-//     * @param weight
-//     * @param item
-//     * @param error
-//     * @param numRatings
-//     * @param gamma
-//     * @param lambda
-//     */
-//    protected void updateWeight(FloatMatrix weight, FloatMatrix item, 
-//        final float error, final int numRatings, final float gamma, 
-//        final float lambda) {
-//      
-//      weight.addi(weight.mul(-lambda*gamma).addi(
-//          item.mul(error*gamma/(float)Math.sqrt(numRatings))));
-//    }
-    
-   
-    
-//    /**
-//     * Updates the item vector q based on the formula:
-//     * q = q + gamma * (error * (p + (1/sqrt(N) * sum(y_j)) - lambda * q))
-//     * 
-//     * where,
-//     * q: the item vector
-//     * p: the user vector
-//     * N: the number of ratings of the user
-//     * 
-//     * @param item
-//     * @param user
-//     * @param sumWeights
-//     * @param error
-//     * @param numRatings
-//     * @param gamma
-//     * @param lambda
-//     */
-//    protected void updateValue(FloatMatrix item, FloatMatrix user, 
-//        FloatMatrix sumWeights, final float error, int numRatings, 
-//        final float gamma, final float lambda) {
-//      
-//      item.addi(user.mul(gamma*error).addi(item.mul(-lambda*gamma).addi(
-//          sumWeights.mul(gamma*error/(float)(Math.sqrt(numRatings))))));
-//    }
-    
-    
     @Override
     public void preSuperstep() {
       biasLambda = getContext().getConfiguration().getFloat(BIAS_LAMBDA, 
