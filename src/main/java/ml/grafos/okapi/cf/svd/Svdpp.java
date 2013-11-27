@@ -72,7 +72,7 @@ public class Svdpp {
   /** Aggregator for the computation of RMSE */
   public static final String RMSE_AGGREGATOR = "svd.rmse.aggregator";
   
-  private static final String COUNTER_GROUP = "SVD Counters";
+  private static final String COUNTER_GROUP = "SVD++ Counters";
   private static final String RMSE_COUNTER = "RMSE (x1000)";
   private static final String NUM_RATINGS_COUNTER = "# ratings";
   
