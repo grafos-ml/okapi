@@ -141,7 +141,7 @@ public class SvdppTest {
     conf.setFloat(Svdpp.MIN_RATING, 0);
     conf.setFloat(Svdpp.MAX_RATING, 5);
     conf.setInt(Svdpp.VECTOR_SIZE, 2);
-    conf.setInt(Svdpp.ITERATIONS, 4);
+    conf.setInt(Svdpp.ITERATIONS, 5);
     conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
     Iterable<String> results = InternalVertexRunner.run(conf, null, graph);
     List<String> res = new LinkedList<String>();

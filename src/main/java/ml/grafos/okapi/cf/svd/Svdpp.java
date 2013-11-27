@@ -428,6 +428,7 @@ public class Svdpp {
     private float biasGamma;
     private float factorLambda;
     private float factorGamma;
+    private int vectorSize;
 
     @Override
     public void preSuperstep() {
@@ -439,6 +440,8 @@ public class Svdpp {
           FACTOR_LAMBDA_DEFAULT);
       factorGamma = getContext().getConfiguration().getFloat(FACTOR_GAMMA, 
           FACTOR_GAMMA_DEFAULT);
+      vectorSize = getContext().getConfiguration().getInt(VECTOR_SIZE, 
+          VECTOR_SIZE_DEFAULT);
     }
     
     @Override
@@ -460,6 +463,14 @@ public class Svdpp {
         incrementValue(itemFactors, itemFactorStep, factorGamma, factorLambda);
         incrementValue(itemWeights, itemWeightStep, factorGamma, factorLambda);
       }
+      
+      FloatMatrixWritable packedVectors = 
+          new FloatMatrixWritable(2, vectorSize);
+      packedVectors.putRow(0, itemFactors);
+      packedVectors.putRow(1, itemWeights); 
+
+      sendMessageToAllEdges(vertex, 
+          new FloatMatrixMessage(vertex.getId(), packedVectors, itemBaseline));
       
       vertex.getValue().setBaseline(itemBaseline);
       vertex.voteToHalt();
