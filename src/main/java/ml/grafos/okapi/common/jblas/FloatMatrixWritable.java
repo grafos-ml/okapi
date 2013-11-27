@@ -29,7 +29,7 @@ public class FloatMatrixWritable extends FloatMatrix implements Writable {
   public FloatMatrixWritable(int rows) {
     super(rows);
   }
-  
+
   public FloatMatrixWritable(int rows, int columns, float... array) {
     super(rows, columns, array);
   }
