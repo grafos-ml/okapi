@@ -138,6 +138,8 @@ public class SvdppTest {
     conf.setFloat(Svdpp.BIAS_GAMMA, 0.01f);
     conf.setFloat(Svdpp.FACTOR_LAMBDA, 0.005f);
     conf.setFloat(Svdpp.FACTOR_GAMMA, 0.01f);
+    conf.setFloat(Svdpp.MIN_RATING, 0);
+    conf.setFloat(Svdpp.MAX_RATING, 5);
     conf.setInt(Svdpp.VECTOR_SIZE, 2);
     conf.setInt(Svdpp.ITERATIONS, 4);
     conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);

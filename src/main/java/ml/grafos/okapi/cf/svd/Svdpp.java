@@ -72,6 +72,9 @@ public class Svdpp {
   /** Aggregator for the computation of RMSE */
   public static final String RMSE_AGGREGATOR = "svd.rmse.aggregator";
   
+  private static final String COUNTER_GROUP = "SVD Counters";
+  private static final String RMSE_COUNTER = "RMSE (x1000)";
+  private static final String NUM_RATINGS_COUNTER = "# ratings";
   
 
   /**
@@ -239,12 +242,12 @@ public class Svdpp {
       float baseline = randGen.nextFloat();
 
       vertex.setValue(new SvdppValue(baseline, factors, 
-          new FloatMatrixWritable())); // The weights vector is empty for users
+          new FloatMatrixWritable(0))); // The weights vector is empty for users
       
       // Send ratings to all items so that they can create the reverse edges.
       for (Edge<CfLongId, FloatWritable> edge : vertex.getEdges()) {
         FloatMatrixMessage msg = new FloatMatrixMessage(vertex.getId(), 
-            new FloatMatrixWritable(), // the matrix of this message is empty
+            new FloatMatrixWritable(0), // the matrix of this message is empty
             edge.getValue().get());    // because we only need the rating
         sendMessage(edge.getTargetVertexId(), msg);
       }
@@ -444,8 +447,8 @@ public class Svdpp {
         Iterable<FloatMatrixMessage> messages) throws IOException {
       
       float itemBaseline = vertex.getValue().getBaseline();
-      FloatMatrix itemFactors = vertex.getValue().getFactors().getRow(0);
-      FloatMatrix itemWeights = vertex.getValue().getFactors().getRow(1);
+      FloatMatrix itemFactors = vertex.getValue().getFactors();
+      FloatMatrix itemWeights = vertex.getValue().getWeight();
       
       for (FloatMatrixMessage msg : messages) {
         float itemBiasStep = msg.getScore();
@@ -459,6 +462,7 @@ public class Svdpp {
       }
       
       vertex.getValue().setBaseline(itemBaseline);
+      vertex.voteToHalt();
     }
   }
   
@@ -480,7 +484,7 @@ public class Svdpp {
       rmseTarget = getContext().getConfiguration().getFloat(RMSE_TARGET,
           RMSE_TARGET_DEFAULT);
     }
-
+    
     @Override
     public final void compute() {
       long superstep = getSuperstep();
@@ -503,10 +507,18 @@ public class Svdpp {
         numRatings = getTotalNumEdges() / 2;
       }
       
-      if (rmseTarget>0f) {
-        rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
-            .get() / numRatings);
-      }
+      rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
+          .get() / numRatings);
+
+      // Update the Hadoop counters
+      long counterValue = 
+          getContext().getCounter(COUNTER_GROUP, RMSE_COUNTER).getValue();
+      getContext().getCounter(COUNTER_GROUP, RMSE_COUNTER).increment(
+          1000*(long)rmse-counterValue); // counters can only be of long type
+      counterValue = getContext().getCounter(
+          COUNTER_GROUP, NUM_RATINGS_COUNTER).getValue();
+      getContext().getCounter(COUNTER_GROUP, NUM_RATINGS_COUNTER).increment(
+          numRatings-counterValue);
 
       if (rmseTarget>0f && rmse<rmseTarget) {
         haltComputation();
