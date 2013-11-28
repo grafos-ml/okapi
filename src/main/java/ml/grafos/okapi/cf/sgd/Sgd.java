@@ -289,7 +289,7 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
       
       // Update the Hadoop counters
       Counters.updateCounter(getContext(), 
-          COUNTER_GROUP, RMSE_COUNTER, 1000*(long)rmse);
+          COUNTER_GROUP, RMSE_COUNTER, (long)(1000*rmse));
       Counters.updateCounter(getContext(), 
           COUNTER_GROUP, NUM_RATINGS_COUNTER, numRatings);
 
