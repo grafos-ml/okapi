@@ -96,4 +96,9 @@ public class FloatMatrixMessage implements Writable {
     }
     return true;
   }
+  
+  @Override
+  public String toString() {
+    return "["+senderId+"] "+score+" "+factors;
+  }
 }

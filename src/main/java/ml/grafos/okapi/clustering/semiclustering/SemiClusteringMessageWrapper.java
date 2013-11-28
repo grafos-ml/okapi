@@ -48,8 +48,6 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
   public static final String SCORE_FACTOR_KEYWORD = "semi.score.factor";
   /** Default value for Boundary Edge Score Factor */
   public static final float SCORE_FACTOR_DEFAULT = 0.5f;
-  /** Decimals for the value of score */
-  public static final int DECIMALS = 4;
   /** Comparator to sort clusters in the list based on their score */
   private final ClusterScoreComparator scoreComparator =
     new ClusterScoreComparator();
@@ -377,9 +375,6 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
       long vertexId = vertex.getId().get();
       if (verticesList.add(new LongWritable(vertexId))) {
           this.computeScore(vertex, boundaryEdgeScoreFactor);
-          score = keepXdecimals(score, DECIMALS);
-          innerScore = keepXdecimals(innerScore, DECIMALS);
-          boundaryScore = keepXdecimals(boundaryScore, DECIMALS);
       }
     }
     /**
@@ -501,20 +496,6 @@ SemiClusterTreeSetWritable, DoubleWritable, MessageWrapper> {
       }
       builder.append(" | " + score + ", " + innerScore + ", " + boundaryScore + " ]");
       return builder.toString();
-    }
-
-    /**
-     * Decimal Precision of latent vector values
-     *
-     * @param value Value to be truncated
-     * @param x Number of decimals to keep
-     */
-    public double keepXdecimals(Double value, int x) {
-      double num = 1;
-      for (int i = 0; i < x; i++) {
-        num *= 10;
-      }
-      return Math.round(value * num) / num;
     }
 
     @Override

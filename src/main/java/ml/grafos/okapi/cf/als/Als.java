@@ -6,6 +6,7 @@ import java.util.Random;
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+import ml.grafos.okapi.utils.Counters;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
@@ -53,9 +54,12 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
   /** Aggregator used to compute the RMSE */
   public static final String RMSE_AGGREGATOR = "als.rmse.aggregator";
 
+  private static final String COUNTER_GROUP = "ALS Counters";
+  private static final String RMSE_COUNTER = "RMSE (x1000)";
+  private static final String NUM_RATINGS_COUNTER = "# ratings";
+  
   private float lambda;
   private int vectorSize;
-  
   
   @Override
   public void preSuperstep() {
@@ -228,7 +232,7 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
         setComputation(Als.class);
       }
       
-      double numRatings = 0;
+      long numRatings = 0;
       double rmse = 0;
 
       // Until superstep 2 only half edges are created (users to items)
@@ -238,10 +242,14 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
         numRatings = getTotalNumEdges() / 2;
       }
 
-      if (rmseTarget>0f) {
-        rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
-            .get() / numRatings);
-      }
+      rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
+          .get() / numRatings);
+      
+      // Update the Hadoop counters
+      Counters.updateCounter(getContext(), 
+          COUNTER_GROUP, RMSE_COUNTER, 1000*(long)rmse);
+      Counters.updateCounter(getContext(), 
+          COUNTER_GROUP, NUM_RATINGS_COUNTER, numRatings);
 
       if (rmseTarget>0f && rmse<rmseTarget) {
         haltComputation();

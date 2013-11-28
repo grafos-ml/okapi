@@ -1,20 +1,16 @@
-package ml.grafos.okapi.utils;
+package ml.grafos.okapi.common.data;
 
-import ml.grafos.okapi.common.data.DoubleArrayListWritable;
-import ml.grafos.okapi.common.data.MessageWrapper;
-
-import org.apache.hadoop.io.Text;
-
+import org.apache.hadoop.io.IntWritable;
 
 
 /** This class provides the wrapper for the sending message.*/
-public class TextMessageWrapper
-extends MessageWrapper<Text, DoubleArrayListWritable> {
+public class IntMessageWrapper
+extends MessageWrapper<IntWritable, DoubleArrayListWritable> {
 
   /**
    * Default constructor for reflection.
    */
-  public TextMessageWrapper() {
+  public IntMessageWrapper() {
     super();
   }
 
@@ -24,7 +20,7 @@ extends MessageWrapper<Text, DoubleArrayListWritable> {
    * @param pSourceId Vertex Source Id
    * @param pMessage Message to be sent
    */
-  public TextMessageWrapper(final Text pSourceId,
+  public IntMessageWrapper(final IntWritable pSourceId,
     final DoubleArrayListWritable pMessage) {
     super(pSourceId, pMessage);
   }
@@ -36,7 +32,7 @@ extends MessageWrapper<Text, DoubleArrayListWritable> {
    */
   @SuppressWarnings({ "unchecked", "rawtypes" })
   public final Class getVertexIdClass() {
-    return Text.class;
+    return IntWritable.class;
   }
 
   /**

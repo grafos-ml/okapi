@@ -37,6 +37,9 @@ public class FloatMatrixWritableTest {
     fmwCopy.readFields(input);
     assertArrayEquals(fmw.toArray(), fmwCopy.toArray(), 0.001f);
     assertTrue(fmw.equals(fmwCopy));
+    
+    FloatMatrixWritable row = new FloatMatrixWritable(1, 2, 0.1f, 0.5f);
+    assertTrue(row.equals(fmwCopy.getRow(0)));
   }
 
   @Test
