@@ -8,6 +8,7 @@ import java.util.Random;
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+import ml.grafos.okapi.utils.Counters;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.DoubleSumAggregator;
@@ -522,14 +523,10 @@ public class Svdpp {
           .get() / numRatings);
 
       // Update the Hadoop counters
-      long counterValue = 
-          getContext().getCounter(COUNTER_GROUP, RMSE_COUNTER).getValue();
-      getContext().getCounter(COUNTER_GROUP, RMSE_COUNTER).increment(
-          1000*(long)rmse-counterValue); // counters can only be of long type
-      counterValue = getContext().getCounter(
-          COUNTER_GROUP, NUM_RATINGS_COUNTER).getValue();
-      getContext().getCounter(COUNTER_GROUP, NUM_RATINGS_COUNTER).increment(
-          numRatings-counterValue);
+      Counters.updateCounter(getContext(), 
+          COUNTER_GROUP, RMSE_COUNTER, 1000*(long)rmse);
+      Counters.updateCounter(getContext(), 
+          COUNTER_GROUP, NUM_RATINGS_COUNTER, numRatings);
 
       if (rmseTarget>0f && rmse<rmseTarget) {
         haltComputation();
