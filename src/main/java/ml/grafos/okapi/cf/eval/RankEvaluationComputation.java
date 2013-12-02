@@ -6,13 +6,16 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Random;
 
+import ml.grafos.okapi.cf.CfLongId;
+import ml.grafos.okapi.cf.FloatMatrixMessage;
+import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.edge.EdgeFactory;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.BooleanWritable;
-import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.LongWritable;
+import org.jblas.FloatMatrix;
 
 /**
  * Computes a rank measure using giraph infrastructure;
@@ -20,21 +23,24 @@ import org.apache.hadoop.io.LongWritable;
  * @author linas
  *
  */
-public class RankEvaluationComputation extends BasicComputation<LongWritable, DoubleArrayListWritable, BooleanWritable, LongDoubleArrayListMessage>{
+public class RankEvaluationComputation extends BasicComputation<CfLongId, FloatMatrixWritable, BooleanWritable, FloatMatrixMessage>{
 
 	private static int numberSamples;
 	private static long minItemId;
 	private static long maxItemId;
-	private static final DoubleArrayListWritable emptyList = new DoubleArrayListWritable();
+	private static final CfLongId outputNode = new CfLongId((byte)-1, 0);
+	private static final FloatMatrixWritable emptyList = new FloatMatrixWritable(0);
 	private static int k;
 	
 	@Override
 	public void compute(
-			Vertex<LongWritable, DoubleArrayListWritable, BooleanWritable> vertex,
-			Iterable<LongDoubleArrayListMessage> messages) throws IOException {
-		minItemId = Integer.parseInt(getConf().get("minItemId"));
+			Vertex<CfLongId, FloatMatrixWritable, BooleanWritable> vertex,
+			Iterable<FloatMatrixMessage> messages) throws IOException {
+
+        minItemId = Integer.parseInt(getConf().get("minItemId"));
 		maxItemId = Integer.parseInt(getConf().get("maxItemId"));
-		numberSamples = Integer.parseInt(getConf().get("numberSamples"));
+
+		numberSamples = Integer.parseInt(getConf().get("numberSamples", "100"));
 		k = Integer.parseInt(getConf().get("k", "5"));
 		if (getSuperstep() == 0){
 			sampleIrrelevantEdges(vertex);
@@ -50,42 +56,40 @@ public class RankEvaluationComputation extends BasicComputation<LongWritable, Do
 	}
 
 	public void computeTheFinalScore(
-			Vertex<LongWritable, DoubleArrayListWritable, BooleanWritable> vertex,
-			Iterable<LongDoubleArrayListMessage> messages) {
-		if (vertex.getId().get() == 0){//special vertex which computes the final score
-			double sum = 0;
+			Vertex<CfLongId, FloatMatrixWritable, BooleanWritable> vertex,
+			Iterable<FloatMatrixMessage> messages) {
+		if (vertex.getId().isOutput()){//special vertex which computes the final score
+			float sum = 0;
 			int cnt = 0;
-			for (LongDoubleArrayListMessage msg : messages) {
+			for (FloatMatrixMessage msg : messages) {
 				sum += msg.getScore();
 				cnt += 1;
 			}
-			double avg = sum/cnt;
-			DoubleArrayListWritable finalScore = new DoubleArrayListWritable();
-			finalScore.add(new DoubleWritable(avg));
-			vertex.setValue(finalScore);
+			float avg = sum/cnt;
+			vertex.setValue(new FloatMatrixWritable(new FloatMatrix(new float[]{avg})));
 		}
 	}
 
 	public void computeRankingMeasure(
-			Vertex<LongWritable, DoubleArrayListWritable, BooleanWritable> vertex,
-			Iterable<LongDoubleArrayListMessage> messages) {
-		if (vertex.getId().get() > 0){//users are positives, items are negatives, 0 can not extist.
-			ArrayList<DoubleBoolean> scores = new ArrayList<DoubleBoolean>(); 
-			for(LongDoubleArrayListMessage msg : messages){
-				scores.add(new DoubleBoolean(msg.getScore(), vertex.getEdgeValue(new LongWritable(msg.getSenderId())).get()));
+			Vertex<CfLongId, FloatMatrixWritable, BooleanWritable> vertex,
+			Iterable<FloatMatrixMessage> messages) {
+		if (vertex.getId().isUser()){
+			ArrayList<FloatBoolean> scores = new ArrayList<FloatBoolean>(); 
+			for(FloatMatrixMessage msg : messages){
+				scores.add(new FloatBoolean(msg.getScore(), vertex.getEdgeValue(msg.getSenderId()).get()));
 			}
 			Collections.sort(scores);
-			double rankingMeasure = computeRecall(scores, this.k);
-			sendMessage(new LongWritable(0), new LongDoubleArrayListMessage(vertex.getId().get(), emptyList, rankingMeasure));
+			float rankingMeasure = computeRecall(scores, this.k);
+			sendMessage(outputNode, new FloatMatrixMessage(vertex.getId(), emptyList, rankingMeasure));
 		}
 	}
 
-	private double computeRecall(ArrayList<DoubleBoolean> scores, int k) {
+	private float computeRecall(ArrayList<FloatBoolean> scores, int k) {
 		if (null == scores || scores.size() == 0)
 			return 0;
 		int cnt = 0;
-		double relevant = 0;
-		for (DoubleBoolean doubleBoolean : scores) {
+		float relevant = 0;
+		for (FloatBoolean doubleBoolean : scores) {
 			if (doubleBoolean.isRelevant())
 				relevant += 1;
 			cnt += 1;
@@ -96,64 +100,55 @@ public class RankEvaluationComputation extends BasicComputation<LongWritable, Do
 	}
 
 	public void computeScoreAndSendBack(
-			Vertex<LongWritable, DoubleArrayListWritable, BooleanWritable> vertex,
-			Iterable<LongDoubleArrayListMessage> messages) {
-		if (vertex.getId().get() < 0){//only items send messages
-			for(LongDoubleArrayListMessage msg : messages){
-				double score = dotProduct(msg.getFactors(), vertex.getValue());
-				LongDoubleArrayListMessage msgToSendBack = new LongDoubleArrayListMessage(vertex.getId().get(), emptyList, score);
-				sendMessage(new LongWritable(msg.getSenderId()), msgToSendBack);
+			Vertex<CfLongId, FloatMatrixWritable, BooleanWritable> vertex,
+			Iterable<FloatMatrixMessage> messages) {
+		if (vertex.getId().isItem()){//only items send messages
+			for(FloatMatrixMessage msg : messages){
+				float score = msg.getFactors().dot(vertex.getValue());
+				FloatMatrixMessage msgToSendBack = new FloatMatrixMessage(vertex.getId(), emptyList, score);
+				sendMessage(msg.getSenderId(), msgToSendBack);
 			}
 		}
 	}
 
-	private double dotProduct(DoubleArrayListWritable factors,
-			DoubleArrayListWritable value) {
-		int size = factors.size();
-		if (size != value.size())
-			return 0.0;
-		double sum = 0;
-		for(int i=0; i<size; i++){
-			sum += factors.get(i).get()*value.get(i).get();
-		}
-		return sum;
-	}
-
 	public void sendUserDataToItems(
-			Vertex<LongWritable, DoubleArrayListWritable, BooleanWritable> vertex) {
-		if (vertex.getId().get() > 0){//users are positives, items are negatives, 0 can not extist.
-			LongDoubleArrayListMessage msg = new LongDoubleArrayListMessage(vertex.getId().get(), vertex.getValue(), -1.0);
+			Vertex<CfLongId, FloatMatrixWritable, BooleanWritable> vertex) {
+		if (vertex.getId().isUser()){
+			FloatMatrixMessage msg = new FloatMatrixMessage(vertex.getId(), vertex.getValue(), -1.0f);
 			sendMessageToAllEdges(vertex, msg);
 		}
 	}
 
 	public void sampleIrrelevantEdges(
-			Vertex<LongWritable, DoubleArrayListWritable, BooleanWritable> vertex) {
-		if (vertex.getId().get() > 0){//only users
-			Iterable<Edge<LongWritable, BooleanWritable>> edges = vertex.getEdges();
-			HashSet<Long> relevant = new HashSet<Long>();
-			for (Edge<LongWritable, BooleanWritable> e : edges) {
-				relevant.add(e.getTargetVertexId().get());
+			Vertex<CfLongId, FloatMatrixWritable, BooleanWritable> vertex) {
+		if (vertex.getId().isUser()){//only users
+			Iterable<Edge<CfLongId, BooleanWritable>> edges = vertex.getEdges();
+			HashSet<CfLongId> relevant = new HashSet<CfLongId>();
+			for (Edge<CfLongId, BooleanWritable> e : edges) {
+				relevant.add(e.getTargetVertexId());
 			}
 			for (int i=0; i<numberSamples; i++){
-				long randomItemId = getRandomItemId(relevant);
-				vertex.addEdge(EdgeFactory.create(new LongWritable(randomItemId), new BooleanWritable(false)));
+				CfLongId random = getRandomItemId(relevant);
+				vertex.addEdge(EdgeFactory.create(random, new BooleanWritable(false)));
 			}
 		}
 	}
 
-	private long getRandomItemId(HashSet<Long> relevant) {
-		Random r = new Random();
-		long i = r.nextInt((int)(maxItemId-minItemId))+minItemId;
-		int maxCnt = 0;
-		while (relevant.contains(i)){
-			i = r.nextInt((int)(maxItemId-minItemId))+minItemId;
-			if (maxCnt > 1000000){
-				throw new RuntimeException("Can not sample a new irrelevant item");
-			}
-			maxCnt += 1;
-		}
-		return i;
+	protected CfLongId getRandomItemId(HashSet<CfLongId> relevant) {
+	    Random r = new Random();
+	    int top = (int)(maxItemId-minItemId)+1;
+	    int i = r.nextInt(top)+(int)minItemId;
+        CfLongId randId = new CfLongId((byte)1, i);
+	    int maxCnt = 0;
+	    while (relevant.contains(randId)){
+	        i = r.nextInt((int)maxItemId-(int)minItemId)+(int)minItemId;
+	        if (maxCnt > 1000000){//just to prevent an infinity loop
+	            throw new RuntimeException("Can not sample a new irrelevant item");
+	        }
+	        maxCnt += 1;
+            randId = new CfLongId((byte)1, i);
+	    }
+	    return randId;
 	}
-
+	
 }

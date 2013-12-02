@@ -32,6 +32,10 @@ public class CfLongId implements CfId<Long> {
   public boolean isUser(){
     return type == 0;
   }
+  
+  public boolean isOutput(){
+	  return type == -1;
+  }
 
   public byte getType() {
     return type;
