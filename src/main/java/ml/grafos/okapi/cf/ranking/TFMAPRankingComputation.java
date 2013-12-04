@@ -3,13 +3,10 @@ package ml.grafos.okapi.cf.ranking;
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.cf.annotations.OkapiAutotuning;
-import ml.grafos.okapi.cf.eval.DoubleArrayListWritable;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.log4j.Logger;
 import org.jblas.FloatMatrix;
 
@@ -126,11 +123,6 @@ public class TFMAPRankingComputation extends AbstractCFRankingComputation{
 
     private double dot_of_difference(FloatMatrix m_i, FloatMatrix v_j, FloatMatrix v_i) {
         return m_i.dot(v_j) - m_i.dot(v_i);
-    }
-
-    public boolean isItem(
-            Vertex<LongWritable, DoubleArrayListWritable, IntWritable> vertex) {
-        return vertex.getId().get() < 0;
     }
 
     @Override

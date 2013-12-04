@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.giraph.conf.GiraphConfiguration;
+import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.utils.InternalVertexRunner;
 import org.junit.After;
 import org.junit.Before;
@@ -24,30 +25,29 @@ public class RankEvaluationComputationTest {
 	@Test
 	public void testFullComputation() throws Exception {
 		String[] graph = { 
-				"0	0.0",
-				"1	1,0,0	-1,-2",
-				"2	2,0,0	-1",
-				"-1	1,1,1	",
-				"-2	0.5,1,1	",
-				"-3	0,0,0	",
-				"-4	0,0,0	"};
+				"0 -1",
+				"1 0	[1;0;0]	-1,-2",
+				"2 0	[2;0;0]	-1",
+				"-1 1	[1;1;1]",
+				"-2 1	[0.5;1;1]",
+				"-3 1	[0;0;0]",
+				"-4 1	[0;0;0]"};
 
 		GiraphConfiguration conf = new GiraphConfiguration();
 		conf.setComputationClass(RankEvaluationComputation.class);
 		conf.setVertexInputFormatClass(CfModelTestingInputFormat.class);
-		conf.setVertexOutputFormatClass(DoubleOutputFormat.class);
+		conf.setVertexOutputFormatClass(CFEvaluationOutputFormat.class);
 		conf.set("minItemId", "-4");
 		conf.set("maxItemId", "-1");
 		conf.set("numberSamples", "1");
 		conf.set("k", "2");
 		Iterable<String> results = InternalVertexRunner.run(conf, graph);
 
-		int cnt = 0;
-		for (String line : results) {
-			assertEquals((1+0.5)/2.0, Double.parseDouble(line), 0.01);
-			cnt += 1;
-		}
-		assertEquals(1,	cnt); //number of output
+		String line = results.iterator().next();
+		line = line.replace("[", "");
+		line = line.replace("]", "");
+		line = line.replace(";", "");
+		assertEquals((1+0.5)/2.0, Double.parseDouble(line), 0.01);
 		
 	}
 
