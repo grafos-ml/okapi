@@ -34,7 +34,7 @@ public class RankEvaluationComputationTest {
 
 		GiraphConfiguration conf = new GiraphConfiguration();
 		conf.setComputationClass(RankEvaluationComputation.class);
-		conf.setVertexInputFormatClass(LongArrayBooleanInputFormat.class);
+		conf.setVertexInputFormatClass(CfModelTestingInputFormat.class);
 		conf.setVertexOutputFormatClass(DoubleOutputFormat.class);
 		conf.set("minItemId", "-4");
 		conf.set("maxItemId", "-1");
