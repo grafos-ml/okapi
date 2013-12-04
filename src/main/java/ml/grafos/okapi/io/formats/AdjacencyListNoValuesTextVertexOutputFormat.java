@@ -1,5 +1,7 @@
 package ml.grafos.okapi.io.formats;
 
+import java.io.IOException;
+
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.AdjacencyListTextVertexInputFormat;
@@ -9,8 +11,6 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
-import java.io.IOException;
 
 /**
  * OutputFormat to write out the graph nodes as text, value-separated (by

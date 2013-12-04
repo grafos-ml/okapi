@@ -5,6 +5,7 @@ import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.cf.annotations.OkapiAutotuning;
 import ml.grafos.okapi.cf.eval.DoubleArrayListWritable;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.IntWritable;

@@ -10,7 +10,6 @@ import org.apache.giraph.graph.AbstractComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
 import org.apache.giraph.master.DefaultMasterCompute;
-
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;

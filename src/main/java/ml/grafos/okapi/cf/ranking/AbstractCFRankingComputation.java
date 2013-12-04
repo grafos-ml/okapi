@@ -1,27 +1,26 @@
 package ml.grafos.okapi.cf.ranking;
 
-import ml.grafos.okapi.cf.CfLongId;
-import ml.grafos.okapi.cf.FloatMatrixMessage;
-import ml.grafos.okapi.cf.annotations.HyperParameter;
-import ml.grafos.okapi.cf.eval.DoubleArrayListWritable;
-import ml.grafos.okapi.cf.eval.LongDoubleArrayListMessage;
-import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
-import org.apache.giraph.edge.Edge;
-import org.apache.giraph.graph.BasicComputation;
-import org.apache.giraph.graph.Vertex;
-import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
-import org.apache.log4j.Logger;
-import org.jblas.FloatMatrix;
-
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Random;
+
+import ml.grafos.okapi.cf.CfLongId;
+import ml.grafos.okapi.cf.FloatMatrixMessage;
+import ml.grafos.okapi.cf.annotations.HyperParameter;
+import ml.grafos.okapi.cf.eval.DoubleArrayListWritable;
+import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+
+import org.apache.giraph.edge.Edge;
+import org.apache.giraph.graph.BasicComputation;
+import org.apache.giraph.graph.Vertex;
+import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.log4j.Logger;
+import org.jblas.FloatMatrix;
 
 /**
  * Abstract class for all the ranking computation methods.

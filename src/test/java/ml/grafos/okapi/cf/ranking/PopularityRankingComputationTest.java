@@ -1,14 +1,15 @@
 package ml.grafos.okapi.cf.ranking;
 
+import java.util.LinkedList;
+import java.util.List;
+
 import junit.framework.Assert;
 import ml.grafos.okapi.cf.CfLongIdFloatTextInputFormat;
+
 import org.apache.giraph.conf.GiraphConfiguration;
 import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.utils.InternalVertexRunner;
 import org.junit.Test;
-
-import java.util.LinkedList;
-import java.util.List;
 
 public class PopularityRankingComputationTest {
 

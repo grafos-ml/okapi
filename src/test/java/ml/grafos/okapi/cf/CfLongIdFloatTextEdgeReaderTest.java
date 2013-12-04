@@ -1,6 +1,6 @@
 package ml.grafos.okapi.cf;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 

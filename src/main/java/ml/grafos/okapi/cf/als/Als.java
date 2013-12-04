@@ -6,6 +6,7 @@ import java.util.Random;
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+import ml.grafos.okapi.examples.SimpleMasterComputeVertex;
 import ml.grafos.okapi.utils.Counters;
 
 import org.apache.giraph.Algorithm;

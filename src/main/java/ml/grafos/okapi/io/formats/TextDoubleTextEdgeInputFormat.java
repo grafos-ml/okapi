@@ -1,14 +1,14 @@
 package ml.grafos.okapi.io.formats;
 
+import java.io.IOException;
+import java.util.regex.Pattern;
+
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-
-import java.io.IOException;
-import java.util.regex.Pattern;
 
 /**
  * Simple text-based {@link org.apache.giraph.io.EdgeInputFormat} for

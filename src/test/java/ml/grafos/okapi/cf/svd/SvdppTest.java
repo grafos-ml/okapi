@@ -1,6 +1,7 @@
 package ml.grafos.okapi.cf.svd;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -13,7 +14,6 @@ import java.util.List;
 
 import junit.framework.Assert;
 import ml.grafos.okapi.cf.CfLongIdFloatTextInputFormat;
-import ml.grafos.okapi.cf.sgd.Sgd;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 
 import org.apache.giraph.conf.GiraphConfiguration;

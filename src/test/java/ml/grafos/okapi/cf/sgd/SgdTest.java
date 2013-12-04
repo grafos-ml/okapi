@@ -1,12 +1,11 @@
 package ml.grafos.okapi.cf.sgd;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
 
 import java.util.LinkedList;
 import java.util.List;
 
 import junit.framework.Assert;
-
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.CfLongIdFloatTextInputFormat;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;

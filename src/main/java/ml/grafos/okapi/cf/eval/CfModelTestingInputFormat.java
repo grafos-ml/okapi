@@ -2,7 +2,6 @@ package ml.grafos.okapi.cf.eval;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 

@@ -18,8 +18,8 @@
 
 package ml.grafos.okapi.examples;
 
-import org.apache.giraph.examples.Algorithm;
 import org.apache.giraph.edge.Edge;
+import org.apache.giraph.examples.Algorithm;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.DoubleWritable;

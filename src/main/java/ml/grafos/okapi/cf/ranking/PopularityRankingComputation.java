@@ -4,17 +4,12 @@ import java.io.IOException;
 
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
-import ml.grafos.okapi.cf.eval.DoubleArrayListWritable;
-import ml.grafos.okapi.cf.eval.LongDoubleArrayListMessage;
-
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
-import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
 import org.jblas.FloatMatrix;
 
 

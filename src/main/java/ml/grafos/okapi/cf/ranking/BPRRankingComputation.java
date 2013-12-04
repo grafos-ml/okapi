@@ -1,17 +1,17 @@
 package ml.grafos.okapi.cf.ranking;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.cf.annotations.OkapiAutotuning;
-import ml.grafos.okapi.cf.eval.DoubleArrayListWritable;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+
 import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.log4j.Logger;
 import org.jblas.FloatMatrix;
-
-import java.util.ArrayList;
-import java.util.Iterator;
 
 
 /**

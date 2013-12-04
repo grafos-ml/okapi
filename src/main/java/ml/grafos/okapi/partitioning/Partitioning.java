@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 
+import ml.grafos.okapi.examples.SimpleMasterComputeVertex;
+
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.aggregators.IntSumAggregator;
 import org.apache.giraph.edge.Edge;

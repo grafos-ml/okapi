@@ -1,30 +1,7 @@
 package ml.grafos.okapi.cf.ranking;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.util.LinkedList;
-import java.util.List;
-
-import junit.framework.Assert;
-
-import ml.grafos.okapi.cf.eval.DoubleArrayListWritable;
-import ml.grafos.okapi.cf.eval.LongDoubleArrayListMessage;
-
-import org.apache.giraph.conf.GiraphConfiguration;
-import org.apache.giraph.edge.Edge;
-import org.apache.giraph.edge.EdgeFactory;
-import org.apache.giraph.graph.Vertex;
-import org.apache.giraph.utils.InternalVertexRunner;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.LongWritable;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
 
 
 public class TFMAPRankingComputationTest {
