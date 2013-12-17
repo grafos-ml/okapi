@@ -26,24 +26,6 @@
         </configuration>
       </plugin>
       <plugin>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.4</version>
-          <configuration>
-	    <descriptorRefs>
-	      <descriptorRef>jar-with-dependencies</descriptorRef>
-            </descriptorRefs>
-          </configuration>
-	  <executions>
-            <execution>
-	      <id>make-assembly</id> <!-- this is used for inheritance merges -->
-	      <phase>package</phase> <!-- bind to the packaging phase -->
-	      <goals>
-	        <goal>single</goal>
-	      </goals>
-	   </execution>
-        </executions>
-      </plugin>
-     <plugin>
        <groupId>com.mycila</groupId>
          <artifactId>license-maven-plugin</artifactId>
          <version>2.3</version>
@@ -62,6 +44,31 @@
              </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>2.2</version>
+	<executions>
+	  <execution>
+	    <phase>package</phase>
+	    <goals>
+	      <goal>shade</goal>
+	    </goals>
+	    <configuration>
+	      <shadedArtifactAttached>true</shadedArtifactAttached>
+	      <shadedClassifierName>jar-with-dependencies</shadedClassifierName>
+	      <filters>
+	        <filter>
+	          <artifact>*:*</artifact>
+	          <excludes>
+	  	    <exclude>META-INF/LICENSE</exclude>
+		  </excludes>
+	        </filter>
+	      </filters>
+	    </configuration>
+	  </execution>
+	</executions>
       </plugin>
     </plugins>
   </build>
