@@ -246,6 +246,40 @@ class EvaluateMovielensTask(OkapiTrainModelTask):
                 '-ca', 'maxItemId=17770',
                 '-ca', 'numberSamples='+self._get_conf("okapi", "number-of-negative-samples-in-eval")]
 
+class JoinModelToTest(luigi.hadoop.JobTask):
+
+    model_dir = luigi.Parameter(description="The computed model directory")
+    test_data = luigi.Parameter(description="Test data")
+    join_out = luigi.Parameter(description="Output dir")
+
+    def init(self):
+        print "here"
+        t = luigi.hdfs.HdfsTarget(self.model_dir)
+        f = t.open('r')
+        for line in f:
+            id, model = line.strip().split("\t")
+            print model
+        f.close() # needed
+
+    def output(self):
+        return luigi.hdfs.HdfsTarget(self.join_out)
+
+    def requires(self):
+        return OkapiTrainModelTask('Random', 'movielens.training', "Random_model")
+
+    def mapper(self, line):
+        node, model = line.strip().split("\t")
+        yield node, model
+
+    def reducer(self, key, values):
+        if values:
+            if isinstance(values, list):
+                yield key, values[0]
+            else:
+                yield key, values
+        else:
+            yield key, "[0;0]"
+
 class SpitMePrecisionBitch(luigi.Task):
     '''Gives a Precision of the model'''
     model_name = luigi.Parameter(description="The model: {"+" | ".join(methods)+"}")
