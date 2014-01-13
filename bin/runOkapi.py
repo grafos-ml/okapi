@@ -52,9 +52,9 @@ class PrepareMovielensData(luigi.Task):
         return DownloadMovielens()
 
     def output(self):
-        return [luigi.hdfs.HdfsTarget('movielens.training'),
+        return [luigi.hdfs.HdfsTarget('movielens.testing'),
+                luigi.hdfs.HdfsTarget('movielens.training'),
                 luigi.hdfs.HdfsTarget('movielens.training.info'),
-                luigi.hdfs.HdfsTarget('movielens.testing'),
                 luigi.hdfs.HdfsTarget('movielens.validation')]
 
     def _get_id(self, original_id, dictionary):
@@ -215,11 +215,65 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
             '-w', self._get_conf("okapi", "workers")] \
             + self.get_custom_arguments()
 
-class EvaluateMovielensTask(OkapiTrainModelTask):
-    '''Evaluates how good is the built model'''
+
+# class JoinModelToTest(luigi.Task):
+#
+#     _user_models = None
+#     _item_models = None
+#
+#     join_out = luigi.Parameter(description="Output dir")
+#     model_name = luigi.Parameter(description="Model Name")
+#
+#     def output(self):
+#         return luigi.hdfs.HdfsTarget(self.join_out)
+#
+#     def requires(self):
+#         return [PrepareMovielensData(), OkapiTrainModelTask(self.model_name, 'movielens.training', self.model_name+"_model")]
+#
+#     def run(self):
+#         if self._user_models is None or self._item_models is None:
+#             self._item_models = {}
+#             self._user_models = {}
+#             f = luigi.hdfs.HdfsTarget(self.model_name+"_model", format=luigi.hdfs.PlainDir).open()
+#             for line in f:
+#                 node_id, model = line.strip().split("\t")
+#                 id, tipe = node_id.split()
+#                 if "0" == tipe:
+#                     self._user_models[id] = model
+#                 if "1" == tipe:
+#                     self._item_models[id] = model
+#
+#         out_file = self.output().open('w')
+#         in_file = self.input()[0][0].open('r')
+#
+#         user_in_test = set()
+#         item_in_test = set()
+#         out_file.write("0 -1\n")
+#         for line in in_file:
+#             user, item, rating = line.split()
+#             if user in self._user_models and item in self._item_models:
+#                 user_in_test.add(user)
+#                 item_in_test.add(item)
+#                 out_file.write("{} 0\t{} 1\t{}\n".format(user, item, rating))
+#
+#         for u in user_in_test:
+#             out_file.write("{} 0\t{}\n".format(user, self._user_models[user]))
+#         for i in item_in_test:
+#             out_file.write("{} 0\t{}\n".format(item, self._item_models[item]))
+#
+#         out_file.close()
+#         in_file.close()
+
+
+class EvaluateTask(OkapiTrainModelTask):
+    '''
+    Evaluates how good is the built model.
+    We use the trick of loading vertex input and edge input formats.
+    In this way, we don't need to join them beforehand.
+    '''
+
     def requires(self):
-        return OkapiTrainModelTask(self.model_name, 'movielens.training', self.model_name+"_model"), \
-               DeleteDir(self._get_conf("hadoop", "zookeeper-dir")),
+        return [PrepareMovielensData(), OkapiTrainModelTask(self.model_name, 'movielens.training', self.model_name+"_model")]
 
     def output(self):
         return luigi.hdfs.HdfsTarget(self.out_hdfs)
@@ -231,70 +285,41 @@ class EvaluateMovielensTask(OkapiTrainModelTask):
             "-Dgiraph.zkManagerDirectory="+self._get_conf('hadoop', 'zookeeper-dir'),
             "-Dgiraph.useSuperstepCounters=false",
             self.get_computation_class(),
-            '-vif' ,'ml.grafos.okapi.cf.CfLongIdFloatTextInputFormat',
-            '-vip', self.input()[0],
+            '-mc', 'ml.grafos.okapi.cf.eval.MasterComputeAggregator',
+            '-vif' ,'ml.grafos.okapi.cf.eval.CfModelInputFormat',
+            '-vip', self.input()[1],
+            '-eif', 'ml.grafos.okapi.cf.eval.CfLongIdBooleanTextInputFormat',
+            '-eip', self.input()[0][0],
             '-vof', 'org.apache.giraph.io.formats.IdWithValueTextOutputFormat',
             '-op', self.get_output(),
             '-w', self._get_conf("okapi", "workers")] \
             + self.get_custom_arguments()
 
     def get_computation_class(self):
-        return 'es.tid.recsys.giraph.eval.RankEvaluationComputation'
+        return 'ml.grafos.okapi.cf.eval.RankEvaluationComputation'
 
     def get_custom_arguments(self):
         return ['-ca', 'minItemId=1',
                 '-ca', 'maxItemId=17770',
                 '-ca', 'numberSamples='+self._get_conf("okapi", "number-of-negative-samples-in-eval")]
 
-class JoinModelToTest(luigi.hadoop.JobTask):
-
-    model_dir = luigi.Parameter(description="The computed model directory")
-    test_data = luigi.Parameter(description="Test data")
-    join_out = luigi.Parameter(description="Output dir")
-
-    def init(self):
-        print "here"
-        t = luigi.hdfs.HdfsTarget(self.model_dir)
-        f = t.open('r')
-        for line in f:
-            id, model = line.strip().split("\t")
-            print model
-        f.close() # needed
-
-    def output(self):
-        return luigi.hdfs.HdfsTarget(self.join_out)
-
-    def requires(self):
-        return OkapiTrainModelTask('Random', 'movielens.training', "Random_model")
-
-    def mapper(self, line):
-        node, model = line.strip().split("\t")
-        yield node, model
-
-    def reducer(self, key, values):
-        if values:
-            if isinstance(values, list):
-                yield key, values[0]
-            else:
-                yield key, values
-        else:
-            yield key, "[0;0]"
-
-class SpitMePrecisionBitch(luigi.Task):
+class SpitMePrecision(luigi.Task):
     '''Gives a Precision of the model'''
     model_name = luigi.Parameter(description="The model: {"+" | ".join(methods)+"}")
 
     def requires(self):
-        return PrepareMovielensData(fraction=0.1), EvaluateMovielensTask('BPR', 'movielens.testing', 'BPR_eval')
+        return EvaluateTask(self.model_name, 'movielens.testing', self.model_name+'_eval')
 
     def complete(self):
         return False
 
     def run(self):
-        f = self.input()[-1].open('r')
+        f = self.input().open('r')
         for line in f:
             print line
         f.close()
+
+
 
 
 if __name__ == '__main__':
