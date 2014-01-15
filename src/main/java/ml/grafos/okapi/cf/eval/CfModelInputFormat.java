@@ -17,14 +17,11 @@ import org.jblas.FloatMatrix;
  * A custom reader that reads the model formated as following example.
  *
  * nodeId	computed_model
- * 0 -1
  * 32729 0	[0.883140; 0.126675]
  * 7563 0	[0.544951; 0.719476]
  * 5007 1	[0.726413; 0.968422]
  * 1384 1	[0.933587; 0.755566]
  * 304 1	[0.368630; 0.468095]
- *
- * The first line is the special node which is used to output the results.
  *
  * This can be obtained by running runOkapi.py.
  * 

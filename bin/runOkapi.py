@@ -71,7 +71,7 @@ class PrepareMovielensData(luigi.Task):
         random.seed(123)#just that all user would have the same data sets
 
         f = self.input().open('r') # this will return a file stream that reads from movielens ratings.dat
-        training = self.output()[0].open('w')
+        training = self.output()[1].open('w')
 
         #lets first write training set and store in memory user and item indexes
         testing_validation = []
@@ -92,7 +92,7 @@ class PrepareMovielensData(luigi.Task):
 
 
         #now lets write out the testing and validation
-        testing = self.output()[2].open('w')
+        testing = self.output()[0].open('w')
         validation = self.output()[3].open('w')
         for u,i,r in testing_validation:
             if u in self.training_users and i in self.training_items:
@@ -105,7 +105,7 @@ class PrepareMovielensData(luigi.Task):
         validation.close()
         f.close()
 
-        info = self.output()[1].open('w')
+        info = self.output()[2].open('w')
         info.write('n_users: {}, n_items: {}, n_entries: {}\n'.format(len(self.training_users), len(self.training_items), cnt))
         info.close()
 
@@ -285,7 +285,6 @@ class EvaluateTask(OkapiTrainModelTask):
             "-Dgiraph.zkManagerDirectory="+self._get_conf('hadoop', 'zookeeper-dir'),
             "-Dgiraph.useSuperstepCounters=false",
             self.get_computation_class(),
-            '-mc', 'ml.grafos.okapi.cf.eval.MasterComputeAggregator',
             '-vif' ,'ml.grafos.okapi.cf.eval.CfModelInputFormat',
             '-vip', self.input()[1],
             '-eif', 'ml.grafos.okapi.cf.eval.CfLongIdBooleanTextInputFormat',
