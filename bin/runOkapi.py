@@ -160,6 +160,7 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
     def run(self):
         self.set_hadoop_classpath()
         super(OkapiTrainModelTask, self).run()
+        DeleteDir(str(self.out_hdfs)+"/_*") #this is needed, as giraph doesn't like the _logs and _SUCCESS dirs
 
     def get_libjars(self):
         return [self.giraph_jar(), self.okapi_jar()]
@@ -215,56 +216,6 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
             '-w', self._get_conf("okapi", "workers")] \
             + self.get_custom_arguments()
 
-
-# class JoinModelToTest(luigi.Task):
-#
-#     _user_models = None
-#     _item_models = None
-#
-#     join_out = luigi.Parameter(description="Output dir")
-#     model_name = luigi.Parameter(description="Model Name")
-#
-#     def output(self):
-#         return luigi.hdfs.HdfsTarget(self.join_out)
-#
-#     def requires(self):
-#         return [PrepareMovielensData(), OkapiTrainModelTask(self.model_name, 'movielens.training', self.model_name+"_model")]
-#
-#     def run(self):
-#         if self._user_models is None or self._item_models is None:
-#             self._item_models = {}
-#             self._user_models = {}
-#             f = luigi.hdfs.HdfsTarget(self.model_name+"_model", format=luigi.hdfs.PlainDir).open()
-#             for line in f:
-#                 node_id, model = line.strip().split("\t")
-#                 id, tipe = node_id.split()
-#                 if "0" == tipe:
-#                     self._user_models[id] = model
-#                 if "1" == tipe:
-#                     self._item_models[id] = model
-#
-#         out_file = self.output().open('w')
-#         in_file = self.input()[0][0].open('r')
-#
-#         user_in_test = set()
-#         item_in_test = set()
-#         out_file.write("0 -1\n")
-#         for line in in_file:
-#             user, item, rating = line.split()
-#             if user in self._user_models and item in self._item_models:
-#                 user_in_test.add(user)
-#                 item_in_test.add(item)
-#                 out_file.write("{} 0\t{} 1\t{}\n".format(user, item, rating))
-#
-#         for u in user_in_test:
-#             out_file.write("{} 0\t{}\n".format(user, self._user_models[user]))
-#         for i in item_in_test:
-#             out_file.write("{} 0\t{}\n".format(item, self._item_models[item]))
-#
-#         out_file.close()
-#         in_file.close()
-
-
 class EvaluateTask(OkapiTrainModelTask):
     '''
     Evaluates how good is the built model.
@@ -273,7 +224,7 @@ class EvaluateTask(OkapiTrainModelTask):
     '''
 
     def requires(self):
-        return [PrepareMovielensData(), OkapiTrainModelTask(self.model_name, 'movielens.training', self.model_name+"_model")]
+        return [PrepareMovielensData(), DeleteDir(self._get_conf("hadoop", "zookeeper-dir")), OkapiTrainModelTask(self.model_name, 'movielens.training', self.model_name+"_model")]
 
     def output(self):
         return luigi.hdfs.HdfsTarget(self.out_hdfs)
@@ -286,7 +237,7 @@ class EvaluateTask(OkapiTrainModelTask):
             "-Dgiraph.useSuperstepCounters=false",
             self.get_computation_class(),
             '-vif' ,'ml.grafos.okapi.cf.eval.CfModelInputFormat',
-            '-vip', self.input()[1],
+            '-vip', self.input()[-1],
             '-eif', 'ml.grafos.okapi.cf.eval.CfLongIdBooleanTextInputFormat',
             '-eip', self.input()[0][0],
             '-vof', 'org.apache.giraph.io.formats.IdWithValueTextOutputFormat',
@@ -299,7 +250,7 @@ class EvaluateTask(OkapiTrainModelTask):
 
     def get_custom_arguments(self):
         return ['-ca', 'minItemId=1',
-                '-ca', 'maxItemId=17770',
+                '-ca', 'maxItemId=10627',
                 '-ca', 'numberSamples='+self._get_conf("okapi", "number-of-negative-samples-in-eval")]
 
 class SpitMePrecision(luigi.Task):
@@ -313,9 +264,11 @@ class SpitMePrecision(luigi.Task):
         return False
 
     def run(self):
-        f = self.input().open('r')
+        f = luigi.hdfs.HdfsTarget(self.model_name+'_eval/part*').open()
         for line in f:
-            print line
+            if line.startswith("0 -1"):
+                nodeid, accuracy = line.split("\t")
+                print "Model accuracy: {}".format(accuracy)
         f.close()
 
 
