@@ -206,8 +206,14 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
     def giraph_jar(self):
         return self.get_jar("okapi", "giraph-jar")
 
-    def get_custom_arguments(self):
-        return ['-ca', 'minItemId=1', '-ca', 'maxItemId=10628']
+    def get_custom_arguments(self, info_filename):
+        #we check how many items there are in the training set
+        f = info_filename.open()
+        line = f.readlines()
+        f.close()
+        maxItems = int(line[0].split(",")[1].split(':')[1])
+        return ['-ca', 'minItemId=1',
+                '-ca', 'maxItemId='+str(maxItems)]
 
     def args(self):
         return [
@@ -221,7 +227,7 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
             '-vof', self.get_output_format(),
             '-op', self.get_output(),
             '-w', self._get_conf("okapi", "workers")] \
-            + self.get_custom_arguments()
+            + self.get_custom_arguments(self.input()[2])
 
 class EvaluateTask(OkapiTrainModelTask):
     '''
@@ -251,9 +257,9 @@ class EvaluateTask(OkapiTrainModelTask):
             "-Dgiraph.useSuperstepCounters=false",
             self.get_computation_class(),
             '-vif' ,'ml.grafos.okapi.cf.eval.CfModelInputFormat',
-            '-vip', self.input()[1],
+            '-vip', self.input()[1],#model input
             '-eif', 'ml.grafos.okapi.cf.eval.CfLongIdBooleanTextInputFormat',
-            '-eip', self.input()[0][0],
+            '-eip', self.input()[0][0],#testing file input
             '-vof', 'org.apache.giraph.io.formats.IdWithValueTextOutputFormat',
             '-op', self.get_output(),
             '-w', self._get_conf("okapi", "workers")] \
