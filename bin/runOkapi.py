@@ -134,7 +134,6 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
 
     fraction = luigi.Parameter(description="The fraction of data we want to use", default=1.0)
     model_name = luigi.Parameter(description="The model: {"+" | ".join(methods)+"}")
-    in_hdfs = luigi.Parameter(description="Training input file")
     out_hdfs = luigi.Parameter(description="Output dir for the task")
 
     def requires(self):
@@ -160,7 +159,8 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
         return 'org.apache.giraph.io.formats.IdWithValueTextOutputFormat'
 
     def get_input(self):
-        return self.in_hdfs
+        training = self.input()[1].path
+        return training
 
     def get_output(self):
         return self.out_hdfs
@@ -238,7 +238,7 @@ class EvaluateTask(OkapiTrainModelTask):
 
     def requires(self):
         return [PrepareMovielensData(self.fraction),
-                OkapiTrainModelTask(self.fraction, self.model_name, 'movielens.training', self.model_name+"_model")]
+                OkapiTrainModelTask(self.fraction, self.model_name, self.model_name+"_model")]
 
     def output(self):
         return luigi.hdfs.HdfsTarget(self.out_hdfs)
@@ -278,7 +278,7 @@ class SpitPrecision(luigi.Task):
     fraction = luigi.Parameter(description="Fraction of data to use for the experiment", default=0.01)
 
     def requires(self):
-        return PrepareMovielensData(self.fraction), EvaluateTask(self.fraction, self.model_name, 'movielens.testing', self.model_name+'_eval')
+        return PrepareMovielensData(self.fraction), EvaluateTask(self.fraction, self.model_name, self.model_name+'_eval')
 
     def complete(self):
         return False
