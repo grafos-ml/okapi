@@ -213,7 +213,7 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
         f.close()
         maxItems = int(line[0].split(",")[1].split(':')[1])
         return ['-ca', 'minItemId=1',
-                '-ca', 'maxItemId='+str(maxItems)]
+                '-ca', 'maxItemId='+str(maxItems-1)]
 
     def args(self):
         return [
@@ -240,7 +240,7 @@ class EvaluateTask(OkapiTrainModelTask):
         #first we do some custom cleanup as giraph don't like input _logs and _SUCCESS
         DeleteDir(self.model_name+"_model/_logs").run()
         DeleteDir(self.model_name+"_model/_SUCCESS").run()
-        super(OkapiTrainModelTask, self).run()
+        super(EvaluateTask, self).run()
 
     def requires(self):
         return [PrepareMovielensData(self.fraction),
@@ -257,7 +257,7 @@ class EvaluateTask(OkapiTrainModelTask):
             "-Dgiraph.useSuperstepCounters=false",
             self.get_computation_class(),
             '-vif' ,'ml.grafos.okapi.cf.eval.CfModelInputFormat',
-            '-vip', self.input()[1],#model input
+            '-vip', self.input()[1].path+"/part*",#model input
             '-eif', 'ml.grafos.okapi.cf.eval.CfLongIdBooleanTextInputFormat',
             '-eip', self.input()[0][0],#testing file input
             '-vof', 'org.apache.giraph.io.formats.IdWithValueTextOutputFormat',
@@ -275,7 +275,7 @@ class EvaluateTask(OkapiTrainModelTask):
         f.close()
         maxItems = int(line[0].split(",")[1].split(':')[1])
         return ['-ca', 'minItemId=1',
-                '-ca', 'maxItemId='+str(maxItems),
+                '-ca', 'maxItemId='+str(maxItems-1),
                 '-ca', 'numberSamples='+self._get_conf("okapi", "number-of-negative-samples-in-eval")]
 
 class SpitPrecision(luigi.Task):
