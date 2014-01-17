@@ -1,12 +1,14 @@
-package ml.grafos.okapi.cf;
+package ml.grafos.okapi.cf.eval;
 
 import java.io.IOException;
 import java.util.regex.Pattern;
 
+import ml.grafos.okapi.cf.CfLongId;
 
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.IntNullTextEdgeInputFormat;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
+import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.InputSplit;
@@ -18,13 +20,13 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  *
  * Each line consists of: <user id> <item id> <rating (float)>
  */
-public class CfLongIdFloatTextInputFormat extends
-    TextEdgeInputFormat<CfLongId, FloatWritable> {
+public class CfLongIdBooleanTextInputFormat extends
+    TextEdgeInputFormat<CfLongId, BooleanWritable> {
   /** Splitter for endpoints */
   private static final Pattern SEPARATOR = Pattern.compile("[\t ]");
 
   @Override
-  public EdgeReader<CfLongId, FloatWritable> createEdgeReader(
+  public EdgeReader<CfLongId, BooleanWritable> createEdgeReader(
       InputSplit split, TaskAttemptContext context) throws IOException {
     return new CfIdFloatTextEdgeReader();
   }
@@ -55,8 +57,8 @@ public class CfLongIdFloatTextInputFormat extends
     }
 
     @Override
-    protected FloatWritable getValue(String[] tokens) throws IOException {
-      return new FloatWritable(Float.parseFloat(tokens[2]));
+    protected BooleanWritable getValue(String[] tokens) throws IOException {
+    		return new BooleanWritable(true);
     }
   }
 }

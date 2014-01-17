@@ -10,10 +10,15 @@ import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 
+import org.apache.giraph.comm.WorkerClientRequestProcessor;
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.edge.EdgeFactory;
 import org.apache.giraph.graph.BasicComputation;
+import org.apache.giraph.graph.GraphState;
+import org.apache.giraph.graph.GraphTaskManager;
 import org.apache.giraph.graph.Vertex;
+import org.apache.giraph.worker.WorkerAggregatorUsage;
+import org.apache.giraph.worker.WorkerContext;
 import org.apache.hadoop.io.BooleanWritable;
 import org.jblas.FloatMatrix;
 
@@ -67,6 +72,9 @@ public class RankEvaluationComputation extends BasicComputation<CfLongId, FloatM
 			}
 			float avg = sum/cnt;
 			vertex.setValue(new FloatMatrixWritable(new FloatMatrix(new float[]{avg})));
+			System.err.println("*****************************");
+			System.err.println(vertex.getValue().toString());
+			System.err.println("*****************************");
 		}
 	}
 

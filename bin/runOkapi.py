@@ -15,7 +15,7 @@ __author__ = 'linas'
 import logging, os, urllib, zipfile
 import luigi, luigi.hadoop_jar, luigi.hdfs
 
-#all available methods and theri Computation classes
+#all available methods and theri Computation classes, add your here if you have a new one.
 methods = { 'BPR': 'ml.grafos.okapi.cf.ranking.BPRRankingComputation',
             'Pop': 'ml.grafos.okapi.cf.ranking.PopularityRankingComputation',
             'Random' : 'ml.grafos.okapi.cf.ranking.RandomRankingComputation',
@@ -40,7 +40,14 @@ class DownloadMovielens(luigi.Task):
         f.close()
 
 class PrepareMovielensData(luigi.Task):
-    '''Splits the data into training, validation and testing. Reindex it according to the okapi needs'''
+    '''
+    Splits the data into training, validation and testing.
+    Reindex it according to the okapi needs, i.e., the item and user index starts at 0
+
+    The output contains 4 files:
+    testing, training, info, and validation. The info file contains info about the training
+    data set (#user, #items, etc). I is used for testing the model.
+    '''
 
     fraction = luigi.Parameter(description="The fraction of data we want to use", default=1.0)
 
@@ -52,10 +59,10 @@ class PrepareMovielensData(luigi.Task):
         return DownloadMovielens()
 
     def output(self):
-        return [luigi.hdfs.HdfsTarget('movielens.training'),
-                luigi.hdfs.HdfsTarget('movielens.training.info'),
-                luigi.hdfs.HdfsTarget('movielens.testing'),
-                luigi.hdfs.HdfsTarget('movielens.validation')]
+        return [luigi.hdfs.HdfsTarget('movielens.testing_'+self.fraction),
+                luigi.hdfs.HdfsTarget('movielens.training_'+self.fraction),
+                luigi.hdfs.HdfsTarget('movielens.training.info_'+self.fraction),
+                luigi.hdfs.HdfsTarget('movielens.validation_'+self.fraction)]
 
     def _get_id(self, original_id, dictionary):
         id = dictionary.get(original_id, len(dictionary))
@@ -71,7 +78,7 @@ class PrepareMovielensData(luigi.Task):
         random.seed(123)#just that all user would have the same data sets
 
         f = self.input().open('r') # this will return a file stream that reads from movielens ratings.dat
-        training = self.output()[0].open('w')
+        training = self.output()[1].open('w')
 
         #lets first write training set and store in memory user and item indexes
         testing_validation = []
@@ -92,7 +99,7 @@ class PrepareMovielensData(luigi.Task):
 
 
         #now lets write out the testing and validation
-        testing = self.output()[2].open('w')
+        testing = self.output()[0].open('w')
         validation = self.output()[3].open('w')
         for u,i,r in testing_validation:
             if u in self.training_users and i in self.training_items:
@@ -105,7 +112,7 @@ class PrepareMovielensData(luigi.Task):
         validation.close()
         f.close()
 
-        info = self.output()[1].open('w')
+        info = self.output()[2].open('w')
         info.write('n_users: {}, n_items: {}, n_entries: {}\n'.format(len(self.training_users), len(self.training_items), cnt))
         info.close()
 
@@ -125,13 +132,13 @@ class DeleteDir(luigi.Task):
 class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
     '''Trains a model'''
 
+    fraction = luigi.Parameter(description="The fraction of data we want to use", default=1.0)
     model_name = luigi.Parameter(description="The model: {"+" | ".join(methods)+"}")
-    in_hdfs = luigi.Parameter(description="Training input file")
     out_hdfs = luigi.Parameter(description="Output dir for the task")
 
     def requires(self):
         #we need to delete a special zookeeper dir because of some strange behaviour
-        return PrepareMovielensData(), DeleteDir(self._get_conf("hadoop", "zookeeper-dir"))
+        return PrepareMovielensData(self.fraction)
 
     def output(self):
         return luigi.hdfs.HdfsTarget(self.out_hdfs)
@@ -152,13 +159,15 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
         return 'org.apache.giraph.io.formats.IdWithValueTextOutputFormat'
 
     def get_input(self):
-        return self.in_hdfs
+        training = self.input()[1].path
+        return training
 
     def get_output(self):
         return self.out_hdfs
 
     def run(self):
         self.set_hadoop_classpath()
+        DeleteDir(self._get_conf("hadoop", "zookeeper-dir")).run()
         super(OkapiTrainModelTask, self).run()
 
     def get_libjars(self):
@@ -168,12 +177,11 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
         '''we need to put our jars into the classpath of the hadoop'''
         hadoop_cp = ':'.join(filter(None, self.get_libjars()))
         if os.environ.get('HADOOP_CLASSPATH', None):
-            os.environ['HADOOP_CLASSPATH'] = os.environ['HADOOP_CLASSPATH']+":"+hadoop_cp
-            print os.environ['HADOOP_CLASSPATH']
+            if not hadoop_cp in os.environ['HADOOP_CLASSPATH']:
+                os.environ['HADOOP_CLASSPATH'] = os.environ['HADOOP_CLASSPATH']+":"+hadoop_cp
         else:
             os.environ['HADOOP_CLASSPATH'] = hadoop_cp
         logger.debug("HADOOP_CLASSPATH={}".format(os.environ['HADOOP_CLASSPATH']))
-        print os.environ['HADOOP_CLASSPATH']
 
     def jar(self):
         return self.giraph_jar()
@@ -198,8 +206,14 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
     def giraph_jar(self):
         return self.get_jar("okapi", "giraph-jar")
 
-    def get_custom_arguments(self):
-        return ['-ca', 'minItemId=1', '-ca', 'maxItemId=10628']
+    def get_custom_arguments(self, info_filename):
+        #we check how many items there are in the training set
+        f = info_filename.open()
+        line = f.readlines()
+        f.close()
+        maxItems = int(line[0].split(",")[1].split(':')[1])
+        return ['-ca', 'minItemId=1',
+                '-ca', 'maxItemId='+str(maxItems-1)]
 
     def args(self):
         return [
@@ -213,13 +227,24 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
             '-vof', self.get_output_format(),
             '-op', self.get_output(),
             '-w', self._get_conf("okapi", "workers")] \
-            + self.get_custom_arguments()
+            + self.get_custom_arguments(self.input()[2])
 
-class EvaluateMovielensTask(OkapiTrainModelTask):
-    '''Evaluates how good is the built model'''
+class EvaluateTask(OkapiTrainModelTask):
+    '''
+    Evaluates how good is the built model.
+    We use a trick of loading vertex input and edge input formats from 2 separate files.
+    In this way, we don't need to join them beforehand.
+    '''
+
+    def run(self):
+        #first we do some custom cleanup as giraph don't like input _logs and _SUCCESS
+        DeleteDir(self.model_name+"_model/_logs").run()
+        DeleteDir(self.model_name+"_model/_SUCCESS").run()
+        super(EvaluateTask, self).run()
+
     def requires(self):
-        return OkapiTrainModelTask(self.model_name, 'movielens.training', self.model_name+"_model"), \
-               DeleteDir(self._get_conf("hadoop", "zookeeper-dir")),
+        return [PrepareMovielensData(self.fraction),
+                OkapiTrainModelTask(self.fraction, self.model_name, self.model_name+"_model")]
 
     def output(self):
         return luigi.hdfs.HdfsTarget(self.out_hdfs)
@@ -231,69 +256,45 @@ class EvaluateMovielensTask(OkapiTrainModelTask):
             "-Dgiraph.zkManagerDirectory="+self._get_conf('hadoop', 'zookeeper-dir'),
             "-Dgiraph.useSuperstepCounters=false",
             self.get_computation_class(),
-            '-vif' ,'ml.grafos.okapi.cf.CfLongIdFloatTextInputFormat',
-            '-vip', self.input()[0],
+            '-vif' ,'ml.grafos.okapi.cf.eval.CfModelInputFormat',
+            '-vip', self.input()[1].path+"/part*",#model input
+            '-eif', 'ml.grafos.okapi.cf.eval.CfLongIdBooleanTextInputFormat',
+            '-eip', self.input()[0][0],#testing file input
             '-vof', 'org.apache.giraph.io.formats.IdWithValueTextOutputFormat',
             '-op', self.get_output(),
             '-w', self._get_conf("okapi", "workers")] \
-            + self.get_custom_arguments()
+            + self.get_custom_arguments(self.input()[0][2])
 
     def get_computation_class(self):
-        return 'es.tid.recsys.giraph.eval.RankEvaluationComputation'
+        return 'ml.grafos.okapi.cf.eval.RankEvaluationComputation'
 
-    def get_custom_arguments(self):
+    def get_custom_arguments(self, info_filename):
+        #we check how many items there are in the training set
+        f = info_filename.open()
+        line = f.readlines()
+        f.close()
+        maxItems = int(line[0].split(",")[1].split(':')[1])
         return ['-ca', 'minItemId=1',
-                '-ca', 'maxItemId=17770',
+                '-ca', 'maxItemId='+str(maxItems-1),
                 '-ca', 'numberSamples='+self._get_conf("okapi", "number-of-negative-samples-in-eval")]
 
-class JoinModelToTest(luigi.hadoop.JobTask):
-
-    model_dir = luigi.Parameter(description="The computed model directory")
-    test_data = luigi.Parameter(description="Test data")
-    join_out = luigi.Parameter(description="Output dir")
-
-    def init(self):
-        print "here"
-        t = luigi.hdfs.HdfsTarget(self.model_dir)
-        f = t.open('r')
-        for line in f:
-            id, model = line.strip().split("\t")
-            print model
-        f.close() # needed
-
-    def output(self):
-        return luigi.hdfs.HdfsTarget(self.join_out)
-
-    def requires(self):
-        return OkapiTrainModelTask('Random', 'movielens.training', "Random_model")
-
-    def mapper(self, line):
-        node, model = line.strip().split("\t")
-        yield node, model
-
-    def reducer(self, key, values):
-        if values:
-            if isinstance(values, list):
-                yield key, values[0]
-            else:
-                yield key, values
-        else:
-            yield key, "[0;0]"
-
-class SpitMePrecisionBitch(luigi.Task):
+class SpitPrecision(luigi.Task):
     '''Gives a Precision of the model'''
     model_name = luigi.Parameter(description="The model: {"+" | ".join(methods)+"}")
+    fraction = luigi.Parameter(description="Fraction of data to use for the experiment", default=0.01)
 
     def requires(self):
-        return PrepareMovielensData(fraction=0.1), EvaluateMovielensTask('BPR', 'movielens.testing', 'BPR_eval')
+        return PrepareMovielensData(self.fraction), EvaluateTask(self.fraction, self.model_name, self.model_name+'_eval')
 
     def complete(self):
         return False
 
     def run(self):
-        f = self.input()[-1].open('r')
+        f = luigi.hdfs.HdfsTarget(self.model_name+'_eval/part*').open()
         for line in f:
-            print line
+            if line.startswith("0 -1"):
+                nodeid, accuracy = line.split("\t")
+                print "Model accuracy: {}".format(accuracy)
         f.close()
 
 

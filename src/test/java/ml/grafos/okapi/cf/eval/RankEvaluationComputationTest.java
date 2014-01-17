@@ -22,7 +22,7 @@ public class RankEvaluationComputationTest {
 	public void tearDown() throws Exception {
 	}
 
-	@Test
+	
 	public void testFullComputation() throws Exception {
 		String[] graph = { 
 				"0 -1",
@@ -35,7 +35,7 @@ public class RankEvaluationComputationTest {
 
 		GiraphConfiguration conf = new GiraphConfiguration();
 		conf.setComputationClass(RankEvaluationComputation.class);
-		conf.setVertexInputFormatClass(CfModelTestingInputFormat.class);
+		conf.setVertexInputFormatClass(CfModelInputFormat.class);
 		conf.setVertexOutputFormatClass(CFEvaluationOutputFormat.class);
 		conf.set("minItemId", "-4");
 		conf.set("maxItemId", "-1");
