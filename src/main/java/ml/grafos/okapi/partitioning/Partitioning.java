@@ -16,7 +16,7 @@ import org.apache.hadoop.io.IntWritable;
 
 /**
  * Demonstrates the Pregel-based implementation of an adaptive partitioning
- * algorithm for Large-Scale Dynamic Graphs.
+ * algorithm for large-scale graphs.
  */
 
 @Algorithm(
@@ -47,10 +47,6 @@ public class Partitioning extends BasicComputation<IntWritable,
     "partitioning.stabilization";
   /** Default value for stabilization rounds. */
   public static final int STABILIZATION_DEFAULT = 30;
-  /** Keyword for parameter enabling delta caching. */
-  public static final String DELTA_CACHING = "partitioning.delta.caching";
-  /** Default value for parameter enabling delta caching. */
-  public static final boolean DELTA_CACHING_DEFAULT = false;
   /** String prefix for aggregators summing the partitions capacity. */
   public static final String AGGREGATOR_CAPACITY_PREFIX = "AGG_CAP_";
   /** String prefix for aggregators summing the partitions demand. */
@@ -62,7 +58,7 @@ public class Partitioning extends BasicComputation<IntWritable,
   /** New object IntWritable with the value -1. */
   public static final IntWritable MINUS_ONE = new IntWritable(-1);
   /** Number used in the calculation of total capacity. */
-  public static final double POINTTWO = 0.2;
+  public static final double EXTRA_CAPACITY_FACTOR = 0.2;
   /** Counter of number of migrations. */
   private int countMigrations = 0;
   /** Initial value of vertex - Partition Id the vertex was assigned to. */
@@ -114,7 +110,7 @@ public class Partitioning extends BasicComputation<IntWritable,
 
     // Recompute capacity every time because it's not maintained.
     int totalCapacity = (int) (getTotalNumVertices() / numPartitions);
-    totalCapacity = totalCapacity + (int) (totalCapacity * POINTTWO) + 1;
+    totalCapacity = totalCapacity + (int) (totalCapacity * EXTRA_CAPACITY_FACTOR) + 1;
 
     /* Superstep 0
      * - Initialize Vertex Value
