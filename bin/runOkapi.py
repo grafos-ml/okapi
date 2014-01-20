@@ -76,7 +76,6 @@ class PrepareMovielensData(luigi.Task):
         2. from memory, items and users that are in training 33% of items go into validation, 66% go to testing
         '''
 	frac = float(self.fraction)
-	print frac
         import random
         random.seed(123)#just that all user would have the same data sets
 
@@ -227,6 +226,8 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
 			'-ca', 'sgd.gamma=0.005',
 			'-ca', 'sgd.lambda=0.01',		
 			'-ca', 'sgd.vector.size=20']	
+	else:
+		return []
 
     def args(self):
         return [
