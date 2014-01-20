@@ -19,7 +19,8 @@ import luigi, luigi.hadoop_jar, luigi.hdfs
 methods = { 'BPR': 'ml.grafos.okapi.cf.ranking.BPRRankingComputation',
             'Pop': 'ml.grafos.okapi.cf.ranking.PopularityRankingComputation',
             'Random' : 'ml.grafos.okapi.cf.ranking.RandomRankingComputation',
-            'TFMAP' : 'ml.grafos.okapi.cf.ranking.TFMAPRankingComputation'
+            'TFMAP' : 'ml.grafos.okapi.cf.ranking.TFMAPRankingComputation',
+	    'SGD' : 'ml.grafos.okapi.cf.sgd.Sgd$InitUsersComputation'
 }
 
 logger = logging.getLogger('luigi-interface')
@@ -74,6 +75,8 @@ class PrepareMovielensData(luigi.Task):
         1. 70% entries go to training, others go to memory
         2. from memory, items and users that are in training 33% of items go into validation, 66% go to testing
         '''
+	frac = float(self.fraction)
+	print frac
         import random
         random.seed(123)#just that all user would have the same data sets
 
@@ -84,6 +87,8 @@ class PrepareMovielensData(luigi.Task):
         testing_validation = []
         cnt = 0
         for line in f:
+	    if random.random() > frac:
+                continue
             r = random.random()
             user,item,rating,time = line.split("::")
             rating = int(float(rating))
@@ -215,6 +220,14 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
         return ['-ca', 'minItemId=1',
                 '-ca', 'maxItemId='+str(maxItems-1)]
 
+    def get_custom_method_params(self, model_name):
+	if model_name=="SGD":
+		return ['-mc', 'ml.grafos.okapi.cf.sgd.Sgd$MasterCompute', 
+			'-ca', 'sgd.iterations=20',
+			'-ca', 'sgd.gamma=0.005',
+			'-ca', 'sgd.lambda=0.01',		
+			'-ca', 'sgd.vector.size=20']	
+
     def args(self):
         return [
             "-libjars", ",".join(self.get_libjars()),
@@ -227,7 +240,8 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
             '-vof', self.get_output_format(),
             '-op', self.get_output(),
             '-w', self._get_conf("okapi", "workers")] \
-            + self.get_custom_arguments(self.input()[2])
+            + self.get_custom_arguments(self.input()[2]) \
+	    + self.get_custom_method_params(self.model_name)
 
 class EvaluateTask(OkapiTrainModelTask):
     '''
