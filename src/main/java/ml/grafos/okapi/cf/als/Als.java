@@ -49,7 +49,7 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
   public static final float LAMBDA_DEFAULT = 0.01f;
   /** Keyword for parameter setting the Latent Vector Size. */
   public static final String VECTOR_SIZE = "als.vector.size";
-  /** Default value for GAMMA. */
+  /** Default value for vector size. */
   public static final int VECTOR_SIZE_DEFAULT = 50;
   
   /** Aggregator used to compute the RMSE */

@@ -20,7 +20,9 @@ methods = { 'BPR': 'ml.grafos.okapi.cf.ranking.BPRRankingComputation',
             'Pop': 'ml.grafos.okapi.cf.ranking.PopularityRankingComputation',
             'Random' : 'ml.grafos.okapi.cf.ranking.RandomRankingComputation',
             'TFMAP' : 'ml.grafos.okapi.cf.ranking.TFMAPRankingComputation',
-	    'SGD' : 'ml.grafos.okapi.cf.sgd.Sgd$InitUsersComputation'
+	    'SGD' : 'ml.grafos.okapi.cf.sgd.Sgd$InitUsersComputation',
+	    'ALS' : 'ml.grafos.okapi.cf.als.Als$InitUsersComputation',
+	    'SVD' : 'ml.grafos.okapi.cf.svd.Svdpp$InitUsersComputation'
 }
 
 logger = logging.getLogger('luigi-interface')
@@ -226,6 +228,15 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
 			'-ca', 'sgd.gamma=0.005',
 			'-ca', 'sgd.lambda=0.01',		
 			'-ca', 'sgd.vector.size=20']	
+	elif model_name=="ALS":
+		return ['-mc', 'ml.grafos.okapi.cf.als.Als$MasterCompute', 
+			'-ca', 'als.iterations=20',
+			'-ca', 'als.lambda=0.01',		
+			'-ca', 'als.vector.size=20']	
+	elif model_name=="SVD":
+		return ['-mc', 'ml.grafos.okapi.cf.svd.Svdpp$MasterCompute', 
+			'-ca', 'svd.iterations=20',
+			'-ca', 'svd.vector.size=20']	
 	else:
 		return []
 

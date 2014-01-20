@@ -205,6 +205,11 @@ public class Svdpp {
       factors.write(output);
       weight.write(output);
     }
+
+    @Override
+    public String toString() {
+      return factors.toString();
+    }
   }
 
   /**
