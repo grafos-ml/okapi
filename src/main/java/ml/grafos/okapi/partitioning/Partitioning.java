@@ -118,10 +118,9 @@ public class Partitioning extends BasicComputation<IntWritable,
      * - Send its partition ID to corresponding aggregator
      */
     if (getSuperstep() == 0) {
-      /*System.out.println("***** SS:" + getSuperstep() +
-        ", vertexID: " + getId() + ", totalCapacity: " + totalCapacity); */
-      initValue(vertex, numPartitions);
-      setInitialValue(vertex);
+      
+      vertex.setValue(new IntWritable(vertex.getId().get() % numPartitions));
+      initialValue = vertex.getValue().get();
 
       /* Send to capacity aggregator a PLUS_ONE signal */
       aggregate(AGGREGATOR_CAPACITY_PREFIX + vertex.getValue().get(), PLUS_ONE);
@@ -287,29 +286,6 @@ public class Partitioning extends BasicComputation<IntWritable,
       } // End of else{maxEntry NOT null)
     } // End of weightedPartition.entrySet()
     return maxEntry.getKey();
-  }
-
-  /**
-   * Initialize Vertex Value.
-   * VertexValue = VertexID mod num_of_partitions
-   *
-   * @param numPartitions Number of Partitions
-   */
-  public final void initValue(
-      Vertex<IntWritable, IntWritable, IntWritable> vertex, 
-      final int numPartitions) {
-    //Random randomGenerator = new Random();
-    //int partition = randomGenerator.nextInt(numPartitions);
-    //setValue(new IntWritable(partition));
-    vertex.setValue(new IntWritable(vertex.getId().get() % numPartitions));
-  }
-
-  /**
-   * Set the initial value of the vertex.
-   */
-  final void setInitialValue(
-      Vertex<IntWritable, IntWritable, IntWritable> vertex) {
-    initialValue = vertex.getValue().get();
   }
 
   /**
