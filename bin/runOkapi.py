@@ -97,7 +97,7 @@ class PrepareMovielensData(luigi.Task):
                 userid = self._get_id(user, self.training_users)
                 itemid = self._get_id(item, self.training_items)
 
-                training.write("{} {} {}\n".format(userid, itemid, rating))
+                training.write("{0} {1} {2}\n".format(userid, itemid, rating))
                 cnt += 1
             else:
                 testing_validation.append((user, item, rating))
@@ -111,15 +111,15 @@ class PrepareMovielensData(luigi.Task):
             if u in self.training_users and i in self.training_items:
                 r = random.random()
                 if r < 0.33:
-                    validation.write('{} {} {}\n'.format(self.training_users[u], self.training_items[i], rating))
+                    validation.write('{0} {1} {2}\n'.format(self.training_users[u], self.training_items[i], rating))
                 else:
-                    testing.write('{} {} {}\n'.format(self.training_users[u], self.training_items[i], rating))
+                    testing.write('{0} {1} {2}\n'.format(self.training_users[u], self.training_items[i], rating))
         testing.close()
         validation.close()
         f.close()
 
         info = self.output()[2].open('w')
-        info.write('n_users: {}, n_items: {}, n_entries: {}\n'.format(len(self.training_users), len(self.training_items), cnt))
+        info.write('n_users: {0}, n_items: {1}, n_entries: {2}\n'.format(len(self.training_users), len(self.training_items), cnt))
         info.close()
 
 class DeleteDir(luigi.Task):
@@ -127,9 +127,9 @@ class DeleteDir(luigi.Task):
     dir = luigi.Parameter(description="Directory to delete")
 
     def run(self):
-        logger.debug("Checking if {} is available".format(self.dir))
+        logger.debug("Checking if {0} is available".format(self.dir))
         if luigi.hdfs.exists(self.dir):
-            logger.debug("Removing {}.".format(self.dir))
+            logger.debug("Removing {0}.".format(self.dir))
             luigi.hdfs.remove(self.dir)
 
     def complete(self):
@@ -187,7 +187,7 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
                 os.environ['HADOOP_CLASSPATH'] = os.environ['HADOOP_CLASSPATH']+":"+hadoop_cp
         else:
             os.environ['HADOOP_CLASSPATH'] = hadoop_cp
-        logger.debug("HADOOP_CLASSPATH={}".format(os.environ['HADOOP_CLASSPATH']))
+        logger.debug("HADOOP_CLASSPATH={0}".format(os.environ['HADOOP_CLASSPATH']))
 
     def jar(self):
         return self.giraph_jar()
@@ -199,10 +199,10 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
         config = luigi.configuration.get_config()
         jar = config.get(group, jarname)
         if not jar:
-            logger.error("You must specify {} in client.cfg".format(jarname))
+            logger.error("You must specify {0} in client.cfg".format(jarname))
             raise
         if not os.path.exists(jar):
-            logger.error("Can't find {} jar: ".format(jarname))
+            logger.error("Can't find {0} jar: ".format(jarname))
             raise
         return jar
 
@@ -320,7 +320,7 @@ class SpitPrecision(luigi.Task):
         for line in f:
             if line.startswith("0 -1"):
                 nodeid, accuracy = line.split("\t")
-                print "Model accuracy: {}".format(accuracy)
+                print "Model accuracy: {0}".format(accuracy)
         f.close()
 
 
