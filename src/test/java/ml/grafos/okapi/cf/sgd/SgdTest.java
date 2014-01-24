@@ -98,7 +98,7 @@ public class SgdTest {
         new FloatWritable(4.0f));
 
     TestGraph<CfLongId, FloatMatrixWritable, FloatWritable> resultGraph = 
-        InternalVertexRunner.run(conf, testGraph);
+        InternalVertexRunner.runWithInMemoryOutput(conf, testGraph);
 
     Assert.assertNotNull(resultGraph.getVertex(new CfLongId((byte)0, 1)));
     Assert.assertNotNull(resultGraph.getVertex(new CfLongId((byte)1, 1)));  
