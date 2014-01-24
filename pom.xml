@@ -73,6 +73,52 @@
     </plugins>
   </build>
 
+  <profiles>
+    <profile>
+      <id>hadoop_preyarn</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <properties>
+        <hadoop.version>0.20.203.0</hadoop.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-core</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>hadoop_yarn</id>
+      <properties>
+        <hadoop.version>2.2.0</hadoop.version>
+      </properties>
+      <dependencies>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-common</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-mapreduce-client-common</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>provided</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-mapreduce-client-core</artifactId>
+          <version>${hadoop.version}</version>
+          <scope>provided</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+  </profiles>
+
   <dependencies>
     <dependency>
       <groupId>junit</groupId>
@@ -101,12 +147,6 @@
       <scope>compile</scope>
     </dependency>
     <dependency>
-      <groupId>org.apache.hadoop</groupId>
-      <artifactId>hadoop-core</artifactId>
-      <version>${hadoop.version}</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
       <groupId>com.google.guava</groupId>
       <artifactId>guava</artifactId>
 	      <!-- Guava 14.0 is not found on the maven repository -->
@@ -131,22 +171,10 @@
       </snapshots>
     </repository>
     <repository>
-      <id>apache snapshots</id>
-      <name>www.apache.org</name>
-      <url>https://repository.apache.org/content/repositories/snapshots</url>
+      <id>apache</id>
+      <url>https://repository.apache.org/content/groups/public/</url>
       <snapshots>
         <enabled>true</enabled>
-      </snapshots>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-    </repository>
-    <repository>
-      <id>apache releases</id>
-      <name>www.apache.org</name>
-      <url>https://repository.apache.org/content/repositories/releases</url>
-      <snapshots>
-        <enabled>false</enabled>
       </snapshots>
       <releases>
         <enabled>true</enabled>
