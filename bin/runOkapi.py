@@ -51,7 +51,7 @@ class PrepareMovielensData(luigi.Task):
     testing, training, info, and validation. The info file contains info about the training
     data set (#user, #items, etc). I is used for testing the model.
     '''
-
+    
     fraction = luigi.Parameter(description="The fraction of data we want to use", default=1.0)
 
     #remaking ids for okapi: starts 1 (items -1), no gaps, no new items in the test/validation set
@@ -66,6 +66,13 @@ class PrepareMovielensData(luigi.Task):
                 luigi.hdfs.HdfsTarget('movielens.training_'+self.fraction),
                 luigi.hdfs.HdfsTarget('movielens.training.info_'+self.fraction),
                 luigi.hdfs.HdfsTarget('movielens.validation_'+self.fraction)]
+
+    def local_output(self):
+        return [luigi.file.File('/tmp/movielens.testing_'+self.fraction),
+                luigi.file.File('/tmp/movielens.training_'+self.fraction),
+                luigi.file.File('/tmp/movielens.training.info_'+self.fraction),
+                luigi.file.File('/tmp/movielens.validation_'+self.fraction)]
+
 
     def _get_id(self, original_id, dictionary):
         id = dictionary.get(original_id, len(dictionary))
@@ -82,7 +89,9 @@ class PrepareMovielensData(luigi.Task):
         random.seed(123)#just that all user would have the same data sets
 
         f = self.input().open('r') # this will return a file stream that reads from movielens ratings.dat
-        training = self.output()[1].open('w')
+        training = self.local_output()[1].open('w')
+
+        hdfs_client = luigi.hdfs.HdfsClient()
 
         #lets first write training set and store in memory user and item indexes
         testing_validation = []
@@ -105,8 +114,8 @@ class PrepareMovielensData(luigi.Task):
 
 
         #now lets write out the testing and validation
-        testing = self.output()[0].open('w')
-        validation = self.output()[3].open('w')
+        testing = self.local_output()[0].open('w')
+        validation = self.local_output()[3].open('w')
         for u,i,r in testing_validation:
             if u in self.training_users and i in self.training_items:
                 r = random.random()
@@ -118,9 +127,14 @@ class PrepareMovielensData(luigi.Task):
         validation.close()
         f.close()
 
-        info = self.output()[2].open('w')
+        info = self.local_output()[2].open('w')
         info.write('n_users: {0}, n_items: {1}, n_entries: {2}\n'.format(len(self.training_users), len(self.training_items), cnt))
         info.close()
+
+	hdfs_client.put(self.local_output()[0].path, self.output()[0].path)
+	hdfs_client.put(self.local_output()[1].path, self.output()[1].path)
+	hdfs_client.put(self.local_output()[2].path, self.output()[2].path)
+	hdfs_client.put(self.local_output()[3].path, self.output()[3].path)
 
 class DeleteDir(luigi.Task):
     '''Removes a given HDFS directory.'''
