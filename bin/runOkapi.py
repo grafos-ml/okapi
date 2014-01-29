@@ -14,6 +14,7 @@ __author__ = 'linas'
 
 import logging, os, urllib, zipfile
 import luigi, luigi.hadoop_jar, luigi.hdfs
+import tempfile
 
 #all available methods and theri Computation classes, add your here if you have a new one.
 methods = { 'BPR': 'ml.grafos.okapi.cf.ranking.BPRRankingComputation',
@@ -68,10 +69,10 @@ class PrepareMovielensData(luigi.Task):
                 luigi.hdfs.HdfsTarget('movielens.validation_'+self.fraction)]
 
     def local_output(self):
-        return [luigi.file.File('/tmp/movielens.testing_'+self.fraction),
-                luigi.file.File('/tmp/movielens.training_'+self.fraction),
-                luigi.file.File('/tmp/movielens.training.info_'+self.fraction),
-                luigi.file.File('/tmp/movielens.validation_'+self.fraction)]
+        return [luigi.file.File(tempfile.gettempdir()+'/movielens.testing_'+self.fraction),
+                luigi.file.File(tempfile.gettempdir()+'/movielens.training_'+self.fraction),
+                luigi.file.File(tempfile.gettempdir()+'/movielens.training.info_'+self.fraction),
+                luigi.file.File(tempfile.gettempdir()+'/movielens.validation_'+self.fraction)]
 
 
     def _get_id(self, original_id, dictionary):
@@ -297,7 +298,7 @@ class EvaluateTask(OkapiTrainModelTask):
             "-Dgiraph.useSuperstepCounters=false",
             self.get_computation_class(),
             '-vif' ,'ml.grafos.okapi.cf.eval.CfModelInputFormat',
-            '-vip', self.input()[1].path+"/part*",#model input
+            '-vip', self.input()[1].path,#model input
             '-eif', 'ml.grafos.okapi.cf.eval.CfLongIdBooleanTextInputFormat',
             '-eip', self.input()[0][0],#testing file input
             '-vof', 'org.apache.giraph.io.formats.IdWithValueTextOutputFormat',
