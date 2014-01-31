@@ -15,7 +15,7 @@
  * under the License.
  */
 
-package ml.grafos.okapi.pagerank;
+package ml.grafos.okapi.graphs;
 
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;

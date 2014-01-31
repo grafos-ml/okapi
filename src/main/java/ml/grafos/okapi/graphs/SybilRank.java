@@ -1,4 +1,4 @@
-package ml.grafos.okapi.sybilrank;
+package ml.grafos.okapi.graphs;
 
 import java.io.DataInput;
 import java.io.DataOutput;

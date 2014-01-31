@@ -1,4 +1,4 @@
-package ml.grafos.okapi.clustering;
+package ml.grafos.okapi.graphs;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.TreeSet;
 
-import ml.grafos.okapi.clustering.SemiClustering.SemiClusterTreeSetWritable;
+import ml.grafos.okapi.graphs.SemiClustering.SemiClusterTreeSetWritable;
 
 import org.apache.giraph.Algorithm;
 import org.apache.giraph.edge.Edge;

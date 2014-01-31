@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package ml.grafos.okapi.examples;
+package ml.grafos.okapi.graphs;
 
 import java.io.IOException;
 
@@ -42,7 +42,7 @@ import org.apache.hadoop.io.NullWritable;
  *
  * http://www.cs.cmu.edu/~ukang/papers/PegasusKAIS.pdf
  */
-public class ConnectedComponentsVertex extends BasicComputation<LongWritable,
+public class ConnectedComponents extends BasicComputation<LongWritable,
     LongWritable, NullWritable, LongWritable> {
   /**
    * Propagates the smallest vertex id to all neighbors. Will always choose to

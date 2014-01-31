@@ -6,6 +6,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import junit.framework.Assert;
+import ml.grafos.okapi.graphs.SemiClustering;
 import ml.grafos.okapi.io.formats.LongDoubleTextEdgeInputFormat;
 
 import org.apache.giraph.conf.GiraphConfiguration;

@@ -1,4 +1,4 @@
-package ml.grafos.okapi.sybilrank;
+package ml.grafos.okapi.graphs;
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Random;
 
-import ml.grafos.okapi.sybilrank.SybilRank.VertexValue;
+import ml.grafos.okapi.graphs.SybilRank.VertexValue;
 
 import org.apache.giraph.bsp.BspInputSplit;
 import org.apache.giraph.edge.Edge;

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package ml.grafos.okapi.examples;
+package ml.grafos.okapi.graphs;
 
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.examples.Algorithm;
@@ -34,7 +34,7 @@ import org.apache.log4j.Logger;
     name = "Shortest paths",
     description = "Finds all shortest paths from a selected vertex"
 )
-public class SimpleShortestPathsVertex extends BasicComputation<LongWritable, 
+public class SimpleShortestPaths extends BasicComputation<LongWritable, 
 DoubleWritable, FloatWritable, DoubleWritable> {
   /** The shortest paths id */
   public static final String SOURCE_ID = "SimpleShortestPathsVertex.sourceId";
@@ -42,7 +42,7 @@ DoubleWritable, FloatWritable, DoubleWritable> {
   public static final long SOURCE_ID_DEFAULT = 1;
   /** Class logger */
   private static final Logger LOG =
-      Logger.getLogger(SimpleShortestPathsVertex.class);
+      Logger.getLogger(SimpleShortestPaths.class);
 
   /**
    * Is this vertex the source id?
