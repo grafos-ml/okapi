@@ -15,6 +15,7 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
 
 /**
  * The clustering coefficient is used to measure how well vertices are connected
@@ -88,22 +89,22 @@ public class ClusteringCoefficient {
   public static String COUNTER_NAME = "Global (x1000)";
 
   public static class SendFriendsList extends SendFriends<LongWritable, 
-    DoubleWritable, DoubleWritable, LongIdFriendsList> {
+    DoubleWritable, NullWritable, LongIdFriendsList> {
   }
 
   public static class ClusteringCoefficientComputation extends BasicComputation<
-  LongWritable, DoubleWritable, DoubleWritable, LongIdFriendsList> {
+  LongWritable, DoubleWritable, NullWritable, LongIdFriendsList> {
 
     @Override
     public void compute(
-        Vertex<LongWritable, DoubleWritable, DoubleWritable> vertex,
+        Vertex<LongWritable, DoubleWritable, NullWritable> vertex,
         Iterable<LongIdFriendsList> messages)
             throws IOException {
 
       // Add the friends of this vertex in a HashSet so that we can check 
       // for the existence of triangles quickly.
       HashSet<LongWritable> friends = new HashSet<LongWritable>();
-      for (Edge<LongWritable, DoubleWritable> edge : vertex.getEdges()) {
+      for (Edge<LongWritable, NullWritable> edge : vertex.getEdges()) {
         friends.add(new LongWritable(edge.getTargetVertexId().get()));
       }
 
