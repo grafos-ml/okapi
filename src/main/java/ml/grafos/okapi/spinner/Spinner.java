@@ -35,8 +35,10 @@ import org.apache.giraph.graph.AbstractComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
+import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
 import org.apache.giraph.master.DefaultMasterCompute;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
@@ -914,7 +916,7 @@ public class Spinner {
 		}
 	}
 
-	public static class LongShortVertexValueInputFormat extends
+	public static class SpinnerVertexValueInputFormat extends
 			TextVertexValueInputFormat<LongWritable, VertexValue, EdgeValue> {
 		private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
 
@@ -951,7 +953,7 @@ public class Spinner {
 		}
 	}
 
-	public static class LongShortTextEdgeInputFormat extends
+	public static class SpinnerEdgeInputFormat extends
 			TextEdgeInputFormat<LongWritable, EdgeValue> {
 		/** Splitter for endpoints */
 		private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
@@ -960,10 +962,10 @@ public class Spinner {
 		public EdgeReader<LongWritable, EdgeValue> createEdgeReader(
 				InputSplit split, TaskAttemptContext context)
 				throws IOException {
-			return new LongShortTextEdgeReader();
+			return new SpinnerEdgeReader();
 		}
 
-		public class LongShortTextEdgeReader extends
+		public class SpinnerEdgeReader extends
 				TextEdgeReaderFromEachLineProcessed<String[]> {
 			@Override
 			protected String[] preprocessLine(Text line) throws IOException {
@@ -989,6 +991,41 @@ public class Spinner {
 					value.setWeight((byte) Byte.parseByte(endpoints[2]));
 				}
 				return value;
+			}
+		}
+	}
+
+	public static class SpinnerVertexValueOutputFormat extends
+			TextVertexOutputFormat<LongWritable, VertexValue, EdgeValue> {
+		/** Specify the output delimiter */
+		public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
+		/** Default output delimiter */
+		public static final String LINE_TOKENIZE_VALUE_DEFAULT = "\t";
+
+		public TextVertexWriter createVertexWriter(TaskAttemptContext context) {
+			return new SpinnerVertexValueWriter();
+		}
+
+		protected class SpinnerVertexValueWriter extends
+				TextVertexWriterToEachLine {
+			/** Saved delimiter */
+			private String delimiter;
+
+			@Override
+			public void initialize(TaskAttemptContext context)
+					throws IOException, InterruptedException {
+				super.initialize(context);
+				Configuration conf = context.getConfiguration();
+				delimiter = conf.get(LINE_TOKENIZE_VALUE,
+						LINE_TOKENIZE_VALUE_DEFAULT);
+			}
+
+			@Override
+			protected Text convertVertexToLine(
+					Vertex<LongWritable, VertexValue, EdgeValue> vertex)
+					throws IOException {
+				return new Text(vertex.getId().get() + delimiter
+						+ vertex.getValue().getCurrentPartition());
 			}
 		}
 	}
