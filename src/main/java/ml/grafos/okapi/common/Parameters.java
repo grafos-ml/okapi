@@ -16,11 +16,16 @@
 package ml.grafos.okapi.common;
 
 import org.apache.giraph.conf.BooleanConfOption;
+import org.apache.giraph.conf.LongConfOption;
 
 /**
  * Common Okapi parameters.  
  */
 public class Parameters {
+
+  public static LongConfOption RANDOM_SEED = 
+      new LongConfOption("random.seed", -1, 
+          "Random number generator seed");
 
   public static BooleanConfOption GRAPH_DIRECTED =
       new BooleanConfOption("graph.directed", true, 
