@@ -21,7 +21,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
 /*
- * expects I as expects I as PrefixIntWritable
+ * expects I as PrefixIntWritable
  */
 @SuppressWarnings("rawtypes")
 public class PrefixHashWorkerPartitioner<I extends WritableComparable, V extends Writable, E extends Writable>
