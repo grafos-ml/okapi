@@ -5,4 +5,4 @@ Okapi is a library of Machine Learning and graph mining algorithms for Giraph. T
 
 The Okapi library is developed by the Telefonica Research lab and is available as open source under the Apache License. We invite users to contribute to the library, to make it more robust and rich in features. Okapi is part of the [Grafos.ML](http://grafos.ml) project. 
 
-For documentation and instructions on how to use Okapi, visit the [Grafos.ML](http://grafos.ml) page.
+For a full list of the provided algorithms, documentation, and instructions on how to use Okapi, please visit the [Grafos.ML](http://grafos.ml) page.
