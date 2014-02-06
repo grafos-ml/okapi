@@ -75,15 +75,15 @@ import com.google.common.collect.Lists;
  * 
  * 2) Each vertex computes the score for each label based on loads and the
  * labels from incoming neighbors. If a new partition has higher score (or
- * depending on the huristics used), the vertex decides to try to migrate during
- * the following superstep. Otherwise, it does nothing.
+ * depending on the heuristics used), the vertex decides to try to migrate
+ * during the following superstep. Otherwise, it does nothing.
  * 
  * 3) Interested vertices try to migrate according to the ratio of vertices who
  * want to migrate to a partition i and the remaining capacity of partition i.
  * Vertices who succeed in the migration update the partition loads and
- * communicate their migration to their neighbours true a message.
+ * communicate their migration to their neighbors true a message.
  * 
- * 4) Point (2) and (3) keep on being alternating untill convergence is reach,
+ * 4) Point (2) and (3) keep on being alternating until convergence is reach,
  * hence till the global score of the partitioning does not change for a number
  * of times over a certain threshold.
  * 
