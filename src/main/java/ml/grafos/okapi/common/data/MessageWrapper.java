@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import org.apache.giraph.conf.ImmutableClassesGiraphConfiguration;
 import org.apache.giraph.utils.ReflectionUtils;
+import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
 /**
@@ -39,7 +40,7 @@ import org.apache.hadoop.io.WritableComparable;
 @SuppressWarnings("rawtypes")
 public abstract class MessageWrapper<
   I extends WritableComparable,
-  M extends WritableComparable>
+  M extends Writable>
   implements WritableComparable<MessageWrapper<I, M>> {
   /** Message sender vertex Id. */
   private I sourceId;
@@ -105,7 +106,7 @@ public abstract class MessageWrapper<
    */
   public void write(final DataOutput output) throws IOException {
     if (sourceId == null) {
-      throw new IllegalStateException("write: Null destination vertex index");
+      throw new IllegalStateException("write: Null source vertex index");
     }
     sourceId.write(output);
     message.write(output);
