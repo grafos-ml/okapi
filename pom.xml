@@ -4,13 +4,14 @@
   <groupId>ml.grafos.okapi</groupId>
   <artifactId>okapi</artifactId>
   <packaging>jar</packaging>
-  <version>0.8-SNAPSHOT</version>
+  <version>0.3.1-SNAPSHOT</version>
   <name>okapi</name>
   <url>http://maven.apache.org</url>
 
   <properties>
     <giraph.version>1.1.0-SNAPSHOT</giraph.version>
     <hadoop.version>0.20.203.0</hadoop.version>
+    <giraph.scope>compile</giraph.scope>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 
@@ -144,7 +145,7 @@
       <groupId>org.apache.giraph</groupId>
       <artifactId>giraph-examples</artifactId>
       <version>${giraph.version}</version>
-      <scope>compile</scope>
+      <scope>${giraph.scope}</scope>
     </dependency>
     <dependency>
       <groupId>com.google.guava</groupId>
