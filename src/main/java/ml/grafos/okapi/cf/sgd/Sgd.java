@@ -159,7 +159,7 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
    * Applies the SGD update logic in the provided vector. It does the update
    * in-place.
    * 
-   * The update is peformed according to the following formula:
+   * The update is performed according to the following formula:
    * 
    * v = v - gamma*(lambda*v + error*u)
    * 
