@@ -13,21 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ml.grafos.okapi.examples;
+package ml.grafos.okapi.common;
 
-import org.apache.giraph.examples.IdentityComputation;
-import org.apache.hadoop.io.DoubleWritable;
-import org.apache.hadoop.io.LongWritable;
+import org.apache.giraph.conf.BooleanConfOption;
+import org.apache.giraph.conf.LongConfOption;
 
 /**
- * This is simply an extension of the 
- * {@link org.apache.giraph.examples.IdentityComputation IdentityComputation}
- * with specific parameter types.
- * 
- * @author dl
- *
+ * Common Okapi parameters.  
  */
-public class SimpleIdentityComputation extends IdentityComputation<LongWritable,
-  DoubleWritable, DoubleWritable, DoubleWritable> {
+public class Parameters {
 
+  public static LongConfOption RANDOM_SEED = 
+      new LongConfOption("random.seed", -1, 
+          "Random number generator seed");
+
+  public static BooleanConfOption GRAPH_DIRECTED =
+      new BooleanConfOption("graph.directed", true, 
+          "Defines whether the graph is directed or not. "
+          + "By default a graph is considered directed.");
 }

@@ -16,20 +16,20 @@
 package ml.grafos.okapi.common.data;
 
 import org.apache.giraph.utils.ArrayListWritable;
-import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.WritableComparable;
 
-public class IntArrayListWritable
-  extends ArrayListWritable<IntWritable>
-  implements WritableComparable<IntArrayListWritable> {
+public class LongArrayListWritable
+  extends ArrayListWritable<LongWritable>
+  implements WritableComparable<LongArrayListWritable> {
   /** Default constructor for reflection */
-  public IntArrayListWritable() {
+  public LongArrayListWritable() {
     super();
   }
 
   @Override
   public void setClass() {
-    setClass(IntWritable.class);
+    setClass(LongWritable.class);
   }
 
   /**
@@ -44,7 +44,7 @@ public class IntArrayListWritable
    * @return 0 value
    */
   @Override
-  public int compareTo(IntArrayListWritable message) {
+  public int compareTo(LongArrayListWritable message) {
     if (message==null) {
       return 1;
     }

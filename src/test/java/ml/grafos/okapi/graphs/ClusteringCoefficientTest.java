@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ml.grafos.okapi.clustering;
+package ml.grafos.okapi.graphs;
 
 import static org.junit.Assert.*;
 
@@ -21,15 +21,14 @@ import java.util.LinkedList;
 import java.util.List;
 
 import junit.framework.Assert;
-import ml.grafos.okapi.graphs.SemiClustering;
-import ml.grafos.okapi.io.formats.LongDoubleTextEdgeInputFormat;
+import ml.grafos.okapi.io.formats.LongNullTextEdgeInputFormat;
 
 import org.apache.giraph.conf.GiraphConfiguration;
 import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.utils.InternalVertexRunner;
 import org.junit.Test;
 
-public class SemiClusteringTest {
+public class ClusteringCoefficientTest {
 
   @Test
   public void test() {
@@ -49,11 +48,9 @@ public class SemiClusteringTest {
     };
 
     GiraphConfiguration conf = new GiraphConfiguration();
-    conf.setComputationClass(SemiClustering.class);
-    conf.setEdgeInputFormatClass(LongDoubleTextEdgeInputFormat.class);
-    conf.setInt(SemiClustering.ITERATIONS, 10);
-    conf.setInt(SemiClustering.MAX_CLUSTERS, 2);
-    conf.setInt(SemiClustering.CLUSTER_CAPACITY, 2);
+    conf.setComputationClass(ClusteringCoefficient.SendFriendsList.class);
+    conf.setMasterComputeClass(ClusteringCoefficient.MasterCompute.class);
+    conf.setEdgeInputFormatClass(LongNullTextEdgeInputFormat.class);
     conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
     Iterable<String> results;
     try {

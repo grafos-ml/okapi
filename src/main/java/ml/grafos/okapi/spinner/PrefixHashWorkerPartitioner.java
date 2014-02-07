@@ -13,33 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ml.grafos.okapi.common.computation;
+package ml.grafos.okapi.spinner;
 
-import java.io.IOException;
-
-import org.apache.giraph.graph.AbstractComputation;
-import org.apache.giraph.graph.Vertex;
+import org.apache.giraph.partition.HashWorkerPartitioner;
+import org.apache.giraph.partition.PartitionOwner;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
-/**
- * This computation is used simply to propagate the ID of a vertex to all its
- * neighbors. 
- * 
- * @author dl
- *
- * @param <I>
- * @param <V>
- * @param <E>
- * @param <M1>
+/*
+ * expects I as PrefixIntWritable
  */
-public class PropagateId<I extends WritableComparable, 
-  V extends Writable, E extends Writable, M1 extends Writable> 
-  extends AbstractComputation<I,V,E,M1,I> {
+@SuppressWarnings("rawtypes")
+public class PrefixHashWorkerPartitioner<I extends WritableComparable, V extends Writable, E extends Writable>
+		extends HashWorkerPartitioner<I, V, E> {
 
-  @Override
-  public void compute(Vertex<I,V,E> vertex, 
-      Iterable<M1> messages) throws IOException {
-    sendMessageToAllEdges(vertex, vertex.getId());
-  }
+	@Override
+	public PartitionOwner getPartitionOwner(I vertexId) {
+		PartitionedLongWritable id = (PartitionedLongWritable) vertexId;
+		return partitionOwnerList.get(Math.abs(id.getPartition()
+				% partitionOwnerList.size()));
+	}
 }
