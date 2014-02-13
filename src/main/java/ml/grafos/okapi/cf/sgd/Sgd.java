@@ -45,35 +45,35 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
   FloatWritable, FloatMatrixMessage> {
   
   /** Keyword for RMSE aggregator tolerance. */
-  public static final String RMSE_TARGET = "sgd.rmse.target";
+  public static final String RMSE_TARGET = "rmse";
   /** Default value for parameter enabling the RMSE aggregator. */
   public static final float RMSE_TARGET_DEFAULT = -1f;
   /** Keyword for parameter setting the convergence tolerance */
-  public static final String TOLERANCE = "sgd.tolerance";
+  public static final String TOLERANCE = "tolerance";
   /** Default value for TOLERANCE. */
   public static final float TOLERANCE_DEFAULT = -1f;
   /** Keyword for parameter setting the number of iterations. */
-  public static final String ITERATIONS = "sgd.iterations";
+  public static final String ITERATIONS = "iterations";
   /** Default value for ITERATIONS. */
   public static final int ITERATIONS_DEFAULT = 10;
   /** Keyword for parameter setting the regularization parameter LAMBDA. */
-  public static final String LAMBDA = "sgd.lambda";
+  public static final String LAMBDA = "lambda";
   /** Default value for LABDA. */
   public static final float LAMBDA_DEFAULT = 0.01f;
   /** Keyword for parameter setting the learning rate GAMMA. */
-  public static final String GAMMA = "sgd.gamma";
+  public static final String GAMMA = "gamma";
   /** Default value for GAMMA. */
   public static final float GAMMA_DEFAULT = 0.005f;
   /** Keyword for parameter setting the Latent Vector Size. */
-  public static final String VECTOR_SIZE = "sgd.vector.size";
+  public static final String VECTOR_SIZE = "dim";
   /** Default value for GAMMA. */
   public static final int VECTOR_SIZE_DEFAULT = 50;
   /** Max rating. */
-  public static final String MAX_RATING = "sgd.max.rating";
+  public static final String MAX_RATING = "max.rating";
   /** Default maximum rating */
   public static final float MAX_RATING_DEFAULT = 5.0f;
   /** Min rating. */
-  public static final String MIN_RATING = "sgd.min.rating";
+  public static final String MIN_RATING = "min.rating";
   /** Default minimum rating */
   public static final float MIN_RATING_DEFAULT = 0.0f;
 

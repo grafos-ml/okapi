@@ -49,39 +49,39 @@ public class Svdpp {
   public static final String OVERALL_RATING_AGGREGATOR =
     "svd.overall.rating.aggregator";
   /** RMSE target */
-  public static final String RMSE_TARGET = "svd.rmse.target";
+  public static final String RMSE_TARGET = "rmse";
   /** Default value for parameter enabling the RMSE aggregator. */
   public static final float RMSE_TARGET_DEFAULT = -1f;
   /** Maximum number of iterations. */
-  public static final String ITERATIONS = "svd.iterations";
+  public static final String ITERATIONS = "iterations";
   /** Default value for ITERATIONS. */
   public static final int ITERATIONS_DEFAULT = 10;
   /** Factor regularization parameter. */
-  public static final String FACTOR_LAMBDA = "svd.lambda.factor";
+  public static final String FACTOR_LAMBDA = "lambda.factor";
   /** Default value for factor regularization parameter */
   public static final float FACTOR_LAMBDA_DEFAULT = 0.01f;
   /** Factor learning rate parameter */
-  public static final String FACTOR_GAMMA = "svd.gamma.factor";
+  public static final String FACTOR_GAMMA = "gamma.factor";
   /** Default value for factor learning rate */
   public static final float FACTOR_GAMMA_DEFAULT = 0.005f;
    /** Bias regularization parameter. */
-  public static final String BIAS_LAMBDA = "svd.lambda.bias";
+  public static final String BIAS_LAMBDA = "lambda.bias";
   /** Default value for bias regularization parameter */
   public static final float BIAS_LAMBDA_DEFAULT = 0.01f;
   /** Bias learning rate parameter */
-  public static final String BIAS_GAMMA = "svd.gamma.bias";
+  public static final String BIAS_GAMMA = "gamma.bias";
   /** Default value for bias learning rate */
   public static final float BIAS_GAMMA_DEFAULT = 0.005f;
   /** Max rating. */
-  public static final String MAX_RATING = "svd.max.rating";
+  public static final String MAX_RATING = "max.rating";
   /** Default maximum rating */
   public static final float MAX_RATING_DEFAULT = 5.0f;
   /** Min rating. */
-  public static final String MIN_RATING = "svd.min.rating";
+  public static final String MIN_RATING = "min.rating";
   /** Default minimum rating */
   public static final float MIN_RATING_DEFAULT = 0.0f;
   /** Latent vector size. */
-  public static final String VECTOR_SIZE = "svd.vector.size";
+  public static final String VECTOR_SIZE = "dim";
   /** Default latent vector size */
   public static final int VECTOR_SIZE_DEFAULT = 50;
   

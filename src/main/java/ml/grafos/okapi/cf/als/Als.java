@@ -51,19 +51,19 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
   FloatWritable, FloatMatrixMessage> {
   
   /** RMSE target to reach. */
-  public static final String RMSE_TARGET = "als.rmse.target";
+  public static final String RMSE_TARGET = "rmse";
   /** Default value of RMSE target. */
   public static final float RMSE_TARGET_DEFAULT = -1f;
   /** Keyword for parameter setting the number of iterations. */
-  public static final String ITERATIONS = "als.iterations";
+  public static final String ITERATIONS = "iterations";
   /** Default value for ITERATIONS. */
   public static final int ITERATIONS_DEFAULT = 10;
   /** Keyword for parameter setting the regularization parameter LAMBDA. */
-  public static final String LAMBDA = "als.lambda";
+  public static final String LAMBDA = "lambda";
   /** Default value for LABDA. */
   public static final float LAMBDA_DEFAULT = 0.01f;
   /** Keyword for parameter setting the Latent Vector Size. */
-  public static final String VECTOR_SIZE = "als.vector.size";
+  public static final String VECTOR_SIZE = "dim";
   /** Default value for vector size. */
   public static final int VECTOR_SIZE_DEFAULT = 50;
   
