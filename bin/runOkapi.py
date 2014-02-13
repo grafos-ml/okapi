@@ -239,19 +239,19 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
     def get_custom_method_params(self, model_name):
 	if model_name=="SGD":
 		return ['-mc', 'ml.grafos.okapi.cf.sgd.Sgd$MasterCompute', 
-			'-ca', 'sgd.iterations=20',
-			'-ca', 'sgd.gamma=0.005',
-			'-ca', 'sgd.lambda=0.01',		
-			'-ca', 'sgd.vector.size=20']	
+			'-ca', 'iterations=20',
+			'-ca', 'gamma=0.005',
+			'-ca', 'lambda=0.01',		
+			'-ca', 'dim=20']	
 	elif model_name=="ALS":
 		return ['-mc', 'ml.grafos.okapi.cf.als.Als$MasterCompute', 
-			'-ca', 'als.iterations=20',
-			'-ca', 'als.lambda=0.01',		
-			'-ca', 'als.vector.size=20']	
+			'-ca', 'iterations=20',
+			'-ca', 'lambda=0.01',		
+			'-ca', 'dim=20']	
 	elif model_name=="SVD":
 		return ['-mc', 'ml.grafos.okapi.cf.svd.Svdpp$MasterCompute', 
-			'-ca', 'svd.iterations=20',
-			'-ca', 'svd.vector.size=20']	
+			'-ca', 'iterations=20',
+			'-ca', 'dim=20']	
 	else:
 		return []
 
