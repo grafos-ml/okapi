@@ -17,6 +17,9 @@ okapiDir = os.getcwd()
 okapiTargetDir = os.path.join(okapiDir, "target")
 okapiJarDir = os.path.join(okapiDir, "jars")
 
+if not os.path.isdir(okapiJarDir):
+    os.mkdir(okapiJarDir)
+
 okapiJarRegex = re.compile(
     "^okapi-([\d.]+)-SNAPSHOT-jar-with-dependencies.jar"
 )
@@ -33,7 +36,7 @@ builds = [
         "computation": "mr2",
         "withGiraph": True,
         "destOkapiJar": "okapi-giraph-mr2-{version}.jar",
-        "giraphBuildCustomArguments": "-Phadoop_mr2 -Dhadoop.version=2.2.0",
+        "giraphBuildCustomArguments": "-Phadoop_2 -Dhadoop.version=2.2.0",
         "okapiBuildCustomArguments": "-Phadoop_yarn"
     },
     {

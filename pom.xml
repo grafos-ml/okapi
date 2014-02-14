@@ -4,7 +4,7 @@
   <groupId>ml.grafos.okapi</groupId>
   <artifactId>okapi</artifactId>
   <packaging>jar</packaging>
-  <version>0.3.1-SNAPSHOT</version>
+  <version>0.3.2-SNAPSHOT</version>
   <name>okapi</name>
   <url>http://maven.apache.org</url>
 
@@ -139,7 +139,7 @@
       <groupId>org.apache.giraph</groupId>
       <artifactId>giraph-core</artifactId>
       <version>${giraph.version}</version>
-      <scope>compile</scope>
+      <scope>${giraph.scope}</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.giraph</groupId>
