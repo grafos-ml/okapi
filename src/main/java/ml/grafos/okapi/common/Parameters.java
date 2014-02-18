@@ -23,6 +23,10 @@ import org.apache.giraph.conf.LongConfOption;
  */
 public class Parameters {
 
+  public static BooleanConfOption DEBUG = 
+      new BooleanConfOption("debug", false, 
+      "Enable debugging information printing");
+
   public static LongConfOption RANDOM_SEED = 
       new LongConfOption("random.seed", -1, 
           "Random number generator seed");

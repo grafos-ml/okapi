@@ -20,6 +20,7 @@ import java.util.Random;
 
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
+import ml.grafos.okapi.common.Parameters;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 import ml.grafos.okapi.examples.SimpleMasterComputeVertex;
 import ml.grafos.okapi.utils.Counters;
@@ -73,6 +74,7 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
   private static final String COUNTER_GROUP = "ALS Counters";
   private static final String RMSE_COUNTER = "RMSE (x1000)";
   private static final String NUM_RATINGS_COUNTER = "# ratings";
+  private static final String RMSE_COUNTER_GROUP = "RMSE Counters";
   
   private float lambda;
   private int vectorSize;
@@ -122,8 +124,8 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
     double rmsePartialSum = 0d;
     for (int j=0; j<mat_M.columns; j++) {    
         float prediction = vertex.getValue().dot(mat_M.getColumn(j));
-        double error = prediction - mat_R.get(j);
-        rmsePartialSum += Math.pow(error, 2);
+        double error = prediction - mat_R.get(j, 0);
+        rmsePartialSum += (error*error);
     }
     
     aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmsePartialSum));
@@ -260,6 +262,12 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
 
       rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
           .get() / numRatings);
+      
+      if (Parameters.DEBUG.get(getContext().getConfiguration()) 
+          && superstep>2) {
+        Counters.updateCounter(getContext(), RMSE_COUNTER_GROUP, 
+            "Superstep="+getSuperstep(), (long)(1000*rmse));
+      }
       
       // Update the Hadoop counters
       Counters.updateCounter(getContext(), 
