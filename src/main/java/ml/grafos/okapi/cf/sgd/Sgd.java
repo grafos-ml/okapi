@@ -21,6 +21,7 @@ import java.util.Random;
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
+import ml.grafos.okapi.common.Parameters;
 import ml.grafos.okapi.utils.Counters;
 
 import org.apache.giraph.Algorithm;
@@ -83,6 +84,7 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
   private static final String COUNTER_GROUP = "SGD Counters";
   private static final String RMSE_COUNTER = "RMSE (x1000)";
   private static final String NUM_RATINGS_COUNTER = "# ratings";
+  private static final String RMSE_COUNTER_GROUP = "RMSE Counters";
 
   private float tolerance;
   private float lambda;
@@ -129,14 +131,16 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
       // Update the factors
       updateValue(vertex.getValue(), msg.getFactors(), rating, 
           minRating, maxRating, lambda, gamma);
+    }
       
-      // Calculate new error
+    // Calculate new error for RMSE calculation
+    for (FloatMatrixMessage msg : messages) {
       float predicted = vertex.getValue().dot(msg.getFactors());
+      float rating = vertex.getEdgeValue(msg.getSenderId()).get();
       predicted = Math.min(predicted, maxRating);
       predicted = Math.max(predicted, minRating);
       float err = predicted - rating;
-
-      rmsePartialSum += Math.pow(err, 2);
+      rmsePartialSum += (err*err);
     }
 
     aggregate(RMSE_AGGREGATOR, new DoubleWritable(rmsePartialSum));
@@ -301,6 +305,12 @@ public class Sgd extends BasicComputation<CfLongId, FloatMatrixWritable,
 
       rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
           .get() / numRatings);
+
+      if (Parameters.DEBUG.get(getContext().getConfiguration()) 
+          && superstep>2) {
+        Counters.updateCounter(getContext(), RMSE_COUNTER_GROUP, 
+            "Iteration "+(getSuperstep()-2), (long)(1000*rmse));
+      }
       
       // Update the Hadoop counters
       Counters.updateCounter(getContext(), 
