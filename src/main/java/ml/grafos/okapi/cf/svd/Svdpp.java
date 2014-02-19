@@ -22,6 +22,7 @@ import java.util.Random;
 
 import ml.grafos.okapi.cf.CfLongId;
 import ml.grafos.okapi.cf.FloatMatrixMessage;
+import ml.grafos.okapi.common.Parameters;
 import ml.grafos.okapi.common.jblas.FloatMatrixWritable;
 import ml.grafos.okapi.utils.Counters;
 
@@ -91,6 +92,7 @@ public class Svdpp {
   private static final String COUNTER_GROUP = "SVD++ Counters";
   private static final String RMSE_COUNTER = "RMSE (x1000)";
   private static final String NUM_RATINGS_COUNTER = "# ratings";
+  private static final String RMSE_COUNTER_GROUP = "RMSE Counters";
   
 
   /**
@@ -541,6 +543,13 @@ public class Svdpp {
       
       rmse = Math.sqrt(((DoubleWritable)getAggregatedValue(RMSE_AGGREGATOR))
           .get() / numRatings);
+
+      // Print the RMSE only after a user computation
+      if (Parameters.DEBUG.get(getContext().getConfiguration()) 
+          && superstep>2 && superstep%2!=0) {
+        Counters.updateCounter(getContext(), RMSE_COUNTER_GROUP, 
+            "Iteration "+(getSuperstep()-2), (long)(1000*rmse));
+      }
 
       // Update the Hadoop counters
       Counters.updateCounter(getContext(), 
