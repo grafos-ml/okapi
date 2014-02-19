@@ -266,7 +266,7 @@ public class Als extends BasicComputation<CfLongId, FloatMatrixWritable,
       if (Parameters.DEBUG.get(getContext().getConfiguration()) 
           && superstep>2) {
         Counters.updateCounter(getContext(), RMSE_COUNTER_GROUP, 
-            "Superstep="+getSuperstep(), (long)(1000*rmse));
+            "Iteration "+(getSuperstep()-2), (long)(1000*rmse));
       }
       
       // Update the Hadoop counters
