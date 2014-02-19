@@ -23,7 +23,8 @@ methods = { 'BPR': 'ml.grafos.okapi.cf.ranking.BPRRankingComputation',
             'TFMAP' : 'ml.grafos.okapi.cf.ranking.TFMAPRankingComputation',
 	    'SGD' : 'ml.grafos.okapi.cf.sgd.Sgd$InitUsersComputation',
 	    'ALS' : 'ml.grafos.okapi.cf.als.Als$InitUsersComputation',
-	    'SVD' : 'ml.grafos.okapi.cf.svd.Svdpp$InitUsersComputation'
+	    'SVD' : 'ml.grafos.okapi.cf.svd.Svdpp$InitUsersComputation',
+	    'Climf' : 'ml.grafos.okapi.cf.ranking.ClimfRankingComputation'
 }
 
 logger = logging.getLogger('luigi-interface')
@@ -100,13 +101,13 @@ class PrepareMovielensData(luigi.Task):
         for line in f:
 	    if random.random() > frac:
                 continue
-            r = random.random()
+
             user,item,rating,time = line.split("::")
             rating = int(float(rating))
-            if r < 0.7: #write to training
-                userid = self._get_id(user, self.training_users)
-                itemid = self._get_id(item, self.training_items)
 
+            if random.random() < 0.7: #write to training
+	        userid = self._get_id(user, self.training_users)
+	        itemid = self._get_id(item, self.training_items)
                 training.write("{0} {1} {2}\n".format(userid, itemid, rating))
                 cnt += 1
             else:
@@ -117,10 +118,9 @@ class PrepareMovielensData(luigi.Task):
         #now lets write out the testing and validation
         testing = self.local_output()[0].open('w')
         validation = self.local_output()[3].open('w')
-        for u,i,r in testing_validation:
+        for u,i,rating in testing_validation:
             if u in self.training_users and i in self.training_items:
-                r = random.random()
-                if r < 0.33:
+                if random.random() < 0.33:
                     validation.write('{0} {1} {2}\n'.format(self.training_users[u], self.training_items[i], rating))
                 else:
                     testing.write('{0} {1} {2}\n'.format(self.training_users[u], self.training_items[i], rating))
@@ -242,16 +242,19 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
 			'-ca', 'iterations=20',
 			'-ca', 'gamma=0.005',
 			'-ca', 'lambda=0.01',		
-			'-ca', 'dim=20']	
+			'-ca', 'dim=20',
+                        '-ca', 'debug=true']	
 	elif model_name=="ALS":
 		return ['-mc', 'ml.grafos.okapi.cf.als.Als$MasterCompute', 
 			'-ca', 'iterations=20',
 			'-ca', 'lambda=0.01',		
-			'-ca', 'dim=20']	
+			'-ca', 'dim=20',
+			'-ca', 'debug=true']	
 	elif model_name=="SVD":
 		return ['-mc', 'ml.grafos.okapi.cf.svd.Svdpp$MasterCompute', 
 			'-ca', 'iterations=20',
-			'-ca', 'dim=20']	
+			'-ca', 'dim=20',
+                        '-ca', 'debug=true']	
 	else:
 		return []
 
@@ -266,7 +269,8 @@ class OkapiTrainModelTask(luigi.hadoop_jar.HadoopJarJobTask):
             '-eip', self.get_input(),
             '-vof', self.get_output_format(),
             '-op', self.get_output(),
-            '-w', self._get_conf("okapi", "workers")] \
+            '-w', self._get_conf("okapi", "workers"),
+	    '-ca', "giraph.numComputeThreads="+self._get_conf('okapi', 'threads')] \
             + self.get_custom_arguments(self.input()[2]) \
 	    + self.get_custom_method_params(self.model_name)
 
