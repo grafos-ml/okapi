@@ -45,6 +45,8 @@ import org.jblas.FloatMatrix;
  */
 public class CfModelInputFormat extends TextVertexValueInputFormat<CfLongId, FloatMatrixWritable, FloatWritable>{
 
+  public static String DIMENSION = "dim";
+
 	@Override
 	public TextVertexValueReader createVertexValueReader(
 			InputSplit split, TaskAttemptContext context) throws IOException {
@@ -76,6 +78,15 @@ public class CfModelInputFormat extends TextVertexValueInputFormat<CfLongId, Flo
 						factorsFloat.add(Float.parseFloat(factors[i]));
 				}
 				FloatMatrix array = new FloatMatrix(factorsFloat);
+				
+				// If you specify the dimension of the latent vector, we will
+				// do a check to ensure the computed model has the right dimension
+				if ((getConf().getInt(DIMENSION, -1))!=-1) {
+				  if (array.length!=getConf().getInt(DIMENSION, -1)) {
+				    throw new RuntimeException("Latent vector size is incorrect");
+				  }
+				}
+
 				return new FloatMatrixWritable(array);
 			}else{//for null node
 				return new FloatMatrixWritable(0);
