@@ -306,6 +306,10 @@ class EvaluateTask(OkapiTrainModelTask):
             '-eif', 'ml.grafos.okapi.cf.eval.CfLongIdBooleanTextInputFormat',
             '-eip', self.input()[0][0],#testing file input
             '-vof', 'org.apache.giraph.io.formats.IdWithValueTextOutputFormat',
+	    '-mc', 'ml.grafos.okapi.cf.eval.RankEvaluationComputation$MasterCompute',
+	    '-aw', 'ml.grafos.okapi.aggregators.ValueTextAggregatorWriter',
+	    '-ca', 'textAggregatorWriter.filename='+self.model_name+'_precision',
+	    '-ca', 'textAggregatorWriter.frequency=-1',
             '-op', self.get_output(),
             '-w', self._get_conf("okapi", "workers")] \
             + self.get_custom_arguments(self.input()[0][2])
@@ -335,11 +339,10 @@ class SpitPrecision(luigi.Task):
         return False
 
     def run(self):
-        f = luigi.hdfs.HdfsTarget(self.model_name+'_eval/part*').open()
+        f = luigi.hdfs.HdfsTarget(self.model_name+'_precision_*').open()
         for line in f:
-            if line.startswith("0 -1"):
-                nodeid, accuracy = line.split("\t")
-                print "Model accuracy: {0}".format(accuracy)
+	  numusers, sumaccuracy, avgaccuracy = line.split()
+	  print "Model accuracy: {0}".format(avgaccuracy)
         f.close()
 
 
