@@ -64,16 +64,16 @@ class PrepareMovielensData(luigi.Task):
         return DownloadMovielens()
 
     def output(self):
-        return [luigi.hdfs.HdfsTarget('movielens.testing_'+self.fraction),
-                luigi.hdfs.HdfsTarget('movielens.training_'+self.fraction),
-                luigi.hdfs.HdfsTarget('movielens.training.info_'+self.fraction),
-                luigi.hdfs.HdfsTarget('movielens.validation_'+self.fraction)]
+        return [luigi.hdfs.HdfsTarget('movielens.testing_{}'.format(self.fraction)),
+                luigi.hdfs.HdfsTarget('movielens.training_{}'.format(self.fraction)),
+                luigi.hdfs.HdfsTarget('movielens.training.info_{}'.format(self.fraction)),
+                luigi.hdfs.HdfsTarget('movielens.validation_{}'.format(self.fraction))]
 
     def local_output(self):
-        return [luigi.file.File(tempfile.gettempdir()+'/movielens.testing_'+self.fraction),
-                luigi.file.File(tempfile.gettempdir()+'/movielens.training_'+self.fraction),
-                luigi.file.File(tempfile.gettempdir()+'/movielens.training.info_'+self.fraction),
-                luigi.file.File(tempfile.gettempdir()+'/movielens.validation_'+self.fraction)]
+        return [luigi.file.File(tempfile.gettempdir()+'/movielens.testing_{}'.format(self.fraction)),
+                luigi.file.File(tempfile.gettempdir()+'/movielens.training_{}'.format(self.fraction)),
+                luigi.file.File(tempfile.gettempdir()+'/movielens.training.info_{}'.format(self.fraction)),
+                luigi.file.File(tempfile.gettempdir()+'/movielens.validation_{}'.format(self.fraction))]
 
 
     def _get_id(self, original_id, dictionary):
