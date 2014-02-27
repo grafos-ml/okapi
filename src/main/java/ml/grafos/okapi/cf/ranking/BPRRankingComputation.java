@@ -89,6 +89,9 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
     }
 
 
+    /**
+     * We override this function as we need a special treatment for item biases. See the class documentation for the explanation.
+     */
     protected void initFactorsIfNeeded(Vertex<CfLongId,FloatMatrixWritable,FloatWritable> vertex) {
         if (null == vertex.getValue() || vertex.getValue().columns != d+1){
             vertex.setValue(new FloatMatrixWritable(FloatMatrix.rand(d + 1)));
@@ -153,6 +156,9 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
     /**
      * Compute the scalar product of a matrix row with the difference vector of two other matrix rows.
      * Port from mymedialite.
+     * for (int k=1; k<u.size(); k++){//we skip the index 0 as it is reserved for item biases.
+     *     res += u.get(k).get() * (i.get(k).get() - j.get(k).get());
+     * }
      * @param u
      * @param i
      * @param j
@@ -161,9 +167,6 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
     private float rowScalarProductWithRowDifference(FloatMatrix u, FloatMatrix i, FloatMatrix j) {
         FloatMatrix ret = u.mul(i.sub(j));
         ret.put(0, 0);
-//        for (int k=1; k<u.size(); k++){//we skip the index 0 as it is reserved for item biases.
-//            res += u.get(k).get() * (i.get(k).get() - j.get(k).get());
-//        }
         return ret.sum();
     }
 
@@ -175,9 +178,11 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
         return copy;
     }
 
-    @Override
-    int getBufferSize() {
-        // TODO Auto-generated method stub
-        return 0;
-    }
+	@Override
+	/**
+	 * BPR samples single relevant and single irrelevant item.
+	 */
+	int getBufferSize() {
+		return 1;
+	}
 }

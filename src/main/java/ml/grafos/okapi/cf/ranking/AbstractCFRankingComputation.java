@@ -73,7 +73,7 @@ public abstract class AbstractCFRankingComputation
     float reg;
 	
 	/**
-	 * The function \\FIXME add doc
+	 * A default constructor that does not do a thing.
 	 */
 	public AbstractCFRankingComputation() {
 		super();
@@ -95,7 +95,7 @@ public abstract class AbstractCFRankingComputation
 			Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex,
 			Iterable<FloatMatrixMessage> messages);
 	
-  @Override
+	@Override
     public void compute(Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex, Iterable<FloatMatrixMessage> messages) throws IOException {
 
 
@@ -243,40 +243,48 @@ public abstract class AbstractCFRankingComputation
 	}
 
 	/**
-	 * Sends request for factors for one relevant and one irrelevant item sampled uniformly over user items in the training set (relevant)
-	 * and items that are not in the training set of the user (irrelevant). The sampling is a bit different that in the paper.
+	 * This function implements the sampling logic.
+	 * Usually each ranking method needs to do some kind of sampling of relevant and irrelevant items. 
+	 * These items then are used to train the model. For example, one strategy could be push up relevant items and pull down irrelevant. 
+	 * 
+	 * The function sends request for factors for X relevant and Y irrelevant item sampled uniformly over user items in the training set (relevant)
+	 * and items that are not in the training set of the user (irrelevant).
+	 * 
      * @param vertex
      */
-	protected void sampleRelevantAndIrrelevantEdges(Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex) {
-		//FIXME fix the buffer to make the same function for all the methods
+	protected void sampleRelevantAndIrrelevantEdges(
+			Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex) {
 		int buffer = getBufferSize();
-		
-	    if (vertex.getId().isUser()){//only users
-	        Random random = new Random();
-	        Iterable<Edge<CfLongId, FloatWritable>> edges = vertex.getEdges();
-	        ArrayList<CfLongId> itemList = new ArrayList<CfLongId>(vertex.getNumEdges());
-	        HashSet<CfLongId> relevant = new HashSet<CfLongId>();
 
-	        for (Edge<CfLongId, FloatWritable> e : edges) {
-	            relevant.add(e.getTargetVertexId());
-	            itemList.add(e.getTargetVertexId());
-	        }
-	        //relevant
-	        CfLongId randomRelevantId = itemList.get(random.nextInt(itemList.size()));
-	        //irrelevant
-	
-	        HashSet<CfLongId> randomIrrelevantIds = new HashSet<CfLongId>();
-	
-	        while(randomIrrelevantIds.size() < buffer)
-	            randomIrrelevantIds.add(getRandomItemId(relevant));
-	
-	        //We use score > 0 to mark that this item is relevant, and score<0 to mark that it is irrelevant
-	
-	        sendRequestForFactors(randomRelevantId, vertex.getId(), true);
-	        for(CfLongId irItemId: randomIrrelevantIds)  {
-	            sendRequestForFactors(irItemId, vertex.getId(), false);
-	        }
-	    }
+		if (vertex.getId().isUser()) {// only users
+			Random random = new Random();
+			Iterable<Edge<CfLongId, FloatWritable>> edges = vertex.getEdges();
+			ArrayList<CfLongId> itemList = new ArrayList<CfLongId>(
+					vertex.getNumEdges());
+			HashSet<CfLongId> relevant = new HashSet<CfLongId>();
+
+			for (Edge<CfLongId, FloatWritable> e : edges) {
+				relevant.add(e.getTargetVertexId());
+				itemList.add(e.getTargetVertexId());
+			}
+			// relevant
+			CfLongId randomRelevantId = itemList.get(random.nextInt(itemList
+					.size()));
+			// irrelevant
+
+			HashSet<CfLongId> randomIrrelevantIds = new HashSet<CfLongId>();
+
+			while (randomIrrelevantIds.size() < buffer)
+				randomIrrelevantIds.add(getRandomItemId(relevant));
+
+			// We use score > 0 to mark that this item is relevant, and score<0
+			// to mark that it is irrelevant
+
+			sendRequestForFactors(randomRelevantId, vertex.getId(), true);
+			for (CfLongId irItemId : randomIrrelevantIds) {
+				sendRequestForFactors(irItemId, vertex.getId(), false);
+			}
+		}
 	}
 
     /**

@@ -89,33 +89,34 @@ public class SgdTest {
     Assert.assertEquals(4, res.size());
   }
 
-  @Ignore
-  public void testInMemoryRun() throws Exception {
-    GiraphConfiguration conf = new GiraphConfiguration();
-    conf.setComputationClass(Sgd.InitUsersComputation.class);
-    conf.setMasterComputeClass(Sgd.MasterCompute.class);
-    conf.setVertexInputFormatClass(InMemoryVertexInputFormat.class);
-    conf.setFloat(Sgd.GAMMA, 0.005f);
-    conf.setFloat(Sgd.LAMBDA, 0.01f);
-    conf.setInt(Sgd.VECTOR_SIZE, 2);
-    conf.setInt(Sgd.ITERATIONS, 4);
-
-    TestGraph<CfLongId, FloatMatrixWritable, FloatWritable> testGraph = 
-        new TestGraph(conf);
-
-    testGraph.addEdge(new CfLongId((byte)0, 1), new CfLongId((byte)1, 1), 
-        new FloatWritable(1.0f));
-    testGraph.addEdge(new CfLongId((byte)0, 1), new CfLongId((byte)1, 2), 
-        new FloatWritable(2.0f));
-    testGraph.addEdge(new CfLongId((byte)0, 2), new CfLongId((byte)1, 1), 
-        new FloatWritable(3.0f));
-    testGraph.addEdge(new CfLongId((byte)0, 2), new CfLongId((byte)1, 2), 
-        new FloatWritable(4.0f));
-
-    TestGraph<CfLongId, FloatMatrixWritable, FloatWritable> resultGraph = 
-        InternalVertexRunner.runWithInMemoryOutput(conf, testGraph);
-
-    Assert.assertNotNull(resultGraph.getVertex(new CfLongId((byte)0, 1)));
-    Assert.assertNotNull(resultGraph.getVertex(new CfLongId((byte)1, 1)));  
-  }
+  //FIXME enable!
+  //@Ignore
+//  public void testInMemoryRun() throws Exception {
+//    GiraphConfiguration conf = new GiraphConfiguration();
+//    conf.setComputationClass(Sgd.InitUsersComputation.class);
+//    conf.setMasterComputeClass(Sgd.MasterCompute.class);
+//    conf.setVertexInputFormatClass(InMemoryVertexInputFormat.class);
+//    conf.setFloat(Sgd.GAMMA, 0.005f);
+//    conf.setFloat(Sgd.LAMBDA, 0.01f);
+//    conf.setInt(Sgd.VECTOR_SIZE, 2);
+//    conf.setInt(Sgd.ITERATIONS, 4);
+//
+//    TestGraph<CfLongId, FloatMatrixWritable, FloatWritable> testGraph = 
+//        new TestGraph(conf);
+//
+//    testGraph.addEdge(new CfLongId((byte)0, 1), new CfLongId((byte)1, 1), 
+//        new FloatWritable(1.0f));
+//    testGraph.addEdge(new CfLongId((byte)0, 1), new CfLongId((byte)1, 2), 
+//        new FloatWritable(2.0f));
+//    testGraph.addEdge(new CfLongId((byte)0, 2), new CfLongId((byte)1, 1), 
+//        new FloatWritable(3.0f));
+//    testGraph.addEdge(new CfLongId((byte)0, 2), new CfLongId((byte)1, 2), 
+//        new FloatWritable(4.0f));
+//
+//    TestGraph<CfLongId, FloatMatrixWritable, FloatWritable> resultGraph = 
+//        InternalVertexRunner.runWithInMemoryOutput(conf, testGraph);
+//
+//    Assert.assertNotNull(resultGraph.getVertex(new CfLongId((byte)0, 1)));
+//    Assert.assertNotNull(resultGraph.getVertex(new CfLongId((byte)1, 1)));  
+//  }
 }
