@@ -33,6 +33,7 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.FloatWritable;
 import org.apache.log4j.Logger;
 import org.jblas.FloatMatrix;
+import org.python.modules.synchronize;
 
 /**
  * Abstract class for all the ranking computation methods.
@@ -49,7 +50,7 @@ public abstract class AbstractCFRankingComputation
         //FloatMatrixMessage - message (sourceId, FloatMatrix, score)
         BasicComputation<CfLongId, FloatMatrixWritable, FloatWritable, FloatMatrixMessage> {
 
-	protected static final Logger logger = Logger.getLogger(BPRRankingComputation.class);
+	protected final Logger logger = Logger.getLogger(BPRRankingComputation.class);
 	
 	int minItemId; //minimum item id in the system. Used for sampling the negative items.+
     int maxItemId; //maximum item id in the system
@@ -61,7 +62,7 @@ public abstract class AbstractCFRankingComputation
     float NOT_IMPORTANT = 0.0f;
 
     @HyperParameter(parameterName="dim", description="dimensionality of the model", defaultValue=10, minimumValue=1, maximumValue=1000)
-    int d;
+    int d = 10;
 
     @HyperParameter(parameterName="learnRate", description="learning rate", defaultValue=0.001f, minimumValue=0.0001f, maximumValue=10)
     float learnRate;
@@ -72,6 +73,8 @@ public abstract class AbstractCFRankingComputation
     @HyperParameter(parameterName="reg", description="regularizer", defaultValue=0.01f, minimumValue=0.00011f, maximumValue=2)
     float reg;
 	
+    private boolean parametersParsed = false;
+    
 	/**
 	 * A default constructor that does not do a thing.
 	 */
@@ -97,16 +100,9 @@ public abstract class AbstractCFRankingComputation
 	
 	@Override
     public void compute(Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex, Iterable<FloatMatrixMessage> messages) throws IOException {
-
-
-		setConfigurationParameters();
-		
 	    long iteration = getSuperstep()/4;
-	    try{
-	        setConfigurationParameters();
-	    }catch(Exception e){
-	        e.printStackTrace();
-	    }
+	    logger.debug("Setting Configuration params");
+        setConfigurationParameters();
 	
 	    if (iteration < iter){
 	        if (getSuperstep() % 4 == 0){ //initial cycle of iteration where user samples and asks for factors
@@ -145,41 +141,56 @@ public abstract class AbstractCFRankingComputation
 		}
 	}
 
-	protected void setConfigurationParameters()
-			throws IOException {
-				//required
-				minItemId = Integer.parseInt(getConf().get("minItemId"));
-				maxItemId = Integer.parseInt(getConf().get("maxItemId"));
-				
-				//optional (with defaults)
-				for(Field field : this.getClass().getFields()){
-					if (field.isAnnotationPresent(HyperParameter.class)){
-						for(Annotation annotation : field.getDeclaredAnnotations()){
-							if (annotation instanceof HyperParameter){
-									HyperParameter hp = (HyperParameter)annotation;
-									String param = getConf().get(hp.parameterName());
-									if (null == param){
-										param = ""+hp.defaultValue();
-										logger.debug("Could not get parameter "+hp.parameterName()+" from the custom arguments, setting to the default."+hp.defaultValue());
-									}
-									try{
-										if (field.getType() == int.class || field.getType() == Integer.class){
-											field.setInt(this, Integer.parseInt(param));
-										}else if (field.getType() == Float.class || field.getType() == float.class){
-											field.setFloat(this, Float.parseFloat(param));
-										}else if (field.getType() == Double.class || field.getType() == double.class){
-											field.setDouble(this, Double.parseDouble(param));
-										}else{
-											throw new IOException("We support ints, floats and doubles as the parameters");
-										}
-									}catch (Exception e) {
-										throw new IOException(e);
-									}
+	protected synchronized void setConfigurationParameters()
+	throws IOException {
+		if (this.parametersParsed)
+			return;
+		//required
+		minItemId = Integer.parseInt(getConf().get("minItemId"));
+		maxItemId = Integer.parseInt(getConf().get("maxItemId"));
+		
+		//optional (with defaults), traverse through all the class hierarhy and add parameters
+		Class subclass = this.getClass();
+		Class superclass = subclass.getSuperclass();
+		while (superclass != null) {
+			 setParametersForClass(subclass);
+	         subclass = superclass;
+	         superclass = subclass.getSuperclass();
+	      }
+		this.parametersParsed = true;
+	}
+
+	private void setParametersForClass(Class cl) {
+		for(Field field : cl.getDeclaredFields()){
+			if (field.isAnnotationPresent(HyperParameter.class)){
+				for(Annotation annotation : field.getDeclaredAnnotations()){
+					if (annotation instanceof HyperParameter){
+							HyperParameter hp = (HyperParameter)annotation;
+							String param = getConf().get(hp.parameterName());
+							if (null == param){
+								param = ""+hp.defaultValue();
+								logger.debug("Could not get parameter "+hp.parameterName()+" from the custom arguments, setting to default."+hp.defaultValue());
 							}
-						}
+							try{
+								logger.info(hp.parameterName()+"="+param);
+								if (field.getType() == int.class || field.getType() == Integer.class){
+									field.setInt(this, (int)Float.parseFloat(param));
+								}else if (field.getType() == Float.class || field.getType() == float.class){
+									field.setFloat(this, Float.parseFloat(param));
+								}else if (field.getType() == Double.class || field.getType() == double.class){
+									field.setDouble(this, Double.parseDouble(param));
+								}else{
+									throw new IllegalArgumentException("We support ints, floats and doubles as the parameters");
+								}
+							}catch (Exception e) {
+								throw new IllegalArgumentException(e);
+							}
+							
 					}
 				}
 			}
+		}
+	}
 
 	
 	public int getMinItemId() {
@@ -204,7 +215,7 @@ public abstract class AbstractCFRankingComputation
             sendMessage(sendToItemId, msgRelevant);
             logger.debug(sentFromUserId+" ask for relevant factors to "+sendToItemId);
         }else{
-            FloatMatrixMessage msgIRelevant = new FloatMatrixMessage(sentFromUserId, emptyList, 1.0f);
+            FloatMatrixMessage msgIRelevant = new FloatMatrixMessage(sentFromUserId, emptyList, -1.0f);
             sendMessage(sendToItemId, msgIRelevant);
             logger.debug(sentFromUserId+" ask for Irelevant factors to "+sendToItemId);
         }
@@ -225,6 +236,8 @@ public abstract class AbstractCFRankingComputation
 
 	/**
 	 * For all incomming messages send back my factors.
+	 * We play a bad trick here. We set score < 0 for irrelevant, and > 0 for relevant.
+	 *FIXME Refactor this to make normal indication for relevant and irrelevant
      * @param vertex
      * @param messages
      */
@@ -254,8 +267,6 @@ public abstract class AbstractCFRankingComputation
      */
 	protected void sampleRelevantAndIrrelevantEdges(
 			Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex) {
-		int buffer = getBufferSize();
-
 		if (vertex.getId().isUser()) {// only users
 			Random random = new Random();
 			Iterable<Edge<CfLongId, FloatWritable>> edges = vertex.getEdges();
@@ -274,7 +285,7 @@ public abstract class AbstractCFRankingComputation
 
 			HashSet<CfLongId> randomIrrelevantIds = new HashSet<CfLongId>();
 
-			while (randomIrrelevantIds.size() < buffer)
+			while (randomIrrelevantIds.size() < getBufferSize())
 				randomIrrelevantIds.add(getRandomItemId(relevant));
 
 			// We use score > 0 to mark that this item is relevant, and score<0

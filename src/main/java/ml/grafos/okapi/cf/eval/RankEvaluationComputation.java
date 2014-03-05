@@ -82,14 +82,14 @@ FloatMatrixWritable, BooleanWritable, FloatMatrixMessage>{
             vertex.getEdgeValue(msg.getSenderId()).get()));
       }
       Collections.sort(scores);
-      float rankingMeasure = computeRecall(scores, this.k);
+      float rankingMeasure = computePrecision(scores, this.k);
 
       aggregate(AVG_PRECISION_AGGREGATOR, 
           new FloatAvgAggregator.PartialAvg(rankingMeasure,1));
     }
   }
 
-  private float computeRecall(ArrayList<FloatBoolean> scores, int k) {
+  private float computePrecision(ArrayList<FloatBoolean> scores, int k) {
     if (null == scores || scores.size() == 0)
       return 0;
     int cnt = 0;

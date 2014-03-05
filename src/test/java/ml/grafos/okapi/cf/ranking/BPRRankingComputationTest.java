@@ -24,6 +24,7 @@ import org.apache.giraph.conf.GiraphConfiguration;
 import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.utils.InternalVertexRunner;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -57,13 +58,15 @@ public class BPRRankingComputationTest {
 		conf.set("minItemId", "1");
 		conf.set("maxItemId", "3");
 		conf.set("iter", "1");
+		conf.set("dim", "5");
 		conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
 		Iterable<String> results = InternalVertexRunner.run(conf, null, graph);
 		List<String> res = new LinkedList<String>();
 		for (String string : results) {
 			res.add(string);
-			//System.out.println(string);
+			Assert.assertEquals(5+1, string.split(";").length);//6 factors!
 		}
-		//Assert.assertEquals(8, res.size());
+		Assert.assertEquals(8, res.size());
+		
 	}
 }
