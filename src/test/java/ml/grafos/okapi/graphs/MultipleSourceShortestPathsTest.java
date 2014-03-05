@@ -22,7 +22,7 @@ import java.util.List;
 
 import junit.framework.Assert;
 import ml.grafos.okapi.common.Parameters;
-import ml.grafos.okapi.io.formats.LongDoubleTextEdgeInputFormat;
+import ml.grafos.okapi.io.formats.LongFloatTextEdgeInputFormat;
 
 import org.apache.giraph.conf.GiraphConfiguration;
 import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
@@ -51,7 +51,7 @@ public class MultipleSourceShortestPathsTest {
     GiraphConfiguration conf = new GiraphConfiguration();
     conf.setComputationClass(MultipleSourceShortestPaths.InitSources.class);
     conf.setMasterComputeClass(MultipleSourceShortestPaths.MasterCompute.class);
-    conf.setEdgeInputFormatClass(LongDoubleTextEdgeInputFormat.class);
+    conf.setEdgeInputFormatClass(LongFloatTextEdgeInputFormat.class);
     conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
     conf.setFloat(MultipleSourceShortestPaths.SOURCES_FRACTION, 0.4f);
     conf.setLong(Parameters.RANDOM_SEED.getKey(), 0);
