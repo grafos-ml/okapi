@@ -16,6 +16,10 @@ Although you can find pre-built packages on the [Grafos.ML](http://grafos.ml) fo
 
     mvn package
 
+This will build the code and also run some tests. If you want to skip the tests, then run:
+
+    mvn package -DskipTests
+
 After that, under $OKAPI_HOME/target, you should find a jar file with a name of the type:
     
     okapi-${VERSION}-jar-with-dependencies.jar
