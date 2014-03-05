@@ -62,7 +62,7 @@ public abstract class AbstractCFRankingComputation
     float NOT_IMPORTANT = 0.0f;
 
     @HyperParameter(parameterName="dim", description="dimensionality of the model", defaultValue=10, minimumValue=1, maximumValue=1000)
-    int d = 10;
+    int d;
 
     @HyperParameter(parameterName="learnRate", description="learning rate", defaultValue=0.001f, minimumValue=0.0001f, maximumValue=10)
     float learnRate;
@@ -243,12 +243,12 @@ public abstract class AbstractCFRankingComputation
      */
 	void sendFactorsToUsers(Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex, Iterable<FloatMatrixMessage> messages) {
 	    if (vertex.getId().isItem()){
-            FloatMatrixMessage msgRelevant = new FloatMatrixMessage(vertex.getId(), vertex.getValue(), 1.0f);//relevant
-            FloatMatrixMessage msgIrrelevant = new FloatMatrixMessage(vertex.getId(), vertex.getValue(), -1.0f);
 	        for (FloatMatrixMessage msg : messages) {
-	            if (msg.getScore() > 0){
+	            if (isRelevant(msg)){
+	            	FloatMatrixMessage msgRelevant = new FloatMatrixMessage(vertex.getId(), vertex.getValue(), 1.0f);//relevant
 	                sendMessage(msg.getSenderId(), msgRelevant);
 	            }else{
+	            	FloatMatrixMessage msgIrrelevant = new FloatMatrixMessage(vertex.getId(), vertex.getValue(), -1.0f);//irrelevant
 	                sendMessage(msg.getSenderId(), msgIrrelevant);
 	            }
 	        }
