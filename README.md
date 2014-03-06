@@ -32,7 +32,9 @@ Running an Okapi job does not differ from running an ordinary Giraph job. You ca
 
 ## Collaborative Filtering
 To run any of the CF algorithms, we suggest to use bin/runOkapi.py, i.e.:
+
     python runOkapi.py SpitPrecision --local-scheduler --model-name Pop --fraction 1.0
+
 This gives Precision@5, and uses evaluation procedure where we sample 100 items, mark them
 as irrelevant and rank all the list according to the predicted scores. 
 We also provide some results. These are for reference only (default parameters, no cross-validation).
@@ -40,7 +42,9 @@ Note, that many of these algorithms were not designed to run on data sets
 with ratings, others optimize rating prediction, therefore, we compare apples and boxes.
 
 Okapi-0.3.2-SNAPSHOT and Movielens 1M dataset:
-| --model-name          | Precision@5           |
-| Random                | 0.1529                |   
-| Pop                   | 0.7554                |
-| BPR                   | 0.2412                |
+
+--model-name          | Precision@5 
+----------------------|-------------
+Random                | 0.1529      
+Pop                   | 0.7554      
+BPR                   | 0.2412      
