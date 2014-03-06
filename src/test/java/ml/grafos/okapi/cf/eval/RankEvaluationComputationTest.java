@@ -21,11 +21,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.giraph.conf.GiraphConfiguration;
-import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.utils.InternalVertexRunner;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Test;
 
 public class RankEvaluationComputationTest {
 
