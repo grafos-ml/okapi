@@ -47,4 +47,4 @@ Okapi-0.3.2-SNAPSHOT and Movielens 1M dataset:
 ----------------------|-------------
 Random                | 0.1529      
 Pop                   | 0.7554      
-BPR                   | 0.2412      
+BPR                   | ~~0.2412~~
