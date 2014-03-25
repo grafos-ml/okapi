@@ -103,13 +103,11 @@ public abstract class AbstractCFRankingComputation
 	    long iteration = getSuperstep()/4;
 	    logger.debug("Setting Configuration params");
         setConfigurationParameters();
-	
+        initFactorsIfNeeded(vertex);
 	    if (iteration < iter){
 	        if (getSuperstep() % 4 == 0){ //initial cycle of iteration where user samples and asks for factors
-	            initFactorsIfNeeded(vertex);
 	            sampleRelevantAndIrrelevantEdges(vertex);
 	        }else if (getSuperstep() % 4 == 1){ //items send factors to the user
-	            initFactorsIfNeeded(vertex);
 	            sendFactorsToUsers(vertex, messages);
 	        }else if (getSuperstep() % 4 == 2){ //users compute the updates and updates itself
 	            computeModelUpdates(vertex, messages);
