@@ -20,6 +20,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Random;
 
 import ml.grafos.okapi.cf.CfLongId;
@@ -84,9 +85,10 @@ public abstract class AbstractCFRankingComputation
 
     /**
 	 * The buffer size depends on the method.
+     * @param numberOfRelevants 
 	 * @return
 	 */
-	abstract int getBufferSize();
+	abstract int getBufferSize(int numberOfRelevants);
 	
 	/**
 	 * This is the main function for each Okapi CF ranking method.
@@ -256,7 +258,7 @@ public abstract class AbstractCFRankingComputation
 	/**
 	 * This function implements the sampling logic.
 	 * Usually each ranking method needs to do some kind of sampling of relevant and irrelevant items. 
-	 * These items then are used to train the model. For example, one strategy could be push up relevant items and pull down irrelevant. 
+	 * These items then are used to train the model. For example, one strategy of learning could be push up relevant items and pull down irrelevant. 
 	 * 
 	 * The function sends request for factors for X relevant and Y irrelevant item sampled uniformly over user items in the training set (relevant)
 	 * and items that are not in the training set of the user (irrelevant).
@@ -266,30 +268,25 @@ public abstract class AbstractCFRankingComputation
 	protected void sampleRelevantAndIrrelevantEdges(
 			Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex) {
 		if (vertex.getId().isUser()) {// only users
-			Random random = new Random();
 			Iterable<Edge<CfLongId, FloatWritable>> edges = vertex.getEdges();
-			ArrayList<CfLongId> itemList = new ArrayList<CfLongId>(
-					vertex.getNumEdges());
 			HashSet<CfLongId> relevant = new HashSet<CfLongId>();
-
+			
+			//WARNING: if you iterate over edges in giraph you can not simply put them to a collection, because, the pointers will point
+			//at the end to the same edge. Therefore, we do copies. Very ugly of giraph...
 			for (Edge<CfLongId, FloatWritable> e : edges) {
-				relevant.add(e.getTargetVertexId());
-				itemList.add(e.getTargetVertexId());
+				relevant.add(new CfLongId(e.getTargetVertexId().getType(), e.getTargetVertexId().getId()));
 			}
-			// relevant
-			CfLongId randomRelevantId = itemList.get(random.nextInt(itemList
-					.size()));
-			// irrelevant
-
+			
+			// get irrelevant
 			HashSet<CfLongId> randomIrrelevantIds = new HashSet<CfLongId>();
-
-			while (randomIrrelevantIds.size() < getBufferSize())
+			while (randomIrrelevantIds.size() < getBufferSize(relevant.size()))
 				randomIrrelevantIds.add(getRandomItemId(relevant));
 
-			// We use score > 0 to mark that this item is relevant, and score<0
-			// to mark that it is irrelevant
-
-			sendRequestForFactors(randomRelevantId, vertex.getId(), true);
+			//send messages to relevant and irrelevant
+			for (CfLongId itemId : relevant) {
+				sendRequestForFactors(itemId, vertex.getId(), true);
+			}
+			
 			for (CfLongId irItemId : randomIrrelevantIds) {
 				sendRequestForFactors(irItemId, vertex.getId(), false);
 			}

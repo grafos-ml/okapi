@@ -141,8 +141,8 @@ public class TFMAPRankingComputation extends AbstractCFRankingComputation{
     }
 
     @Override
-    int getBufferSize() {
-        return bufferSize;
-    }
+    int getBufferSize(int numberOfRelevants) {
+		return bufferSize;
+	}
 
 }
