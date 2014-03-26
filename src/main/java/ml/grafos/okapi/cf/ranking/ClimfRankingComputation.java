@@ -127,9 +127,8 @@ public class
     }
 
     @Override
-    int getBufferSize() {
-        // TODO Auto-generated method stub
-        return 0;
-    }
+    int getBufferSize(int numberOfRelevants) {
+		return numberOfRelevants;
+	}
 }
 

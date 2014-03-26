@@ -45,18 +45,18 @@ public class BPRRankingComputationTest {
 	public void testFull() throws Exception{
 		String[] graph = { 
 				"1 1 1",
-				"2 1 1",
-				"3 2 1",
-				"4 1 1",
-				"4 2 1",
-				"5 3 1",
+				"2 2 1",
+				"3 3 1",
+				"4 4 1",
+				"4 5 1",
+				"5 5 1",
 		};
 
 		GiraphConfiguration conf = new GiraphConfiguration();
 		conf.setComputationClass(BPRRankingComputation.class);
 		conf.setEdgeInputFormatClass(CfLongIdFloatTextInputFormat.class);
 		conf.set("minItemId", "1");
-		conf.set("maxItemId", "3");
+		conf.set("maxItemId", "5");
 		conf.set("iter", "1");
 		conf.set("dim", "5");
 		conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
@@ -66,7 +66,7 @@ public class BPRRankingComputationTest {
 			res.add(string);
 			Assert.assertEquals(5+1, string.split(";").length);//6 factors!
 		}
-		Assert.assertEquals(8, res.size());
+		Assert.assertEquals(10, res.size());
 		
 	}
 }
