@@ -28,6 +28,7 @@ import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.log4j.Logger;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -55,13 +56,15 @@ public class AffinityPropagation
 
   private static MaxOperator MAX_OPERATOR = new Maximize();
 
+  private static Logger logger = Logger.getLogger(AffinityPropagation.class);
+
   public static int MAX_ITERATIONS = 10;
 
   @Override
   public void compute(Vertex<APVertexID, DoubleWritable, FloatWritable> vertex,
                       Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
-    System.err.println("vetex " + id +  ", superstep " + getSuperstep());
+    logger.trace("vertex " + id + ", superstep " + getSuperstep());
 
     if (getSuperstep() >= MAX_ITERATIONS) {
       if (VertexType.VARIABLE == id.type) {
@@ -92,9 +95,9 @@ public class AffinityPropagation
       nRows + " rows and " + nColumns + "columns.");
     }
 
-    if (getSuperstep() == 2) {
-      System.err.println("Number of rows: " + nRows);
-      System.err.println("Number of columns: " + nColumns);
+    if (getSuperstep() == 1) {
+      logger.debug("Number of rows: " + nRows);
+      logger.debug("Number of columns: " + nColumns);
     }
 
     // Build a factor of the required type
@@ -155,18 +158,6 @@ public class AffinityPropagation
       factor.receive(message.value, message.from);
     }
     factor.run();
-
-
-//    vertex.voteToHalt();
-  }
-
-  /**
-   * TODO: implement this.
-   * @param id
-   * @return
-   */
-  public static Collection<APVertexID> getNeighbors(APVertexID id) {
-    return null;
   }
 
   public static enum VertexType {
@@ -256,9 +247,9 @@ public class AffinityPropagation
     public APVertexID from;
     public double value;
 
-    public APMessage(){
+    public APMessage() {
       from = new APVertexID();
-    };
+    }
 
     public APMessage(APVertexID from, double value) {
       this.from = from;
@@ -297,9 +288,8 @@ public class AffinityPropagation
 
       @Override
       protected APVertexID getId(String[] line) throws IOException {
-        APVertexID id = new APVertexID(VertexType.VARIABLE,
+        return new APVertexID(VertexType.VARIABLE,
             Long.valueOf(line[0]), Long.valueOf(line[1]));
-        return id;
       }
 
       @Override
@@ -313,7 +303,7 @@ public class AffinityPropagation
   public class MessageCollector implements CommunicationAdapter<APVertexID> {
     @Override
     public void send(double value, APVertexID sender, APVertexID recipient) {
-      System.err.println(sender + " -> " + recipient + " : " + value);
+      logger.trace(sender + " -> " + recipient + " : " + value);
       AffinityPropagation.this.sendMessage(recipient, new APMessage(sender, value));
     }
   }
