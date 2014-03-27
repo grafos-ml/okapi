@@ -60,9 +60,21 @@ public class AffinityPropagation
   @Override
   public void compute(Vertex<APVertexID, DoubleWritable, FloatWritable> vertex,
                       Iterable<APMessage> messages) throws IOException {
-
     final APVertexID id = vertex.getId();
     System.err.println("vetex " + id +  ", superstep " + getSuperstep());
+
+    if (getSuperstep() >= MAX_ITERATIONS) {
+      if (VertexType.VARIABLE == id.type) {
+        double belief = 0;
+        for (APMessage message : messages) {
+          belief += message.value;
+        }
+
+        vertex.setValue(new DoubleWritable(belief));
+      }
+      vertex.voteToHalt();
+      return;
+    }
 
     // In the first step, compute the number of rows and columns
     if (getSuperstep() == 0) {
@@ -80,15 +92,16 @@ public class AffinityPropagation
       nRows + " rows and " + nColumns + "columns.");
     }
 
-    System.err.println("Number of rows: " + nRows);
-    System.err.println("Number of columns: " + nColumns);
+    if (getSuperstep() == 2) {
+      System.err.println("Number of rows: " + nRows);
+      System.err.println("Number of columns: " + nColumns);
+    }
 
     // Build a factor of the required type
     Factor<APVertexID> factor;
     List<APVertexID> neighbors = new ArrayList<APVertexID>();
     switch (id.type) {
       case VARIABLE:
-        System.err.println("var");
         Factor<APVertexID> variable = new VariableFactor<APVertexID>();
         SingleWeightFactor<APVertexID> node = new SingleWeightFactor<APVertexID>(variable);
         node.setPotential(vertex.getValue().get());
@@ -102,12 +115,11 @@ public class AffinityPropagation
         break;
 
       case CONSISTENCY:
-        System.err.println("consistency");
         ConditionedDeactivationFactor<APVertexID> node2 = new ConditionedDeactivationFactor<APVertexID>();
         node2.setExemplar(new APVertexID(VertexType.VARIABLE, id.column, id.column));
         factor = node2;
 
-        for(int row = 1; row <= nRows; row++) {
+        for (int row = 1; row <= nRows; row++) {
           APVertexID varId = new APVertexID(VertexType.VARIABLE, row, id.column);
           neighbors.add(varId);
         }
@@ -115,9 +127,8 @@ public class AffinityPropagation
         break;
 
       case SELECTOR:
-        System.err.println("selector");
         factor = new SelectorFactor<APVertexID>();
-        for(int column = 1; column <= nColumns; column++) {
+        for (int column = 1; column <= nColumns; column++) {
           APVertexID varId = new APVertexID(VertexType.VARIABLE, id.row, column);
           neighbors.add(varId);
         }
@@ -145,9 +156,6 @@ public class AffinityPropagation
     }
     factor.run();
 
-    if (getSuperstep() >= MAX_ITERATIONS) {
-      vertex.voteToHalt();
-    }
 
 //    vertex.voteToHalt();
   }
@@ -201,6 +209,28 @@ public class AffinityPropagation
     }
 
     @Override
+    public boolean equals(Object o) {
+      if (this == o) return true;
+      if (o == null || getClass() != o.getClass()) return false;
+
+      APVertexID that = (APVertexID) o;
+
+      if (column != that.column) return false;
+      if (row != that.row) return false;
+      if (type != that.type) return false;
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      int result = type.hashCode();
+      result = 31 * result + (int) (row ^ (row >>> 32));
+      result = 31 * result + (int) (column ^ (column >>> 32));
+      return result;
+    }
+
+    @Override
     public void write(DataOutput dataOutput) throws IOException {
       dataOutput.writeInt(type.ordinal());
       dataOutput.writeLong(row);
@@ -210,7 +240,6 @@ public class AffinityPropagation
     @Override
     public void readFields(DataInput dataInput) throws IOException {
       final int index = dataInput.readInt();
-      System.err.println("Type index: " + index);
       type = VertexType.values()[index];
       row = dataInput.readLong();
       column = dataInput.readLong();
@@ -229,7 +258,6 @@ public class AffinityPropagation
 
     public APMessage(){
       from = new APVertexID();
-      System.err.println("Call to APMessage default constructor.");
     };
 
     public APMessage(APVertexID from, double value) {
