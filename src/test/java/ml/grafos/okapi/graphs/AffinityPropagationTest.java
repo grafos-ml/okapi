@@ -45,6 +45,7 @@ public class AffinityPropagationTest {
 
     GiraphConfiguration conf = new GiraphConfiguration();
     conf.setComputationClass(AffinityPropagation.class);
+    conf.setMasterComputeClass(AffinityPropagation.MasterComputation.class);
     conf.setVertexInputFormatClass(AffinityPropagation.APInputFormatter.class);
     conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
     Iterable<String> results;

@@ -20,6 +20,7 @@ import es.csic.iiia.bms.Factor;
 import es.csic.iiia.bms.MaxOperator;
 import es.csic.iiia.bms.Maximize;
 import es.csic.iiia.bms.factors.*;
+import org.apache.giraph.aggregators.LongMaxAggregator;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
@@ -61,6 +62,25 @@ public class AffinityPropagation
                       Iterable<APMessage> messages) throws IOException {
 
     final APVertexID id = vertex.getId();
+
+    // In the first step, compute the number of rows and columns
+    if (getSuperstep() == 0) {
+      aggregate("nRows", new LongWritable(id.row));
+      aggregate("nColumns", new LongWritable(id.column));
+      return;
+    }
+
+    LongWritable aggregatedRows = getAggregatedValue("nRows");
+    final long nRows = aggregatedRows.get();
+    LongWritable aggregatedColumns = getAggregatedValue("nRows");
+    final long nColumns = aggregatedColumns.get();
+    if (nRows != nColumns) {
+      throw new IllegalStateException("The input must form a square matrix, but we got " +
+      nRows + " rows and " + nColumns + "columns.");
+    }
+
+    System.err.println("Number of rows: " + nRows);
+    System.err.println("Number of columns: " + nColumns);
 
     // Build a factor of the required type
     Factor<APVertexID> factor;
@@ -105,6 +125,8 @@ public class AffinityPropagation
     if (getSuperstep() >= MAX_ITERATIONS) {
       vertex.voteToHalt();
     }
+
+    vertex.voteToHalt();
   }
 
   /**
@@ -158,7 +180,6 @@ public class AffinityPropagation
     @Override
     public void write(DataOutput dataOutput) throws IOException {
       dataOutput.writeInt(type.ordinal());
-      System.err.println("Type index: " + type.ordinal());
       dataOutput.writeLong(row);
       dataOutput.writeLong(column);
     }
@@ -238,11 +259,20 @@ public class AffinityPropagation
   public class MessageCollector implements CommunicationAdapter<APVertexID> {
     @Override
     public void send(double value, APVertexID sender, APVertexID recipient) {
+      System.err.println(sender + " -> " + recipient + " : " + value);
       AffinityPropagation.this.sendMessage(recipient, new APMessage(sender, value));
     }
   }
 
   public static class MasterComputation extends DefaultMasterCompute {
+
+    @Override
+    public void initialize() throws InstantiationException, IllegalAccessException {
+      super.initialize();
+
+      registerPersistentAggregator("nRows", LongMaxAggregator.class);
+      registerPersistentAggregator("nColumns", LongMaxAggregator.class);
+    }
   }
 
 }
