@@ -19,12 +19,17 @@ import es.csic.iiia.bms.CommunicationAdapter;
 import es.csic.iiia.bms.Factor;
 import es.csic.iiia.bms.MaxOperator;
 import es.csic.iiia.bms.Maximize;
-import es.csic.iiia.bms.factors.*;
+import es.csic.iiia.bms.factors.ConditionedDeactivationFactor;
+import es.csic.iiia.bms.factors.SelectorFactor;
+import es.csic.iiia.bms.factors.SingleWeightFactor;
+import es.csic.iiia.bms.factors.VariableFactor;
+import org.apache.giraph.aggregators.BasicAggregator;
 import org.apache.giraph.aggregators.LongMaxAggregator;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
 import org.apache.giraph.master.DefaultMasterCompute;
+import org.apache.giraph.utils.ArrayListWritable;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -33,7 +38,8 @@ import org.apache.log4j.Logger;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -58,34 +64,18 @@ public class AffinityPropagation
 
   private static Logger logger = Logger.getLogger(AffinityPropagation.class);
 
-  public static int MAX_ITERATIONS = 10;
+  public static int MAX_ITERATIONS = 200;
 
-  @Override
-  public void compute(Vertex<APVertexID, DoubleWritable, FloatWritable> vertex,
-                      Iterable<APMessage> messages) throws IOException {
+  private void computeRowsColumns(Vertex<APVertexID, DoubleWritable, FloatWritable> vertex,
+                                  Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
-    logger.trace("vertex " + id + ", superstep " + getSuperstep());
+    aggregate("nRows", new LongWritable(id.row));
+    aggregate("nColumns", new LongWritable(id.column));
+  }
 
-    if (getSuperstep() >= MAX_ITERATIONS) {
-      if (VertexType.VARIABLE == id.type) {
-        double belief = 0;
-        for (APMessage message : messages) {
-          logger.trace(message);
-          belief += message.value;
-        }
-
-        vertex.setValue(new DoubleWritable(belief));
-      }
-      vertex.voteToHalt();
-      return;
-    }
-
-    // In the first step, compute the number of rows and columns
-    if (getSuperstep() == 0) {
-      aggregate("nRows", new LongWritable(id.row));
-      aggregate("nColumns", new LongWritable(id.column));
-      return;
-    }
+  private void computeBMSIteration(Vertex<APVertexID, DoubleWritable, FloatWritable> vertex,
+                                   Iterable<APMessage> messages) throws IOException {
+    final APVertexID id = vertex.getId();
 
     LongWritable aggregatedRows = getAggregatedValue("nRows");
     final long nRows = aggregatedRows.get();
@@ -93,7 +83,7 @@ public class AffinityPropagation
     final long nColumns = aggregatedColumns.get();
     if (nRows != nColumns) {
       throw new IllegalStateException("The input must form a square matrix, but we got " +
-      nRows + " rows and " + nColumns + "columns.");
+          nRows + " rows and " + nColumns + "columns.");
     }
 
     if (getSuperstep() == 1) {
@@ -162,8 +152,77 @@ public class AffinityPropagation
     factor.run();
   }
 
+  private void computeLeaders(Vertex<APVertexID, DoubleWritable, FloatWritable> vertex,
+                      Iterable<APMessage> messages) throws IOException {
+    final APVertexID id = vertex.getId();
+
+    // Leaders are auto-elected among variables
+    if (!(id.type == VertexType.VARIABLE)) {
+      return;
+    }
+
+    // But only by those variables on the diagonal of the matrix
+    if (id.row != id.column) {
+      return;
+    }
+
+    double belief = vertex.getValue().get();
+    for (APMessage message : messages) {
+      belief += message.value;
+    }
+    if (belief >= 0) {
+      APVertexIDArrayListWritable value = new APVertexIDArrayListWritable();
+      value.add(id);
+      aggregate("leaders", value);
+      logger.trace("Point " + id.row + " decides to become a leader with value " + belief + ".");
+    } else {
+      logger.trace("Point " + id.row + " does not want to be a leader with value " + belief + ".");
+    }
+
+  }
+
+  private void computeClusters(Vertex<APVertexID, DoubleWritable, FloatWritable> vertex,
+                      Iterable<APMessage> messages) throws IOException {
+
+    APVertexIDArrayListWritable leaders = getAggregatedValue("leaders");
+    logger.trace("Received leaders: ");
+    for (APVertexID leader : leaders) {
+      logger.trace("\t-" + leader);
+    }
+    throw new RuntimeException("Stop, thanks.");
+
+//    if (VertexType.VARIABLE == vertex.getId().type) {
+//      double belief = 0;
+//      for (APMessage message : messages) {
+//        logger.trace(message);
+//        belief += message.value;
+//      }
+//
+//      vertex.setValue(new DoubleWritable(belief));
+//    }
+//    vertex.voteToHalt();
+  }
+
+  @Override
+  public void compute(Vertex<APVertexID, DoubleWritable, FloatWritable> vertex,
+                      Iterable<APMessage> messages) throws IOException {
+    logger.trace("vertex " + vertex.getId() + ", superstep " + getSuperstep());
+
+    // Phases of the algorithm
+    if (getSuperstep() == 0) {
+      computeRowsColumns(vertex, messages);
+    } else if (getSuperstep() < MAX_ITERATIONS) {
+      computeBMSIteration(vertex, messages);
+    } else if (getSuperstep() == MAX_ITERATIONS) {
+      computeLeaders(vertex, messages);
+    } else {
+      computeClusters(vertex, messages);
+    }
+
+  }
+
   public static enum VertexType {
-    VARIABLE, SIMILARITY, CONSISTENCY, SELECTOR
+    VARIABLE, CONSISTENCY, SELECTOR
   }
 
   public static class APVertexID implements WritableComparable<APVertexID> {
@@ -272,10 +331,7 @@ public class AffinityPropagation
 
     @Override
     public String toString() {
-      return "APMessage{" +
-              "from=" + from +
-              ", value=" + value +
-              '}';
+      return "APMessage{from=" + from + ", value=" + value + '}';
     }
   }
 
@@ -326,6 +382,42 @@ public class AffinityPropagation
 
       registerPersistentAggregator("nRows", LongMaxAggregator.class);
       registerPersistentAggregator("nColumns", LongMaxAggregator.class);
+      registerPersistentAggregator("leaders", LeaderAggregator.class);
+    }
+
+  }
+
+  public static class APVertexIDArrayListWritable extends ArrayListWritable<APVertexID> {
+    @Override
+    public void setClass() {
+      setClass(APVertexID.class);
+    }
+  }
+
+  public static class LeaderAggregator extends BasicAggregator<APVertexIDArrayListWritable> {
+    @Override
+    public void aggregate(APVertexIDArrayListWritable value) {
+      getAggregatedValue().addAll(value);
+    }
+
+    @Override
+    public APVertexIDArrayListWritable createInitialValue() {
+      return new APVertexIDArrayListWritable();
+    }
+  }
+
+  public static class APVertexIDFollowerMapWritable implements Writable {
+
+
+
+    @Override
+    public void write(DataOutput dataOutput) throws IOException {
+
+    }
+
+    @Override
+    public void readFields(DataInput dataInput) throws IOException {
+
     }
   }
 
