@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
  *
  * You can find a detailed description of the algorithm in the affinity propagation
  * <a href="http://genes.toronto.edu/index.php?q=affinity%20propagation">website</a>.
- * 
+ *
  * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
  * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
  *
@@ -62,6 +62,7 @@ public class AffinityPropagation
                       Iterable<APMessage> messages) throws IOException {
 
     final APVertexID id = vertex.getId();
+    System.err.println("vetex " + id +  ", superstep " + getSuperstep());
 
     // In the first step, compute the number of rows and columns
     if (getSuperstep() == 0) {
@@ -84,22 +85,42 @@ public class AffinityPropagation
 
     // Build a factor of the required type
     Factor<APVertexID> factor;
+    List<APVertexID> neighbors = new ArrayList<APVertexID>();
     switch (id.type) {
       case VARIABLE:
+        System.err.println("var");
         Factor<APVertexID> variable = new VariableFactor<APVertexID>();
         SingleWeightFactor<APVertexID> node = new SingleWeightFactor<APVertexID>(variable);
         node.setPotential(vertex.getValue().get());
         factor = node;
+        // Connect to 1-of-N factor
+        APVertexID selectorId = new APVertexID(VertexType.SELECTOR, id.row, 0);
+        neighbors.add(selectorId);
+        // Connect to Consistency factor
+        APVertexID consistencyId = new APVertexID(VertexType.CONSISTENCY, 0, id.column);
+        neighbors.add(consistencyId);
         break;
 
       case CONSISTENCY:
+        System.err.println("consistency");
         ConditionedDeactivationFactor<APVertexID> node2 = new ConditionedDeactivationFactor<APVertexID>();
         node2.setExemplar(new APVertexID(VertexType.VARIABLE, id.column, id.column));
         factor = node2;
+
+        for(int row = 1; row <= nRows; row++) {
+          APVertexID varId = new APVertexID(VertexType.VARIABLE, row, id.column);
+          neighbors.add(varId);
+        }
+
         break;
 
       case SELECTOR:
+        System.err.println("selector");
         factor = new SelectorFactor<APVertexID>();
+        for(int column = 1; column <= nColumns; column++) {
+          APVertexID varId = new APVertexID(VertexType.VARIABLE, id.row, column);
+          neighbors.add(varId);
+        }
         break;
 
       default:
@@ -112,9 +133,11 @@ public class AffinityPropagation
     factor.setIdentity(id);
     factor.setMaxOperator(MAX_OPERATOR);
 
-    // Compute the factor's neighbors (we do not have edges because this is a very dense
+    // Add the factor's neighbors (we do not have edges because this is a very dense
     // graph and thus its better to avoid creating that many giraph edges).
-    Collection<APVertexID> neighbors = getNeighbors(id);
+    for (APVertexID neighbor : neighbors) {
+      factor.addNeighbor(neighbor);
+    }
 
     // Receive messages and compute
     for (APMessage message : messages) {
@@ -126,7 +149,7 @@ public class AffinityPropagation
       vertex.voteToHalt();
     }
 
-    vertex.voteToHalt();
+//    vertex.voteToHalt();
   }
 
   /**
@@ -204,7 +227,10 @@ public class AffinityPropagation
     public APVertexID from;
     public double value;
 
-    public APMessage(){};
+    public APMessage(){
+      from = new APVertexID();
+      System.err.println("Call to APMessage default constructor.");
+    };
 
     public APMessage(APVertexID from, double value) {
       this.from = from;
