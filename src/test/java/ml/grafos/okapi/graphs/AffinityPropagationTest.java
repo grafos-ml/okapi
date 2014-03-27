@@ -32,22 +32,16 @@ public class AffinityPropagationTest {
   @Test
   public void test() {
     String[] graph = {
-      "1 1 1",
-      "1 2 1",
-      "1 3 5",
-      "2 1 1",
-      "2 2 1",
-      "2 3 3",
-      "3 1 5",
-      "3 2 3",
-      "3 3 1",
+      "1 1 1 5",
+      "2 1 1 3",
+      "3 5 3 1",
     };
 
     GiraphConfiguration conf = new GiraphConfiguration();
     conf.setComputationClass(AffinityPropagation.class);
     conf.setMasterComputeClass(AffinityPropagation.MasterComputation.class);
     conf.setVertexInputFormatClass(AffinityPropagation.APInputFormatter.class);
-    conf.setVertexOutputFormatClass(IdWithValueTextOutputFormat.class);
+    conf.setVertexOutputFormatClass(AffinityPropagation.AffinityPropagationOutputFormat.class);
     conf.setMaxNumberOfSupersteps(200);
     Iterable<String> results;
     try {
