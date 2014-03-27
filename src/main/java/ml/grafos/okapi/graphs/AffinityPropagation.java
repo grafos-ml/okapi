@@ -70,6 +70,7 @@ public class AffinityPropagation
       if (VertexType.VARIABLE == id.type) {
         double belief = 0;
         for (APMessage message : messages) {
+          logger.trace(message);
           belief += message.value;
         }
 
@@ -266,6 +267,14 @@ public class AffinityPropagation
     public void readFields(DataInput dataInput) throws IOException {
       from.readFields(dataInput);
       value = dataInput.readDouble();
+    }
+
+    @Override
+    public String toString() {
+      return "APMessage{" +
+              "from=" + from +
+              ", value=" + value +
+              '}';
     }
   }
 
