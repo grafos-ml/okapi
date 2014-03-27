@@ -37,9 +37,9 @@ public class AffinityPropagationTest {
       "1 3 5",
       "2 1 1",
       "2 2 2",
-      "2 3 1",
+      "2 3 3",
       "3 1 5",
-      "3 2 1",
+      "3 2 3",
       "3 3 2",
     };
 
