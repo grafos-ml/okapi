@@ -156,6 +156,7 @@ public class AffinityPropagation
 
     // Receive messages and compute
     for (APMessage message : messages) {
+      logger.trace(message);
       factor.receive(message.value, message.from);
     }
     factor.run();
