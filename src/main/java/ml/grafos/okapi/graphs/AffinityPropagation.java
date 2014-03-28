@@ -407,6 +407,28 @@ public class AffinityPropagation
     }
   }
 
+  /**
+   * Input formatter for Affinity Propagation problems.
+   * <p/>
+   * The input format consists of an entry for each of the data points to cluster.
+   * The first element of the entry is an integer value encoding the data point
+   * index (id). Subsequent elements in the entry are double values encoding the
+   * similarities between the data point of the current entry and the rest of
+   * data points in the problem.
+   * <p/>
+   * Example:<br/>
+   * 1 1 1 5
+   * 2 1 1 3
+   * 3 5 3 1
+   * <p/>
+   * Encodes a problem in which data point "1" has similarity 1 with itself,
+   * 1 with point "2" and 5 with point "3". In a similar manner, points "2",
+   * and "3" have similarities of [1, 1, 3] and [5, 3, 1] respectively with
+   * points "1", "2", and "3".
+   *
+   * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
+   * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
+   */
   public static class APInputFormatter
       extends TextVertexValueInputFormat<APVertexID, APVertexValue, NullWritable> {
 
@@ -441,6 +463,25 @@ public class AffinityPropagation
     }
   }
 
+  /**
+   * Output Formatter for Affinity Propagation problems.
+   * <p/>
+   * The output format consists of an entry for each of the data points to cluster.
+   * The first element of the entry is a integer value encoding the data point
+   * index (id), whereas the second value encodes the exemplar id chosen for
+   * that point.
+   * <p/>
+   * Example:<br/>
+   * 1 3
+   * 2 3
+   * 3 3
+   * <p/>
+   * Encodes a solution in which data points "1", "2", and "3" choose point "3"
+   * as an exemplar.
+   *
+   * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
+   * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
+   */
   @SuppressWarnings("rawtypes")
   public static class APOutputFormat
       extends IdWithValueTextOutputFormat<APVertexID,APVertexValue, NullWritable> {
