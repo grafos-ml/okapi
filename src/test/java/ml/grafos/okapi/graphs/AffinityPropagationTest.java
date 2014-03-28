@@ -36,7 +36,7 @@ public class AffinityPropagationTest {
     conf.setMasterComputeClass(AffinityPropagation.MasterComputation.class);
     conf.setVertexInputFormatClass(AffinityPropagation.APInputFormatter.class);
     conf.setInt(SemiClustering.ITERATIONS, 15);
-    conf.setVertexOutputFormatClass(AffinityPropagation.AffinityPropagationOutputFormat.class);
+    conf.setVertexOutputFormatClass(AffinityPropagation.APOutputFormat.class);
     conf.setMaxNumberOfSupersteps(200);
     Iterable<String> results;
     try {

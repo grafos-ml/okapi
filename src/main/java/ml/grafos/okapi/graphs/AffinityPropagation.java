@@ -27,10 +27,8 @@ import org.apache.giraph.aggregators.LongMaxAggregator;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
-import org.apache.giraph.io.formats.TextVertexOutputFormat;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
 import org.apache.giraph.master.DefaultMasterCompute;
-import org.apache.giraph.utils.ArrayListWritable;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -39,10 +37,6 @@ import org.apache.log4j.Logger;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -70,6 +64,24 @@ public class AffinityPropagation
   /** Maximum number of iterations. */
   public static final String MAX_ITERATIONS = "iterations";
   public static int MAX_ITERATIONS_DEFAULT = 15;
+
+  @Override
+  public void compute(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
+                      Iterable<APMessage> messages) throws IOException {
+    logger.trace("vertex " + vertex.getId() + ", superstep " + getSuperstep());
+    final int maxIter = getContext().getConfiguration().getInt(MAX_ITERATIONS, MAX_ITERATIONS_DEFAULT);
+    // Phases of the algorithm
+    if (getSuperstep() == 0) {
+      computeRowsColumns(vertex, messages);
+    } else if (getSuperstep() < maxIter) {
+      computeBMSIteration(vertex, messages);
+    } else if (getSuperstep() == maxIter) {
+      computeLeaders(vertex, messages);
+    } else {
+      computeClusters(vertex, messages);
+    }
+
+  }
 
   private void computeRowsColumns(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
                                   Iterable<APMessage> messages) throws IOException {
@@ -102,11 +114,11 @@ public class AffinityPropagation
 
       case CONSISTENCY:
         ConditionedDeactivationFactor<APVertexID> node2 = new ConditionedDeactivationFactor<APVertexID>();
-        node2.setExemplar(new APVertexID(VertexType.SELECTOR, id.column, 0));
+        node2.setExemplar(new APVertexID(APVertexType.SELECTOR, id.column, 0));
         factor = node2;
 
         for (int row = 1; row <= nRows; row++) {
-          APVertexID varId = new APVertexID(VertexType.SELECTOR, row, 0);
+          APVertexID varId = new APVertexID(APVertexType.SELECTOR, row, 0);
           node2.addNeighbor(varId);
         }
 
@@ -117,7 +129,7 @@ public class AffinityPropagation
         SelectorFactor<APVertexID> selector = new SelectorFactor<APVertexID>();
         WeightingFactor<APVertexID> weights = new WeightingFactor<APVertexID>(selector);
         for (int column = 1; column <= nColumns; column++) {
-          APVertexID varId = new APVertexID(VertexType.CONSISTENCY, 0, column);
+          APVertexID varId = new APVertexID(APVertexType.CONSISTENCY, 0, column);
           weights.addNeighbor(varId);
           weights.setPotential(varId, value.get(column-1).get());
         }
@@ -147,7 +159,7 @@ public class AffinityPropagation
     final APVertexID id = vertex.getId();
 
     // Leaders are auto-elected among variables
-    if (!(id.type == VertexType.CONSISTENCY)) {
+    if (!(id.type == APVertexType.CONSISTENCY)) {
       return;
     }
 
@@ -161,20 +173,15 @@ public class AffinityPropagation
           nRows + " rows and " + nColumns + "columns.");
     }
 
-    if (getSuperstep() == 1) {
-      logger.debug("Number of rows: " + nRows);
-      logger.debug("Number of columns: " + nColumns);
-    }
-
     // Build a factor of the required type
     Factor<APVertexID> factor;
 
     ConditionedDeactivationFactor<APVertexID> node2 = new ConditionedDeactivationFactor<APVertexID>();
-    node2.setExemplar(new APVertexID(VertexType.SELECTOR, id.column, 0));
+    node2.setExemplar(new APVertexID(APVertexType.SELECTOR, id.column, 0));
     factor = node2;
 
     for (int row = 1; row <= nRows; row++) {
-      APVertexID varId = new APVertexID(VertexType.SELECTOR, row, 0);
+      APVertexID varId = new APVertexID(APVertexType.SELECTOR, row, 0);
       node2.addNeighbor(varId);
     }
 
@@ -216,7 +223,7 @@ public class AffinityPropagation
                       Iterable<APMessage> messages) throws IOException {
 
     APVertexID id = vertex.getId();
-    if (id.type != VertexType.SELECTOR) {
+    if (id.type != APVertexType.SELECTOR) {
       return;
     }
 
@@ -248,40 +255,37 @@ public class AffinityPropagation
     vertex.voteToHalt();
   }
 
-  @Override
-  public void compute(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
-                      Iterable<APMessage> messages) throws IOException {
-    logger.trace("vertex " + vertex.getId() + ", superstep " + getSuperstep());
-    final int maxIter = getContext().getConfiguration().getInt(MAX_ITERATIONS, MAX_ITERATIONS_DEFAULT);
-    // Phases of the algorithm
-    if (getSuperstep() == 0) {
-      computeRowsColumns(vertex, messages);
-    } else if (getSuperstep() < maxIter) {
-      computeBMSIteration(vertex, messages);
-    } else if (getSuperstep() == maxIter) {
-      computeLeaders(vertex, messages);
-    } else {
-      computeClusters(vertex, messages);
-    }
-
-  }
-
-  public static enum VertexType {
+  public static enum APVertexType {
     CONSISTENCY, SELECTOR
   }
 
   public static class APVertexID implements WritableComparable<APVertexID> {
 
-    public VertexType type = VertexType.SELECTOR;
+    public APVertexType type = APVertexType.SELECTOR;
     public long row = 0;
     public long column = 0;
 
     public APVertexID() {}
 
-    public APVertexID(VertexType type, long row, long column) {
+    public APVertexID(APVertexType type, long row, long column) {
       this.type = type;
       this.row = row;
       this.column = column;
+    }
+
+    @Override
+    public void write(DataOutput dataOutput) throws IOException {
+      dataOutput.writeInt(type.ordinal());
+      dataOutput.writeLong(row);
+      dataOutput.writeLong(column);
+    }
+
+    @Override
+    public void readFields(DataInput dataInput) throws IOException {
+      final int index = dataInput.readInt();
+      type = APVertexType.values()[index];
+      row = dataInput.readLong();
+      column = dataInput.readLong();
     }
 
     @Override
@@ -328,21 +332,6 @@ public class AffinityPropagation
     }
 
     @Override
-    public void write(DataOutput dataOutput) throws IOException {
-      dataOutput.writeInt(type.ordinal());
-      dataOutput.writeLong(row);
-      dataOutput.writeLong(column);
-    }
-
-    @Override
-    public void readFields(DataInput dataInput) throws IOException {
-      final int index = dataInput.readInt();
-      type = VertexType.values()[index];
-      row = dataInput.readLong();
-      column = dataInput.readLong();
-    }
-
-    @Override
     public String toString() {
       return "(" + type + ", " + row + ", " + column + ")";
     }
@@ -378,41 +367,6 @@ public class AffinityPropagation
     public String toString() {
       return "APMessage{from=" + from + ", value=" + value + '}';
     }
-  }
-
-  public static class APInputFormatter
-      extends TextVertexValueInputFormat<APVertexID, DoubleArrayListWritable, FloatWritable> {
-
-    private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
-
-    @Override
-    public TextVertexValueReader createVertexValueReader(InputSplit split, TaskAttemptContext context) throws IOException {
-      return new APInputReader();
-    }
-
-    public class APInputReader extends TextVertexValueReaderFromEachLineProcessed<String[]> {
-
-      @Override
-      protected String[] preprocessLine(Text line) throws IOException {
-        return SEPARATOR.split(line.toString());
-      }
-
-      @Override
-      protected APVertexID getId(String[] line) throws IOException {
-        return new APVertexID(VertexType.SELECTOR,
-            Long.valueOf(line[0]), 0);
-      }
-
-      @Override
-      protected DoubleArrayListWritable getValue(String[] line) throws IOException {
-        DoubleArrayListWritable value = new DoubleArrayListWritable();
-        for (int i=1; i<line.length; i++) {
-          value.add(new DoubleWritable(Double.valueOf(line[i])));
-        }
-        return value;
-      }
-    }
-
   }
 
   public class MessageRelayer implements CommunicationAdapter<APVertexID> {
@@ -466,9 +420,43 @@ public class AffinityPropagation
     }
   }
 
+  public static class APInputFormatter
+      extends TextVertexValueInputFormat<APVertexID, DoubleArrayListWritable, FloatWritable> {
+
+    private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
+
+    @Override
+    public TextVertexValueReader createVertexValueReader(InputSplit split, TaskAttemptContext context) throws IOException {
+      return new APInputReader();
+    }
+
+    public class APInputReader extends TextVertexValueReaderFromEachLineProcessed<String[]> {
+
+      @Override
+      protected String[] preprocessLine(Text line) throws IOException {
+        return SEPARATOR.split(line.toString());
+      }
+
+      @Override
+      protected APVertexID getId(String[] line) throws IOException {
+        return new APVertexID(APVertexType.SELECTOR,
+            Long.valueOf(line[0]), 0);
+      }
+
+      @Override
+      protected DoubleArrayListWritable getValue(String[] line) throws IOException {
+        DoubleArrayListWritable value = new DoubleArrayListWritable();
+        for (int i = 1; i < line.length; i++) {
+          value.add(new DoubleWritable(Double.valueOf(line[i])));
+        }
+        return value;
+      }
+    }
+
+  }
 
   @SuppressWarnings("rawtypes")
-  public static class AffinityPropagationOutputFormat
+  public static class APOutputFormat
       extends IdWithValueTextOutputFormat<APVertexID,
       DoubleArrayListWritable, NullWritable> {
 
@@ -507,7 +495,7 @@ public class AffinityPropagation
           DoubleArrayListWritable, NullWritable> vertex)
           throws IOException {
 
-        if (vertex.getId().type != VertexType.SELECTOR) {
+        if (vertex.getId().type != APVertexType.SELECTOR) {
           return null;
         }
 
