@@ -56,8 +56,7 @@ import java.util.regex.Pattern;
  */
 public class AffinityPropagation
     extends BasicComputation<AffinityPropagation.APVertexID,
-    AffinityPropagation.APVertexValue, FloatWritable, AffinityPropagation.APMessage> {
-  // TODO: edges should be NullWritable.
+    AffinityPropagation.APVertexValue, NullWritable, AffinityPropagation.APMessage> {
   private static MaxOperator MAX_OPERATOR = new Maximize();
 
   private static Logger logger = Logger.getLogger(AffinityPropagation.class);
@@ -69,7 +68,7 @@ public class AffinityPropagation
   public static int MAX_ITERATIONS_DEFAULT = 15;
 
   @Override
-  public void compute(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
+  public void compute(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                       Iterable<APMessage> messages) throws IOException {
     logger.trace("vertex " + vertex.getId() + ", superstep " + getSuperstep());
     final int maxIter = getContext().getConfiguration().getInt(MAX_ITERATIONS, MAX_ITERATIONS_DEFAULT);
@@ -86,14 +85,14 @@ public class AffinityPropagation
 
   }
 
-  private void computeRowsColumns(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
+  private void computeRowsColumns(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                                   Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
     aggregate("nRows", new LongWritable(id.row));
     aggregate("nColumns", new LongWritable(id.column));
   }
 
-  private void computeBMSIteration(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
+  private void computeBMSIteration(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                                    Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
 
@@ -157,7 +156,7 @@ public class AffinityPropagation
     factor.run();
   }
 
-  private void computeExemplars(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
+  private void computeExemplars(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                                 Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
 
@@ -222,7 +221,7 @@ public class AffinityPropagation
 
   }
 
-  private void computeClusters(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
+  private void computeClusters(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                                Iterable<APMessage> messages) throws IOException {
 
     APVertexID id = vertex.getId();
@@ -449,7 +448,7 @@ public class AffinityPropagation
   }
 
   public static class APInputFormatter
-      extends TextVertexValueInputFormat<APVertexID, APVertexValue, FloatWritable> {
+      extends TextVertexValueInputFormat<APVertexID, APVertexValue, NullWritable> {
 
     private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
 
