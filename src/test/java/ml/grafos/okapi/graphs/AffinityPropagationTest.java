@@ -15,15 +15,9 @@
  */
 package ml.grafos.okapi.graphs;
 
-import junit.framework.Assert;
-import ml.grafos.okapi.io.formats.LongDoubleTextEdgeInputFormat;
 import org.apache.giraph.conf.GiraphConfiguration;
-import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.utils.InternalVertexRunner;
 import org.junit.Test;
-
-import java.util.LinkedList;
-import java.util.List;
 
 import static org.junit.Assert.fail;
 
@@ -41,6 +35,7 @@ public class AffinityPropagationTest {
     conf.setComputationClass(AffinityPropagation.class);
     conf.setMasterComputeClass(AffinityPropagation.MasterComputation.class);
     conf.setVertexInputFormatClass(AffinityPropagation.APInputFormatter.class);
+    conf.setInt(SemiClustering.ITERATIONS, 15);
     conf.setVertexOutputFormatClass(AffinityPropagation.AffinityPropagationOutputFormat.class);
     conf.setMaxNumberOfSupersteps(200);
     Iterable<String> results;

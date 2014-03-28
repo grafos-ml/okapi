@@ -67,7 +67,9 @@ public class AffinityPropagation
 
   private static Logger logger = Logger.getLogger(AffinityPropagation.class);
 
-  public static int MAX_ITERATIONS = 15;
+  /** Maximum number of iterations. */
+  public static final String MAX_ITERATIONS = "iterations";
+  public static int MAX_ITERATIONS_DEFAULT = 15;
 
   private void computeRowsColumns(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
                                   Iterable<APMessage> messages) throws IOException {
@@ -90,13 +92,12 @@ public class AffinityPropagation
     }
 
     if (getSuperstep() == 1) {
-      logger.debug("Number of rows: " + nRows);
-      logger.debug("Number of columns: " + nColumns);
+      logger.trace("Number of rows: " + nRows);
+      logger.trace("Number of columns: " + nColumns);
     }
 
     // Build a factor of the required type
     Factor<APVertexID> factor;
-    List<APVertexID> neighbors = new ArrayList<APVertexID>();
     switch (id.type) {
 
       case CONSISTENCY:
@@ -251,13 +252,13 @@ public class AffinityPropagation
   public void compute(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
                       Iterable<APMessage> messages) throws IOException {
     logger.trace("vertex " + vertex.getId() + ", superstep " + getSuperstep());
-
+    final int maxIter = getContext().getConfiguration().getInt(MAX_ITERATIONS, MAX_ITERATIONS_DEFAULT);
     // Phases of the algorithm
     if (getSuperstep() == 0) {
       computeRowsColumns(vertex, messages);
-    } else if (getSuperstep() < MAX_ITERATIONS) {
+    } else if (getSuperstep() < maxIter) {
       computeBMSIteration(vertex, messages);
-    } else if (getSuperstep() == MAX_ITERATIONS) {
+    } else if (getSuperstep() == maxIter) {
       computeLeaders(vertex, messages);
     } else {
       computeClusters(vertex, messages);
