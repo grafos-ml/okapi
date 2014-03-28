@@ -163,51 +163,16 @@ public class AffinityPropagation
   private void computeExemplars(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                                 Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
-
     // Exemplars are auto-elected among variables
-    if (!(id.type == APVertexType.CONSISTENCY)) {
+    if (id.type != APVertexType.CONSISTENCY) {
       return;
     }
-
-    // COPYPASTA FEST
-    LongWritable aggregatedRows = getAggregatedValue("nRows");
-    final long nRows = aggregatedRows.get();
-    LongWritable aggregatedColumns = getAggregatedValue("nRows");
-    final long nColumns = aggregatedColumns.get();
-    if (nRows != nColumns) {
-      throw new IllegalStateException("The input must form a square matrix, but we got " +
-          nRows + " rows and " + nColumns + "columns.");
-    }
-
-    // Build a factor of the required type
-    Factor<APVertexID> factor;
-
-    ConditionedDeactivationFactor<APVertexID> node2 = new ConditionedDeactivationFactor<APVertexID>();
-    node2.setExemplar(new APVertexID(APVertexType.SELECTOR, id.column, 0));
-    factor = node2;
-
-    for (int row = 1; row <= nRows; row++) {
-      APVertexID varId = new APVertexID(APVertexType.SELECTOR, row, 0);
-      node2.addNeighbor(varId);
-    }
-
-    // Initialize it with proper values
-    CaptureMessageGoingToRow capturer = new CaptureMessageGoingToRow(id.column);
-    factor.setCommunicationAdapter(capturer);
-    factor.setIdentity(id);
-    factor.setMaxOperator(MAX_OPERATOR);
-
-    // Receive messages and compute
-    for (APMessage message : messages) {
-      logger.trace(message);
-      factor.receive(message.value, message.from);
-    }
-    factor.run();
 
     // But only by those variables on the diagonal of the matrix
     for (APMessage message : messages) {
       if (message.from.row == id.column) {
-        double belief = message.value + capturer.capturedMessage;
+        double lastMessageValue = ((DoubleWritable) vertex.getValue().lastMessages.get(message.from)).get();
+        double belief = message.value + lastMessageValue;
         if (belief >= 0) {
           LongArrayListWritable exemplars = new LongArrayListWritable();
           exemplars.add(new LongWritable(id.column));
@@ -225,7 +190,6 @@ public class AffinityPropagation
 
   private void computeClusters(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                                Iterable<APMessage> messages) throws IOException {
-
     APVertexID id = vertex.getId();
     if (id.type != APVertexType.SELECTOR) {
       return;
@@ -418,24 +382,6 @@ public class AffinityPropagation
     }
   }
 
-  public class CaptureMessageGoingToRow implements CommunicationAdapter<APVertexID> {
-
-    public double capturedMessage;
-
-    private final long row;
-
-    public CaptureMessageGoingToRow(long row) {
-      this.row = row;
-    }
-
-    @Override
-    public void send(double value, APVertexID sender, APVertexID recipient) {
-      if (recipient.row == row) {
-        capturedMessage = value;
-      }
-    }
-  }
-
   public static class MasterComputation extends DefaultMasterCompute {
 
     @Override
@@ -497,8 +443,7 @@ public class AffinityPropagation
 
   @SuppressWarnings("rawtypes")
   public static class APOutputFormat
-      extends IdWithValueTextOutputFormat<APVertexID,
-      APVertexValue, NullWritable> {
+      extends IdWithValueTextOutputFormat<APVertexID,APVertexValue, NullWritable> {
 
     /**
      * Specify the output delimiter
