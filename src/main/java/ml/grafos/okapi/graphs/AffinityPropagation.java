@@ -19,9 +19,11 @@ import es.csic.iiia.bms.CommunicationAdapter;
 import es.csic.iiia.bms.Factor;
 import es.csic.iiia.bms.MaxOperator;
 import es.csic.iiia.bms.Maximize;
-import es.csic.iiia.bms.factors.*;
-import ml.grafos.okapi.common.data.DoubleArrayListWritable;
-import ml.grafos.okapi.common.data.LongArrayListWritable;
+import es.csic.iiia.bms.factors.ConditionedDeactivationFactor;
+import es.csic.iiia.bms.factors.SelectorFactor;
+import es.csic.iiia.bms.factors.WeightingFactor;
+import ml.grafos.okapi.common.data.*;
+import ml.grafos.okapi.common.data.MapWritable;
 import org.apache.giraph.aggregators.BasicAggregator;
 import org.apache.giraph.aggregators.LongMaxAggregator;
 import org.apache.giraph.graph.BasicComputation;
@@ -41,32 +43,33 @@ import java.util.regex.Pattern;
 
 /**
  * Affinity Propagation is a clustering algorithm.
- *
+ * <p/>
  * The number of clusters is not received as an input, but computed by the
  * algorithm according to the distances between points and the preference
  * of each node to be an <i>exemplar</i> (the "leader" of a cluster).
- *
+ * <p/>
  * You can find a detailed description of the algorithm in the affinity propagation
  * <a href="http://genes.toronto.edu/index.php?q=affinity%20propagation">website</a>.
  *
  * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
  * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
- *
  */
 public class AffinityPropagation
     extends BasicComputation<AffinityPropagation.APVertexID,
-    DoubleArrayListWritable, FloatWritable, AffinityPropagation.APMessage> {
-
+    AffinityPropagation.APVertexValue, FloatWritable, AffinityPropagation.APMessage> {
+  // TODO: edges should be NullWritable.
   private static MaxOperator MAX_OPERATOR = new Maximize();
 
   private static Logger logger = Logger.getLogger(AffinityPropagation.class);
 
-  /** Maximum number of iterations. */
+  /**
+   * Maximum number of iterations.
+   */
   public static final String MAX_ITERATIONS = "iterations";
   public static int MAX_ITERATIONS_DEFAULT = 15;
 
   @Override
-  public void compute(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
+  public void compute(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
                       Iterable<APMessage> messages) throws IOException {
     logger.trace("vertex " + vertex.getId() + ", superstep " + getSuperstep());
     final int maxIter = getContext().getConfiguration().getInt(MAX_ITERATIONS, MAX_ITERATIONS_DEFAULT);
@@ -76,21 +79,21 @@ public class AffinityPropagation
     } else if (getSuperstep() < maxIter) {
       computeBMSIteration(vertex, messages);
     } else if (getSuperstep() == maxIter) {
-      computeLeaders(vertex, messages);
+      computeExemplars(vertex, messages);
     } else {
       computeClusters(vertex, messages);
     }
 
   }
 
-  private void computeRowsColumns(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
+  private void computeRowsColumns(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
                                   Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
     aggregate("nRows", new LongWritable(id.row));
     aggregate("nColumns", new LongWritable(id.column));
   }
 
-  private void computeBMSIteration(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
+  private void computeBMSIteration(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
                                    Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
 
@@ -125,13 +128,13 @@ public class AffinityPropagation
         break;
 
       case SELECTOR:
-        final DoubleArrayListWritable value = vertex.getValue();
+        final DoubleArrayListWritable value = vertex.getValue().weights;
         SelectorFactor<APVertexID> selector = new SelectorFactor<APVertexID>();
         WeightingFactor<APVertexID> weights = new WeightingFactor<APVertexID>(selector);
         for (int column = 1; column <= nColumns; column++) {
           APVertexID varId = new APVertexID(APVertexType.CONSISTENCY, 0, column);
           weights.addNeighbor(varId);
-          weights.setPotential(varId, value.get(column-1).get());
+          weights.setPotential(varId, value.get(column - 1).get());
         }
         factor = weights;
         break;
@@ -154,11 +157,11 @@ public class AffinityPropagation
     factor.run();
   }
 
-  private void computeLeaders(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
-                      Iterable<APMessage> messages) throws IOException {
+  private void computeExemplars(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
+                                Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
 
-    // Leaders are auto-elected among variables
+    // Exemplars are auto-elected among variables
     if (!(id.type == APVertexType.CONSISTENCY)) {
       return;
     }
@@ -204,12 +207,12 @@ public class AffinityPropagation
       if (message.from.row == id.column) {
         double belief = message.value + capturer.capturedMessage;
         if (belief >= 0) {
-          LongArrayListWritable leaders = new LongArrayListWritable();
-          leaders.add(new LongWritable(id.column));
-          aggregate("leaders", leaders);
-          logger.trace("Point " + id.column + " decides to become a leader with value " + belief + ".");
+          LongArrayListWritable exemplars = new LongArrayListWritable();
+          exemplars.add(new LongWritable(id.column));
+          aggregate("exemplars", exemplars);
+          logger.trace("Point " + id.column + " decides to become an exemplar with value " + belief + ".");
         } else {
-          logger.trace("Point " + id.column + " does not want to be a leader with value " + belief + ".");
+          logger.trace("Point " + id.column + " does not want to be an exemplar with value " + belief + ".");
         }
 
       }
@@ -219,39 +222,37 @@ public class AffinityPropagation
 
   }
 
-  private void computeClusters(Vertex<APVertexID, DoubleArrayListWritable, FloatWritable> vertex,
-                      Iterable<APMessage> messages) throws IOException {
+  private void computeClusters(Vertex<APVertexID, APVertexValue, FloatWritable> vertex,
+                               Iterable<APMessage> messages) throws IOException {
 
     APVertexID id = vertex.getId();
     if (id.type != APVertexType.SELECTOR) {
       return;
     }
 
-    final LongArrayListWritable ls = getAggregatedValue("leaders");
-    DoubleArrayListWritable values = vertex.getValue();
+    final LongArrayListWritable ls = getAggregatedValue("exemplars");
+    DoubleArrayListWritable values = vertex.getValue().weights;
     double maxValue = Double.NEGATIVE_INFINITY;
-    long bestLeader = -1;
-    for (LongWritable l : ls) {
-      final long leader = l.get();
+    long bestExemplar = -1;
+    for (LongWritable e : ls) {
+      final long exemplar = e.get();
 
-      if (leader == id.row) {
-        logger.trace("Point " + id.row + " is a leader.");
-        vertex.getValue().clear();
-        vertex.getValue().add(new DoubleWritable(id.row));
+      if (exemplar == id.row) {
+        logger.trace("Point " + id.row + " is a exemplar.");
+        vertex.getValue().exemplar = new LongWritable(id.row);
         vertex.voteToHalt();
         return;
       }
 
-      final double value = values.get((int)(leader-1)).get();
+      final double value = values.get((int) (exemplar - 1)).get();
       if (value > maxValue) {
         maxValue = value;
-        bestLeader = leader;
+        bestExemplar = exemplar;
       }
     }
 
-    logger.trace("Point " + id.row + " decides to follow " + bestLeader + ".");
-    vertex.getValue().clear();
-    vertex.getValue().add(new DoubleWritable(bestLeader));
+    logger.trace("Point " + id.row + " decides to follow " + bestExemplar + ".");
+    vertex.getValue().exemplar = new LongWritable(bestExemplar);
     vertex.voteToHalt();
   }
 
@@ -265,7 +266,8 @@ public class AffinityPropagation
     public long row = 0;
     public long column = 0;
 
-    public APVertexID() {}
+    public APVertexID() {
+    }
 
     public APVertexID(APVertexType type, long row, long column) {
       this.type = type;
@@ -337,6 +339,32 @@ public class AffinityPropagation
     }
   }
 
+  public static class APVertexValue implements Writable {
+    public LongWritable exemplar;
+    public DoubleArrayListWritable weights;
+    public MapWritable lastMessages;
+
+    public APVertexValue() {
+      exemplar = new LongWritable();
+      weights = new DoubleArrayListWritable();
+      lastMessages = new MapWritable();
+    }
+
+    @Override
+    public void write(DataOutput dataOutput) throws IOException {
+      exemplar.write(dataOutput);
+      weights.write(dataOutput);
+      lastMessages.write(dataOutput);
+    }
+
+    @Override
+    public void readFields(DataInput dataInput) throws IOException {
+      exemplar.readFields(dataInput);
+      weights.readFields(dataInput);
+      lastMessages.readFields(dataInput);
+    }
+  }
+
   public static class APMessage implements Writable {
 
     public APVertexID from;
@@ -403,12 +431,12 @@ public class AffinityPropagation
 
       registerPersistentAggregator("nRows", LongMaxAggregator.class);
       registerPersistentAggregator("nColumns", LongMaxAggregator.class);
-      registerPersistentAggregator("leaders", LeaderAggregator.class);
+      registerPersistentAggregator("exemplars", ExemplarAggregator.class);
     }
 
   }
 
-  public static class LeaderAggregator extends BasicAggregator<LongArrayListWritable> {
+  public static class ExemplarAggregator extends BasicAggregator<LongArrayListWritable> {
     @Override
     public void aggregate(LongArrayListWritable value) {
       getAggregatedValue().addAll(value);
@@ -421,7 +449,7 @@ public class AffinityPropagation
   }
 
   public static class APInputFormatter
-      extends TextVertexValueInputFormat<APVertexID, DoubleArrayListWritable, FloatWritable> {
+      extends TextVertexValueInputFormat<APVertexID, APVertexValue, FloatWritable> {
 
     private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
 
@@ -444,30 +472,29 @@ public class AffinityPropagation
       }
 
       @Override
-      protected DoubleArrayListWritable getValue(String[] line) throws IOException {
-        DoubleArrayListWritable value = new DoubleArrayListWritable();
+      protected APVertexValue getValue(String[] line) throws IOException {
+        APVertexValue value = new APVertexValue();
         for (int i = 1; i < line.length; i++) {
-          value.add(new DoubleWritable(Double.valueOf(line[i])));
+          value.weights.add(new DoubleWritable(Double.valueOf(line[i])));
         }
         return value;
       }
     }
-
   }
 
   @SuppressWarnings("rawtypes")
   public static class APOutputFormat
       extends IdWithValueTextOutputFormat<APVertexID,
-      DoubleArrayListWritable, NullWritable> {
+      APVertexValue, NullWritable> {
 
-    /** Specify the output delimiter */
+    /**
+     * Specify the output delimiter
+     */
     public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
-    /** Default output delimiter */
+    /**
+     * Default output delimiter
+     */
     public static final String LINE_TOKENIZE_VALUE_DEFAULT = "\t";
-    /** Reverse id and value order? */
-    public static final String REVERSE_ID_AND_VALUE = "reverse.id.and.value";
-    /** Default is to not reverse id and value order. */
-    public static final boolean REVERSE_ID_AND_VALUE_DEFAULT = false;
 
     @Override
     public TextVertexWriter createVertexWriter(TaskAttemptContext context) {
@@ -475,10 +502,10 @@ public class AffinityPropagation
     }
 
     protected class IdWithValueVertexWriter extends TextVertexWriterToEachLine {
-      /** Saved delimiter */
+      /**
+       * Saved delimiter
+       */
       private String delimiter;
-      /** Cached reserve option */
-      private boolean reverseOutput;
 
       @Override
       public void initialize(TaskAttemptContext context) throws IOException,
@@ -486,13 +513,11 @@ public class AffinityPropagation
         super.initialize(context);
         delimiter = getConf().get(
             LINE_TOKENIZE_VALUE, LINE_TOKENIZE_VALUE_DEFAULT);
-        reverseOutput = getConf().getBoolean(
-            REVERSE_ID_AND_VALUE, REVERSE_ID_AND_VALUE_DEFAULT);
       }
 
       @Override
       protected Text convertVertexToLine(Vertex<APVertexID,
-          DoubleArrayListWritable, NullWritable> vertex)
+          APVertexValue, NullWritable> vertex)
           throws IOException {
 
         if (vertex.getId().type != APVertexType.SELECTOR) {
@@ -500,15 +525,9 @@ public class AffinityPropagation
         }
 
         StringBuilder str = new StringBuilder();
-        if (reverseOutput) {
-          str.append(vertex.getValue().toString());
-          str.append(delimiter);
-          str.append(Long.toString(vertex.getId().row));
-        } else {
-          str.append(vertex.getId().toString());
-          str.append(delimiter);
-          str.append(Double.toString(vertex.getValue().get(0).get()));
-        }
+        str.append(vertex.getId().row);
+        str.append(delimiter);
+        str.append(Long.toString(vertex.getValue().exemplar.get()));
         return new Text(str.toString());
       }
     }
