@@ -66,6 +66,11 @@ public class AffinityPropagation
    */
   public static final String MAX_ITERATIONS = "iterations";
   public static int MAX_ITERATIONS_DEFAULT = 15;
+  /**
+   * Damping factor.
+   */
+  public static final String DAMPING = "damping";
+  public static float DAMPING_DEFAULT = 0.9f;
 
   @Override
   public void compute(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
@@ -82,7 +87,6 @@ public class AffinityPropagation
     } else {
       computeClusters(vertex, messages);
     }
-
   }
 
   private void computeRowsColumns(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
@@ -143,7 +147,7 @@ public class AffinityPropagation
     }
 
     // Initialize it with proper values
-    MessageRelayer collector = new MessageRelayer();
+    MessageRelayer collector = new MessageRelayer(vertex.getValue().lastMessages);
     factor.setCommunicationAdapter(collector);
     factor.setIdentity(id);
     factor.setMaxOperator(MAX_OPERATOR);
@@ -200,7 +204,6 @@ public class AffinityPropagation
     }
     factor.run();
 
-
     // But only by those variables on the diagonal of the matrix
     for (APMessage message : messages) {
       if (message.from.row == id.column) {
@@ -218,7 +221,6 @@ public class AffinityPropagation
     }
 
     vertex.voteToHalt();
-
   }
 
   private void computeClusters(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
@@ -237,7 +239,7 @@ public class AffinityPropagation
       final long exemplar = e.get();
 
       if (exemplar == id.row) {
-        logger.trace("Point " + id.row + " is a exemplar.");
+        logger.trace("Point " + id.row + " is an exemplar.");
         vertex.getValue().exemplar = new LongWritable(id.row);
         vertex.voteToHalt();
         return;
@@ -397,10 +399,22 @@ public class AffinityPropagation
   }
 
   public class MessageRelayer implements CommunicationAdapter<APVertexID> {
+    private MapWritable lastMessages;
+    final float damping = getContext().getConfiguration().getFloat(DAMPING, DAMPING_DEFAULT);
+
+    public MessageRelayer(MapWritable lastMessages) {
+      this.lastMessages = lastMessages;
+    }
+
     @Override
     public void send(double value, APVertexID sender, APVertexID recipient) {
+      if (lastMessages.containsKey(recipient)) {
+        final double lastMessage = ((DoubleWritable) lastMessages.get(recipient)).get();
+        value = damping * lastMessage + (1-damping) * value;
+      }
       logger.trace(sender + " -> " + recipient + " : " + value);
       AffinityPropagation.this.sendMessage(recipient, new APMessage(sender, value));
+      lastMessages.put(recipient, new DoubleWritable(value));
     }
   }
 
@@ -531,6 +545,4 @@ public class AffinityPropagation
       }
     }
   }
-
-
 }
