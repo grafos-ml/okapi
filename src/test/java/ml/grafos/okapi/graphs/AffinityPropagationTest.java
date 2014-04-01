@@ -35,10 +35,11 @@ public class AffinityPropagationTest {
     conf.setComputationClass(AffinityPropagation.class);
     conf.setMasterComputeClass(AffinityPropagation.MasterComputation.class);
     conf.setVertexInputFormatClass(AffinityPropagation.APInputFormatter.class);
-    conf.setInt(AffinityPropagation.MAX_ITERATIONS, 15);
+    conf.setInt(AffinityPropagation.MAX_ITERATIONS, 100);
     conf.setFloat(AffinityPropagation.DAMPING, 0.9f);
     conf.setVertexOutputFormatClass(AffinityPropagation.APOutputFormat.class);
-    conf.setMaxNumberOfSupersteps(200);
+    conf.setBoolean("giraph.useSuperstepCounters", false);
+
     Iterable<String> results;
     try {
       results = InternalVertexRunner.run(conf, graph, null);
