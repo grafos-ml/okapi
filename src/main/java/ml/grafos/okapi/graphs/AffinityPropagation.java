@@ -15,6 +15,7 @@
  */
 package ml.grafos.okapi.graphs;
 
+import com.google.common.collect.ComparisonChain;
 import es.csic.iiia.bms.CommunicationAdapter;
 import es.csic.iiia.bms.Factor;
 import es.csic.iiia.bms.MaxOperator;
@@ -34,7 +35,8 @@ import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -43,12 +45,12 @@ import java.util.regex.Pattern;
 
 /**
  * Affinity Propagation is a clustering algorithm.
- * <p/>
- * The number of clusters is not received as an input, but computed by the
+ *
+ * <p>The number of clusters is not received as an input, but computed by the
  * algorithm according to the distances between points and the preference
  * of each node to be an <i>exemplar</i> (the "leader" of a cluster).
- * <p/>
- * You can find a detailed description of the algorithm in the affinity propagation
+ *
+ * <p>You can find a detailed description of the algorithm in the affinity propagation
  * <a href="http://genes.toronto.edu/index.php?q=affinity%20propagation">website</a>.
  *
  * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
@@ -59,7 +61,7 @@ public class AffinityPropagation
     AffinityPropagation.APVertexValue, NullWritable, AffinityPropagation.APMessage> {
   private static MaxOperator MAX_OPERATOR = new Maximize();
 
-  private static Logger logger = Logger.getLogger(AffinityPropagation.class);
+  private static Logger logger = LoggerFactory.getLogger(AffinityPropagation.class);
 
   /**
    * Maximum number of iterations.
@@ -92,50 +94,55 @@ public class AffinityPropagation
   private void computeRowsColumns(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                                   Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
-    aggregate("nRows", new LongWritable(id.row));
-    aggregate("nColumns", new LongWritable(id.column));
+    aggregate("nRows", new LongWritable(id.index));
+    aggregate("nColumns", new LongWritable(id.index));
+  }
+
+  private long getNumRowsColumns() {
+    final long nVertices = getTotalNumVertices();
+    // Column vertices are created at superstep 2, and thus not counted until
+    // superstep 3.
+    if (getSuperstep() <= 2) {
+      logger.trace("Number of rows/columns: {}", nVertices);
+      return nVertices;
+    }
+    return nVertices/2;
   }
 
   private void computeBMSIteration(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                                    Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
 
-    LongWritable aggregatedRows = getAggregatedValue("nRows");
-    final long nRows = aggregatedRows.get();
-    LongWritable aggregatedColumns = getAggregatedValue("nRows");
-    final long nColumns = aggregatedColumns.get();
-    if (nRows != nColumns) {
-      throw new IllegalStateException("The input must form a square matrix, but we got " +
-          nRows + " rows and " + nColumns + "columns.");
-    }
-
-    if (getSuperstep() == 1) {
-      logger.trace("Number of rows: " + nRows);
-      logger.trace("Number of columns: " + nColumns);
-    }
+    final long nRowsColumns = getNumRowsColumns();
 
     // Build a factor of the required type
     Factor<APVertexID> factor;
     switch (id.type) {
 
-      case CONSISTENCY:
+      case COLUMN:
         ConditionedDeactivationFactor<APVertexID> node2 = new ConditionedDeactivationFactor<APVertexID>();
-        node2.setExemplar(new APVertexID(APVertexType.SELECTOR, id.column, 0));
+        node2.setExemplar(new APVertexID(APVertexType.ROW, id.index));
         factor = node2;
 
-        for (int row = 1; row <= nRows; row++) {
-          APVertexID varId = new APVertexID(APVertexType.SELECTOR, row, 0);
-          node2.addNeighbor(varId);
+        for (int row = 1; row <= nRowsColumns; row++) {
+          APVertexID rowId = new APVertexID(APVertexType.ROW, row);
+          logger.trace("{} adds neighbor {}", id, rowId);
+          node2.addNeighbor(rowId);
         }
-
         break;
 
-      case SELECTOR:
+      case ROW:
         final DoubleArrayListWritable value = vertex.getValue().weights;
+        if (value.size() != nRowsColumns) {
+          throw new IllegalStateException("Non-square input matrix detected " +
+              "(rows=" + nRowsColumns + ", columns=" + value.size() + ")");
+        }
+
         SelectorFactor<APVertexID> selector = new SelectorFactor<APVertexID>();
         WeightingFactor<APVertexID> weights = new WeightingFactor<APVertexID>(selector);
-        for (int column = 1; column <= nColumns; column++) {
-          APVertexID varId = new APVertexID(APVertexType.CONSISTENCY, 0, column);
+
+        for (int column = 1; column <= nRowsColumns; column++) {
+          APVertexID varId = new APVertexID(APVertexType.COLUMN, column);
           weights.addNeighbor(varId);
           weights.setPotential(varId, value.get(column - 1).get());
         }
@@ -154,7 +161,6 @@ public class AffinityPropagation
 
     // Receive messages and compute
     for (APMessage message : messages) {
-      logger.trace(message);
       factor.receive(message.value, message.from);
     }
     factor.run();
@@ -164,22 +170,22 @@ public class AffinityPropagation
                                 Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
     // Exemplars are auto-elected among variables
-    if (id.type != APVertexType.CONSISTENCY) {
+    if (id.type != APVertexType.COLUMN) {
       return;
     }
 
     // But only by those variables on the diagonal of the matrix
     for (APMessage message : messages) {
-      if (message.from.row == id.column) {
+      if (message.from.index == id.index) {
         double lastMessageValue = ((DoubleWritable) vertex.getValue().lastMessages.get(message.from)).get();
         double belief = message.value + lastMessageValue;
         if (belief >= 0) {
           LongArrayListWritable exemplars = new LongArrayListWritable();
-          exemplars.add(new LongWritable(id.column));
+          exemplars.add(new LongWritable(id.index));
           aggregate("exemplars", exemplars);
-          logger.trace("Point " + id.column + " decides to become an exemplar with value " + belief + ".");
+          logger.trace("Point " + id.index + " decides to become an exemplar with value " + belief + ".");
         } else {
-          logger.trace("Point " + id.column + " does not want to be an exemplar with value " + belief + ".");
+          logger.trace("Point " + id.index + " does not want to be an exemplar with value " + belief + ".");
         }
 
       }
@@ -191,7 +197,7 @@ public class AffinityPropagation
   private void computeClusters(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
                                Iterable<APMessage> messages) throws IOException {
     APVertexID id = vertex.getId();
-    if (id.type != APVertexType.SELECTOR) {
+    if (id.type != APVertexType.ROW) {
       return;
     }
 
@@ -202,9 +208,9 @@ public class AffinityPropagation
     for (LongWritable e : ls) {
       final long exemplar = e.get();
 
-      if (exemplar == id.row) {
-        logger.trace("Point " + id.row + " is an exemplar.");
-        vertex.getValue().exemplar = new LongWritable(id.row);
+      if (exemplar == id.index) {
+        logger.trace("Point {} is an exemplar.", id.index);
+        vertex.getValue().exemplar = new LongWritable(id.index);
         vertex.voteToHalt();
         return;
       }
@@ -216,64 +222,47 @@ public class AffinityPropagation
       }
     }
 
-    logger.trace("Point " + id.row + " decides to follow " + bestExemplar + ".");
+    logger.trace("Point " + id.index + " decides to follow " + bestExemplar + ".");
     vertex.getValue().exemplar = new LongWritable(bestExemplar);
     vertex.voteToHalt();
   }
 
   public static enum APVertexType {
-    CONSISTENCY, SELECTOR
+    COLUMN, ROW
   }
 
   public static class APVertexID implements WritableComparable<APVertexID> {
 
-    public APVertexType type = APVertexType.SELECTOR;
-    public long row = 0;
-    public long column = 0;
+    public APVertexType type = APVertexType.ROW;
+    public long index = 0;
 
     public APVertexID() {
     }
 
-    public APVertexID(APVertexType type, long row, long column) {
+    public APVertexID(APVertexType type, long index) {
       this.type = type;
-      this.row = row;
-      this.column = column;
+      this.index = index;
     }
 
     @Override
     public void write(DataOutput dataOutput) throws IOException {
       dataOutput.writeInt(type.ordinal());
-      dataOutput.writeLong(row);
-      dataOutput.writeLong(column);
+      dataOutput.writeLong(index);
     }
 
     @Override
     public void readFields(DataInput dataInput) throws IOException {
       final int index = dataInput.readInt();
       type = APVertexType.values()[index];
-      row = dataInput.readLong();
-      column = dataInput.readLong();
+      this.index = dataInput.readLong();
     }
 
     @Override
-    public int compareTo(APVertexID o) {
-      if (o == null) {
-        return 1;
-      }
-
-      if (!type.equals(o.type)) {
-        return type.compareTo(o.type);
-      }
-
-      if (row != o.row) {
-        return Long.compare(row, o.row);
-      }
-
-      if (column != o.column) {
-        return Long.compare(column, o.column);
-      }
-
-      return 0;
+    public int compareTo(APVertexID that) {
+      return ComparisonChain.start()
+          .compare(this.type, that.type)
+          .compare(this.index, that.index)
+          .result();
     }
 
     @Override
@@ -282,25 +271,19 @@ public class AffinityPropagation
       if (o == null || getClass() != o.getClass()) return false;
 
       APVertexID that = (APVertexID) o;
-
-      if (column != that.column) return false;
-      if (row != that.row) return false;
-      if (type != that.type) return false;
-
-      return true;
+      return index == that.index && type == that.type;
     }
 
     @Override
     public int hashCode() {
       int result = type.hashCode();
-      result = 31 * result + (int) (row ^ (row >>> 32));
-      result = 31 * result + (int) (column ^ (column >>> 32));
+      result = 31 * result + (int) (index ^ (index >>> 32));
       return result;
     }
 
     @Override
     public String toString() {
-      return "(" + type + ", " + row + ", " + column + ")";
+      return "(" + type + ", " + index + ")";
     }
   }
 
@@ -448,8 +431,8 @@ public class AffinityPropagation
 
       @Override
       protected APVertexID getId(String[] line) throws IOException {
-        return new APVertexID(APVertexType.SELECTOR,
-            Long.valueOf(line[0]), 0);
+        return new APVertexID(APVertexType.ROW,
+            Long.valueOf(line[0]));
       }
 
       @Override
@@ -519,15 +502,12 @@ public class AffinityPropagation
           APVertexValue, NullWritable> vertex)
           throws IOException {
 
-        if (vertex.getId().type != APVertexType.SELECTOR) {
+        if (vertex.getId().type != APVertexType.ROW) {
           return null;
         }
 
-        StringBuilder str = new StringBuilder();
-        str.append(vertex.getId().row);
-        str.append(delimiter);
-        str.append(Long.toString(vertex.getValue().exemplar.get()));
-        return new Text(str.toString());
+        return new Text(String.valueOf(vertex.getId().index)
+            + delimiter + Long.toString(vertex.getValue().exemplar.get()));
       }
     }
   }
