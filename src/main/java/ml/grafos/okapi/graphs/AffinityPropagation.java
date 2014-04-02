@@ -29,7 +29,9 @@ import org.apache.giraph.aggregators.BasicAggregator;
 import org.apache.giraph.aggregators.LongMaxAggregator;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
+import org.apache.giraph.io.EdgeReader;
 import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
+import org.apache.giraph.io.formats.TextEdgeInputFormat;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.*;
@@ -442,6 +444,39 @@ public class AffinityPropagation
           value.weights.add(new DoubleWritable(Double.valueOf(line[i])));
         }
         return value;
+      }
+    }
+  }
+
+  public static class APEdgeInputFormatter extends TextEdgeInputFormat<APVertexID, DoubleWritable> {
+
+    private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
+
+    @Override
+    public EdgeReader<APVertexID, DoubleWritable> createEdgeReader(InputSplit split, TaskAttemptContext context) throws IOException {
+      return new APEdgeInputReader();
+    }
+
+    public class APEdgeInputReader extends TextEdgeReaderFromEachLineProcessed<String []> {
+
+      @Override
+      protected String[] preprocessLine(Text line) throws IOException {
+        return SEPARATOR.split(line.toString());
+      }
+
+      @Override
+      protected APVertexID getTargetVertexId(String[] line) throws IOException {
+        return new APVertexID(APVertexType.ROW, Long.valueOf(line[0]));
+      }
+
+      @Override
+      protected APVertexID getSourceVertexId(String[] line) throws IOException {
+        return new APVertexID(APVertexType.COLUMN, Long.valueOf(line[1]));
+      }
+
+      @Override
+      protected DoubleWritable getValue(String[] line) throws IOException {
+        return new DoubleWritable(Double.valueOf(line[2]));
       }
     }
   }

@@ -16,37 +16,69 @@
 package ml.grafos.okapi.graphs;
 
 import org.apache.giraph.conf.GiraphConfiguration;
+import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.utils.InternalVertexRunner;
+import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
+import org.junit.Before;
 import org.junit.Test;
 
 import static org.junit.Assert.fail;
 
 public class AffinityPropagationTest {
+  private GiraphConfiguration conf;
+
+  @Before
+  public void initialize() {
+    conf = new GiraphConfiguration();
+    conf.setComputationClass(AffinityPropagation.class);
+    conf.setMasterComputeClass(AffinityPropagation.MasterComputation.class);
+    conf.setInt(AffinityPropagation.MAX_ITERATIONS, 100);
+    conf.setFloat(AffinityPropagation.DAMPING, 0.9f);
+    conf.setVertexOutputFormatClass(AffinityPropagation.APOutputFormat.class);
+    conf.setBoolean("giraph.useSuperstepCounters", false);
+  }
 
   @Test
-  public void test() {
+  public void testVertexInput() {
     String[] graph = {
       "1 1 1 5",
       "2 1 1 3",
       "3 5 3 1",
     };
 
-    GiraphConfiguration conf = new GiraphConfiguration();
-    conf.setComputationClass(AffinityPropagation.class);
-    conf.setMasterComputeClass(AffinityPropagation.MasterComputation.class);
     conf.setVertexInputFormatClass(AffinityPropagation.APInputFormatter.class);
-    conf.setInt(AffinityPropagation.MAX_ITERATIONS, 100);
-    conf.setFloat(AffinityPropagation.DAMPING, 0.9f);
-    conf.setVertexOutputFormatClass(AffinityPropagation.APOutputFormat.class);
-    conf.setBoolean("giraph.useSuperstepCounters", false);
 
     Iterable<String> results;
     try {
       results = InternalVertexRunner.run(conf, graph, null);
     } catch (Exception e) {
-      e.printStackTrace();
-      fail("Exception occurred");
-      return;
+      throw new RuntimeException(e);
+    }
+
+    System.err.println(results);
+  }
+
+  @Test
+  public void testEdgeInput() {
+    String[] graph = {
+      "1 1 1",
+      "1 2 1",
+      "1 3 5",
+      "2 1 1",
+      "2 2 1",
+      "2 3 3",
+      "3 1 5",
+      "3 2 3",
+      "3 3 1",
+    };
+
+    conf.setEdgeInputFormatClass(AffinityPropagation.APEdgeInputFormatter.class);
+
+    Iterable<String> results;
+    try {
+      results = InternalVertexRunner.run(conf, null, graph);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
     }
 
     System.err.println(results);
