@@ -416,14 +416,6 @@ public class AffinityPropagation
     }
   }
 
-//  private static class APVertexIdListWritable extends ArrayListWritable<APVertexID> {
-//
-//    @Override
-//    public void setClass() {
-//          setClass(APVertexID.class);
-//    }
-//  }
-
   /**
    * Vertex input formatter for Affinity Propagation problems.
    * <p/>
