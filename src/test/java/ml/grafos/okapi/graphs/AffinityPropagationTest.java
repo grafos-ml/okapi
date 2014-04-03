@@ -16,9 +16,7 @@
 package ml.grafos.okapi.graphs;
 
 import org.apache.giraph.conf.GiraphConfiguration;
-import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.utils.InternalVertexRunner;
-import org.apache.hadoop.mapreduce.lib.output.NullOutputFormat;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -46,7 +44,7 @@ public class AffinityPropagationTest {
       "3 5 3 1",
     };
 
-    conf.setVertexInputFormatClass(AffinityPropagation.APInputFormatter.class);
+    conf.setVertexInputFormatClass(AffinityPropagation.APVertexInputFormatter.class);
 
     Iterable<String> results;
     try {

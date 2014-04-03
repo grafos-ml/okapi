@@ -26,7 +26,7 @@ import es.csic.iiia.bms.factors.WeightingFactor;
 import ml.grafos.okapi.common.data.*;
 import ml.grafos.okapi.common.data.MapWritable;
 import org.apache.giraph.aggregators.BasicAggregator;
-import org.apache.giraph.aggregators.LongMaxAggregator;
+import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
 import org.apache.giraph.io.EdgeReader;
@@ -60,7 +60,7 @@ import java.util.regex.Pattern;
  */
 public class AffinityPropagation
     extends BasicComputation<AffinityPropagation.APVertexID,
-    AffinityPropagation.APVertexValue, NullWritable, AffinityPropagation.APMessage> {
+    AffinityPropagation.APVertexValue, DoubleWritable, AffinityPropagation.APMessage> {
   private static MaxOperator MAX_OPERATOR = new Maximize();
 
   private static Logger logger = LoggerFactory.getLogger(AffinityPropagation.class);
@@ -77,45 +77,68 @@ public class AffinityPropagation
   public static float DAMPING_DEFAULT = 0.9f;
 
   @Override
-  public void compute(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
+  public void compute(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex,
                       Iterable<APMessage> messages) throws IOException {
     logger.trace("vertex " + vertex.getId() + ", superstep " + getSuperstep());
     final int maxIter = getContext().getConfiguration().getInt(MAX_ITERATIONS, MAX_ITERATIONS_DEFAULT);
     // Phases of the algorithm
     if (getSuperstep() == 0) {
-      computeRowsColumns(vertex, messages);
+      initRows(vertex);
+    } else if (getSuperstep() == 1) {
+      initColumns(vertex, messages);
     } else if (getSuperstep() < maxIter) {
       computeBMSIteration(vertex, messages);
     } else if (getSuperstep() == maxIter) {
       computeExemplars(vertex, messages);
     } else {
-      computeClusters(vertex, messages);
+      computeClusters(vertex);
     }
   }
 
-  private void computeRowsColumns(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
-                                  Iterable<APMessage> messages) throws IOException {
-    final APVertexID id = vertex.getId();
-    aggregate("nRows", new LongWritable(id.index));
-    aggregate("nColumns", new LongWritable(id.index));
+  private void initRows(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex) throws IOException {
+    final boolean isVertexFormat = getConf().getVertexInputFormatClass() != null;
+    if (isVertexFormat) {
+      initRowsFromVertexInput(vertex);
+    } else {
+      initRowsFromEdgeInput(vertex);
+    }
   }
 
-  private long getNumRowsColumns() {
+  private void initRowsFromVertexInput(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex) {
     final long nVertices = getTotalNumVertices();
-    // Column vertices are created at superstep 2, and thus not counted until
-    // superstep 3.
-    if (getSuperstep() <= 2) {
-      logger.trace("Number of rows/columns: {}", nVertices);
-      return nVertices;
+    for (int i = 1; i <= nVertices; i++) {
+      APVertexID neighbor = new APVertexID(APVertexType.COLUMN, i);
+      vertex.getValue().lastMessages.put(neighbor, new DoubleWritable(0));
+      sendMessage(neighbor, new APMessage(vertex.getId(), 0));
     }
-    return nVertices/2;
   }
 
-  private void computeBMSIteration(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
+  private void initRowsFromEdgeInput(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex) throws IOException {
+    for (Edge<APVertexID, DoubleWritable> edge : vertex.getEdges()) {
+      APVertexID neighbor = new APVertexID(edge.getTargetVertexId());
+      DoubleWritable weight = new DoubleWritable(edge.getValue().get());
+      vertex.getValue().weights.put(neighbor, weight);
+      vertex.getValue().lastMessages.put(neighbor, new DoubleWritable(0));
+      sendMessage(neighbor, new APMessage(vertex.getId(), 0));
+      removeEdgesRequest(vertex.getId(), neighbor);
+    }
+  }
+
+  private void initColumns(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex, Iterable<APMessage> messages) {
+    if (vertex.getId().type == APVertexType.ROW) {
+      return;
+    }
+
+    for (APMessage message : messages) {
+      APVertexID neighbor = new APVertexID(message.from);
+      vertex.getValue().lastMessages.put(neighbor, new DoubleWritable(0));
+      sendMessage(neighbor, new APMessage(vertex.getId(), 0));
+    }
+  }
+
+  private void computeBMSIteration(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex,
                                    Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
-
-    final long nRowsColumns = getNumRowsColumns();
 
     // Build a factor of the required type
     Factor<APVertexID> factor;
@@ -126,27 +149,22 @@ public class AffinityPropagation
         node2.setExemplar(new APVertexID(APVertexType.ROW, id.index));
         factor = node2;
 
-        for (int row = 1; row <= nRowsColumns; row++) {
-          APVertexID rowId = new APVertexID(APVertexType.ROW, row);
+        for (Writable key : vertex.getValue().lastMessages.keySet()) {
+          APVertexID rowId = (APVertexID) key;
           logger.trace("{} adds neighbor {}", id, rowId);
           node2.addNeighbor(rowId);
         }
         break;
 
       case ROW:
-        final DoubleArrayListWritable value = vertex.getValue().weights;
-        if (value.size() != nRowsColumns) {
-          throw new IllegalStateException("Non-square input matrix detected " +
-              "(rows=" + nRowsColumns + ", columns=" + value.size() + ")");
-        }
+        final MapWritable value = vertex.getValue().weights;
 
         SelectorFactor<APVertexID> selector = new SelectorFactor<APVertexID>();
         WeightingFactor<APVertexID> weights = new WeightingFactor<APVertexID>(selector);
-
-        for (int column = 1; column <= nRowsColumns; column++) {
-          APVertexID varId = new APVertexID(APVertexType.COLUMN, column);
+        for (Writable key : vertex.getValue().lastMessages.keySet()) {
+          APVertexID varId = (APVertexID) key;
           weights.addNeighbor(varId);
-          weights.setPotential(varId, value.get(column - 1).get());
+          weights.setPotential(varId, ((DoubleWritable) value.get(varId)).get());
         }
         factor = weights;
         break;
@@ -168,7 +186,7 @@ public class AffinityPropagation
     factor.run();
   }
 
-  private void computeExemplars(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
+  private void computeExemplars(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex,
                                 Iterable<APMessage> messages) throws IOException {
     final APVertexID id = vertex.getId();
     // Exemplars are auto-elected among variables
@@ -196,15 +214,14 @@ public class AffinityPropagation
     vertex.voteToHalt();
   }
 
-  private void computeClusters(Vertex<APVertexID, APVertexValue, NullWritable> vertex,
-                               Iterable<APMessage> messages) throws IOException {
+  private void computeClusters(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex) throws IOException {
     APVertexID id = vertex.getId();
     if (id.type != APVertexType.ROW) {
       return;
     }
 
     final LongArrayListWritable ls = getAggregatedValue("exemplars");
-    DoubleArrayListWritable values = vertex.getValue().weights;
+    MapWritable values = vertex.getValue().weights;
     double maxValue = Double.NEGATIVE_INFINITY;
     long bestExemplar = -1;
     for (LongWritable e : ls) {
@@ -217,7 +234,8 @@ public class AffinityPropagation
         return;
       }
 
-      final double value = values.get((int) (exemplar - 1)).get();
+      final APVertexID neighId = new APVertexID(APVertexType.COLUMN, exemplar);
+      final double value =  ((DoubleWritable) values.get(neighId)).get();
       if (value > maxValue) {
         maxValue = value;
         bestExemplar = exemplar;
@@ -239,6 +257,10 @@ public class AffinityPropagation
     public long index = 0;
 
     public APVertexID() {
+    }
+
+    public APVertexID(APVertexID orig) {
+      this(orig.type, orig.index);
     }
 
     public APVertexID(APVertexType type, long index) {
@@ -291,12 +313,12 @@ public class AffinityPropagation
 
   public static class APVertexValue implements Writable {
     public LongWritable exemplar;
-    public DoubleArrayListWritable weights;
+    public MapWritable weights;
     public MapWritable lastMessages;
 
     public APVertexValue() {
       exemplar = new LongWritable();
-      weights = new DoubleArrayListWritable();
+      weights = new MapWritable();
       lastMessages = new MapWritable();
     }
 
@@ -372,9 +394,6 @@ public class AffinityPropagation
     @Override
     public void initialize() throws InstantiationException, IllegalAccessException {
       super.initialize();
-
-      registerPersistentAggregator("nRows", LongMaxAggregator.class);
-      registerPersistentAggregator("nColumns", LongMaxAggregator.class);
       registerPersistentAggregator("exemplars", ExemplarAggregator.class);
     }
 
@@ -393,7 +412,7 @@ public class AffinityPropagation
   }
 
   /**
-   * Input formatter for Affinity Propagation problems.
+   * Vertex input formatter for Affinity Propagation problems.
    * <p/>
    * The input format consists of an entry for each of the data points to cluster.
    * The first element of the entry is an integer value encoding the data point
@@ -414,8 +433,8 @@ public class AffinityPropagation
    * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
    * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
    */
-  public static class APInputFormatter
-      extends TextVertexValueInputFormat<APVertexID, APVertexValue, NullWritable> {
+  public static class APVertexInputFormatter
+      extends TextVertexValueInputFormat<APVertexID, APVertexValue, DoubleWritable> {
 
     private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
 
@@ -441,13 +460,50 @@ public class AffinityPropagation
       protected APVertexValue getValue(String[] line) throws IOException {
         APVertexValue value = new APVertexValue();
         for (int i = 1; i < line.length; i++) {
-          value.weights.add(new DoubleWritable(Double.valueOf(line[i])));
+          APVertexID neighId = new APVertexID(APVertexType.COLUMN, i);
+          value.weights.put(neighId, new DoubleWritable(Double.valueOf(line[i])));
         }
         return value;
       }
     }
   }
 
+  /**
+   * Edge input formatter for Affinity Propagation problems.
+   * <p/>
+   * The input format consists of an entry for each pair of points. The first
+   * element of the entry denotes the id of the first point. Similarly, the
+   * second element denotes the id of the second point. Finally, the third
+   * element contains a double value encoding the similarity between the first
+   * and second points.
+   * <p/>
+   * Example:<br/>
+   *
+   * of the data points to cluster.
+   * The first element of the entry is an integer value encoding the data point
+   * index (id). Subsequent elements in the entry are double values encoding the
+   * similarities between the data point of the current entry and the rest of
+   * data points in the problem.
+   * <p/>
+   * Example:<br/>
+   * 1 1 1
+   * 1 2 1
+   * 1 3 5
+   * 2 1 1
+   * 2 2 1
+   * 2 3 3
+   * 3 1 5
+   * 3 2 3
+   * 3 3 1
+   * <p/>
+   * Encodes a problem in which data point "1" has similarity 1 with itself,
+   * 1 with point "2" and 5 with point "3". In a similar manner, points "2",
+   * and "3" have similarities of [1, 1, 3] and [5, 3, 1] respectively with
+   * points "1", "2", and "3".
+   *
+   * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
+   * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
+   */
   public static class APEdgeInputFormatter extends TextEdgeInputFormat<APVertexID, DoubleWritable> {
 
     private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
@@ -466,12 +522,12 @@ public class AffinityPropagation
 
       @Override
       protected APVertexID getTargetVertexId(String[] line) throws IOException {
-        return new APVertexID(APVertexType.ROW, Long.valueOf(line[0]));
+        return new APVertexID(APVertexType.COLUMN, Long.valueOf(line[1]));
       }
 
       @Override
       protected APVertexID getSourceVertexId(String[] line) throws IOException {
-        return new APVertexID(APVertexType.COLUMN, Long.valueOf(line[1]));
+        return new APVertexID(APVertexType.ROW, Long.valueOf(line[0]));
       }
 
       @Override
@@ -502,7 +558,7 @@ public class AffinityPropagation
    */
   @SuppressWarnings("rawtypes")
   public static class APOutputFormat
-      extends IdWithValueTextOutputFormat<APVertexID,APVertexValue, NullWritable> {
+      extends IdWithValueTextOutputFormat<APVertexID,APVertexValue, DoubleWritable> {
 
     /**
      * Specify the output delimiter
@@ -534,7 +590,7 @@ public class AffinityPropagation
 
       @Override
       protected Text convertVertexToLine(Vertex<APVertexID,
-          APVertexValue, NullWritable> vertex)
+          APVertexValue, DoubleWritable> vertex)
           throws IOException {
 
         if (vertex.getId().type != APVertexType.ROW) {
