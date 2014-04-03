@@ -20,6 +20,11 @@ import org.apache.giraph.utils.InternalVertexRunner;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 import static org.junit.Assert.fail;
 
 public class AffinityPropagationTest {
@@ -106,5 +111,29 @@ public class AffinityPropagationTest {
     System.err.println(results);
   }
 
+  @Test
+  public void testToyProblem() throws IOException {
+    InputStream is = getClass().getResourceAsStream("/ap/toyProblem.txt");
+    BufferedReader br = new BufferedReader(new InputStreamReader(is));
+
+    String line;
+    List<String> lines = new ArrayList<String>();
+    while((line = br.readLine()) != null) {
+      lines.add(line);
+    }
+
+    String[] graph = lines.toArray(new String[0]);
+
+    conf.setEdgeInputFormatClass(AffinityPropagation.APEdgeInputFormatter.class);
+
+    Iterable<String> results;
+    try {
+      results = InternalVertexRunner.run(conf, null, graph);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    System.err.println(results);
+  }
 
 }
