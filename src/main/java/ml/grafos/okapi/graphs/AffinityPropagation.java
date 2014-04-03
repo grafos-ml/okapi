@@ -34,6 +34,7 @@ import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
 import org.apache.giraph.master.DefaultMasterCompute;
+import org.apache.giraph.utils.ArrayListWritable;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -220,22 +221,25 @@ public class AffinityPropagation
       return;
     }
 
-    final LongArrayListWritable ls = getAggregatedValue("exemplars");
-    MapWritable values = vertex.getValue().weights;
-    double maxValue = Double.NEGATIVE_INFINITY;
-    long bestExemplar = -1;
-    for (LongWritable e : ls) {
-      final long exemplar = e.get();
+    final LongArrayListWritable exemplars = getAggregatedValue("exemplars");
+    if (exemplars.contains(new LongWritable(id.index))) {
+      logger.trace("Point {} is an exemplar.", id.index);
+      vertex.getValue().exemplar = new LongWritable(id.index);
+      vertex.voteToHalt();
+      return;
+    }
 
-      if (exemplar == id.index) {
-        logger.trace("Point {} is an exemplar.", id.index);
-        vertex.getValue().exemplar = new LongWritable(id.index);
-        vertex.voteToHalt();
-        return;
+    long bestExemplar = -1;
+    double maxValue = Double.NEGATIVE_INFINITY;
+    MapWritable values = vertex.getValue().weights;
+    for (LongWritable exemplarWritable : exemplars) {
+      final long exemplar = exemplarWritable.get();
+      final APVertexID neighbor = new APVertexID(APVertexType.COLUMN, exemplar);
+      if (!values.containsKey(neighbor)) {
+        continue;
       }
 
-      final APVertexID neighId = new APVertexID(APVertexType.COLUMN, exemplar);
-      final double value =  ((DoubleWritable) values.get(neighId)).get();
+      final double value =  ((DoubleWritable) values.get(neighbor)).get();
       if (value > maxValue) {
         maxValue = value;
         bestExemplar = exemplar;
@@ -400,6 +404,7 @@ public class AffinityPropagation
   }
 
   public static class ExemplarAggregator extends BasicAggregator<LongArrayListWritable> {
+
     @Override
     public void aggregate(LongArrayListWritable value) {
       getAggregatedValue().addAll(value);
@@ -410,6 +415,14 @@ public class AffinityPropagation
       return new LongArrayListWritable();
     }
   }
+
+//  private static class APVertexIdListWritable extends ArrayListWritable<APVertexID> {
+//
+//    @Override
+//    public void setClass() {
+//          setClass(APVertexID.class);
+//    }
+//  }
 
   /**
    * Vertex input formatter for Affinity Propagation problems.

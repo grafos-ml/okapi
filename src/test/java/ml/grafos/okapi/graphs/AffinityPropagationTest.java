@@ -82,4 +82,29 @@ public class AffinityPropagationTest {
     System.err.println(results);
   }
 
+  @Test
+  public void testSparse() {
+    String[] graph = {
+      "1 1 1",
+      "1 2 1",
+      "1 3 5",
+      "2 1 1",
+      "2 2 1",
+      "3 1 5",
+      "3 3 1",
+    };
+
+    conf.setEdgeInputFormatClass(AffinityPropagation.APEdgeInputFormatter.class);
+
+    Iterable<String> results;
+    try {
+      results = InternalVertexRunner.run(conf, null, graph);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
+
+    System.err.println(results);
+  }
+
+
 }
