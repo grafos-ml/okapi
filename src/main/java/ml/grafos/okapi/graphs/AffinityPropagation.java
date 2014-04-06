@@ -483,14 +483,6 @@ public class AffinityPropagation
    * and second points.
    * <p/>
    * Example:<br/>
-   *
-   * of the data points to cluster.
-   * The first element of the entry is an integer value encoding the data point
-   * index (id). Subsequent elements in the entry are double values encoding the
-   * similarities between the data point of the current entry and the rest of
-   * data points in the problem.
-   * <p/>
-   * Example:<br/>
    * 1 1 1
    * 1 2 1
    * 1 3 5
