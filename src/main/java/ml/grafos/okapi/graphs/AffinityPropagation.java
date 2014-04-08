@@ -23,7 +23,7 @@ import es.csic.iiia.bms.Maximize;
 import es.csic.iiia.bms.factors.ConditionedDeactivationFactor;
 import es.csic.iiia.bms.factors.SelectorFactor;
 import es.csic.iiia.bms.factors.WeightingFactor;
-import ml.grafos.okapi.common.data.*;
+import ml.grafos.okapi.common.data.LongArrayListWritable;
 import ml.grafos.okapi.common.data.MapWritable;
 import org.apache.giraph.aggregators.BasicAggregator;
 import org.apache.giraph.edge.Edge;
@@ -34,10 +34,10 @@ import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
 import org.apache.giraph.io.formats.TextEdgeInputFormat;
 import org.apache.giraph.io.formats.TextVertexValueInputFormat;
 import org.apache.giraph.master.DefaultMasterCompute;
-import org.apache.giraph.utils.ArrayListWritable;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.jblas.util.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,13 +69,18 @@ public class AffinityPropagation
   /**
    * Maximum number of iterations.
    */
-  public static final String MAX_ITERATIONS = "iterations";
+  public static final String MAX_ITERATIONS = "affinity.iterations";
   public static int MAX_ITERATIONS_DEFAULT = 15;
   /**
    * Damping factor.
    */
-  public static final String DAMPING = "damping";
+  public static final String DAMPING = "affinity.damping";
   public static float DAMPING_DEFAULT = 0.9f;
+  /**
+   * Noise factor.
+   */
+  public static final String NOISE = "affinity.noise";
+  public static float NOISE_DEFAULT = 0f;
 
   @Override
   public void compute(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex,
@@ -466,7 +471,8 @@ public class AffinityPropagation
         APVertexValue value = new APVertexValue();
         for (int i = 1; i < line.length; i++) {
           APVertexID neighId = new APVertexID(APVertexType.COLUMN, i);
-          value.weights.put(neighId, new DoubleWritable(Double.valueOf(line[i])));
+          value.weights.put(neighId, new DoubleWritable(Double.valueOf(line[i])
+              + Random.nextDouble()*getConf().getFloat(NOISE, NOISE_DEFAULT)));
         }
         return value;
       }
@@ -529,7 +535,8 @@ public class AffinityPropagation
 
       @Override
       protected DoubleWritable getValue(String[] line) throws IOException {
-        return new DoubleWritable(Double.valueOf(line[2]));
+        return new DoubleWritable(Double.valueOf(line[2])
+            + getConf().getFloat(NOISE, NOISE_DEFAULT));
       }
     }
   }
