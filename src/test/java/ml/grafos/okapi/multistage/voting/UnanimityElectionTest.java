@@ -36,13 +36,11 @@ public class UnanimityElectionTest {
     IntMultisetWrapperWritable wrapper = new IntMultisetWrapperWritable();
     votes = wrapper.get();
     master = mock(MultistageMasterCompute.class);
-    when(master.getAggregatedValue(TransitionElection.AGGREGATOR_VOTING))
-        .thenReturn(wrapper);
   }
 
   @Test
   public void testResolveElectionNoVotes() {
-    instance.resolveElection(master);
+    instance.resolveElection(master, votes);
     verify(master, never()).setStage(any(Stage.class));
     verify(master, never()).setStage(anyInt());
   }
@@ -51,7 +49,7 @@ public class UnanimityElectionTest {
   public void testResolveElectionSingleVoteSingleVertex() {
     when(master.getTotalNumVertices()).thenReturn(1l);
     votes.add(5);
-    instance.resolveElection(master);
+    instance.resolveElection(master, votes);
     verify(master).setStage(5);
   }
 
@@ -59,7 +57,7 @@ public class UnanimityElectionTest {
   public void testResolveElectionSingleVoteMultipleVertices() {
     when(master.getTotalNumVertices()).thenReturn(3l);
     votes.add(5);
-    instance.resolveElection(master);
+    instance.resolveElection(master, votes);
     verify(master, never()).setStage(any(Stage.class));
     verify(master, never()).setStage(anyInt());
   }
@@ -68,7 +66,7 @@ public class UnanimityElectionTest {
   public void testResolveElectionNotEnoughEqualVotes() {
     when(master.getTotalNumVertices()).thenReturn(3l);
     votes.add(5, 2);
-    instance.resolveElection(master);
+    instance.resolveElection(master, votes);
     verify(master, never()).setStage(any(Stage.class));
     verify(master, never()).setStage(anyInt());
   }
@@ -77,7 +75,7 @@ public class UnanimityElectionTest {
   public void testResolveElectionSuccessfulElection() {
     when(master.getTotalNumVertices()).thenReturn(5l);
     votes.add(5, 5);
-    instance.resolveElection(master);
+    instance.resolveElection(master, votes);
     verify(master).setStage(5);
   }
 
@@ -86,7 +84,7 @@ public class UnanimityElectionTest {
     when(master.getTotalNumVertices()).thenReturn(2l);
     votes.add(1);
     votes.add(2);
-    instance.resolveElection(master);
+    instance.resolveElection(master, votes);
   }
 
   @Test(expected = IllegalStateException.class)
@@ -94,7 +92,7 @@ public class UnanimityElectionTest {
     when(master.getTotalNumVertices()).thenReturn(5l);
     votes.add(1);
     votes.add(2);
-    instance.resolveElection(master);
+    instance.resolveElection(master, votes);
   }
 
 }

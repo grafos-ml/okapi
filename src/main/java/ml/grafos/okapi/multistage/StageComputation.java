@@ -50,7 +50,7 @@ public abstract class StageComputation<I extends WritableComparable,
   public void voteToTransition(Enum<?> stage) {
     final IntMultisetWrapperWritable value = new IntMultisetWrapperWritable();
     value.get().add(stage.ordinal());
-    aggregate(TransitionElection.AGGREGATOR_VOTING, value);
+    aggregate(MultistageMasterCompute.AGGREGATOR_VOTING, value);
   }
 
 }

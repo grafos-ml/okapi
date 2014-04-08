@@ -15,7 +15,10 @@
  */
 package ml.grafos.okapi.multistage;
 
+import com.google.common.collect.Multiset;
+import ml.grafos.okapi.multistage.voting.IntMultisetWrapperWritable;
 import ml.grafos.okapi.multistage.voting.TransitionElection;
+import ml.grafos.okapi.multistage.voting.VotingAggregator;
 import org.apache.giraph.aggregators.IntOverwriteAggregator;
 import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.hadoop.io.IntWritable;
@@ -31,26 +34,38 @@ import org.apache.hadoop.io.IntWritable;
  */
 public abstract class MultistageMasterCompute extends DefaultMasterCompute {
 
+  /**
+   * Identifier for the aggregator that collects vertices' votes.
+   */
+  public static final String AGGREGATOR_VOTING = "multistage.voting";
+
   @Override
   public void initialize() throws InstantiationException, IllegalAccessException {
     super.initialize();
-    getTransitionElection().initialize(this);
+    registerAggregator(AGGREGATOR_VOTING, VotingAggregator.class);
   }
 
   @Override
   public void compute() {
     super.compute();
+    resolveElection();
+  }
 
-    if (getSuperstep() > 0) {
-      getTransitionElection().resolveElection(this);
+  private void resolveElection() {
+    // There cannot be any votes on the first superstep.
+    if (getSuperstep() == 0) {
+      return;
     }
+
+    final IntMultisetWrapperWritable votingAggregator =
+        getAggregatedValue(AGGREGATOR_VOTING);
+
+    final Multiset<Integer> votes = votingAggregator.get();
+    getTransitionElection().resolveElection(this, votes);
   }
 
   /**
    * Get the transition election employed in this multistage computation.
-   *
-   * <p>This method must always return the same value for a given master
-   * (as if it was a final static member).
    *
    * @see ml.grafos.okapi.multistage.voting.TransitionElection
    * @return transition election of this computation.

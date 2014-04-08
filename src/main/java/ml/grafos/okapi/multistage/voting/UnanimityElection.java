@@ -44,9 +44,14 @@ import ml.grafos.okapi.multistage.MultistageMasterCompute;
  * }
  * </pre>
  */
-public class UnanimityElection extends AbstractTransitionElection {
+public class UnanimityElection implements TransitionElection {
+
   @Override
-  protected void resolveElection(MultistageMasterCompute master, Multiset<Integer> votes) {
+  public void resolveElection(MultistageMasterCompute master, Multiset<Integer> votes) {
+    if (votes.isEmpty()) {
+      return;
+    }
+
     if (votes.entrySet().size() > 1) {
       throw new IllegalStateException(
           "Multiple vertices voted for different transition in UNANIMITY voting mode.");
@@ -55,4 +60,5 @@ public class UnanimityElection extends AbstractTransitionElection {
       master.setStage(votes.elementSet().iterator().next());
     }
   }
+
 }

@@ -24,11 +24,15 @@ import ml.grafos.okapi.multistage.MultistageMasterCompute;
  * vote, then the computation will fail with an
  * {@link IllegalStateException}.
  */
-public class ExclusiveElection extends AbstractTransitionElection {
+public class ExclusiveElection implements TransitionElection {
 
   @Override
-  protected void resolveElection(MultistageMasterCompute master,
+  public void resolveElection(MultistageMasterCompute master,
                                  Multiset<Integer> votes) {
+    if (votes.isEmpty()) {
+      return;
+    }
+
     if (votes.size() > 1) {
       throw new IllegalStateException(
           "Multiple vertices voted for a stage change in EXCLUSIVE voting mode.");

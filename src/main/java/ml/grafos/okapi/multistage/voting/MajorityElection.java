@@ -28,7 +28,7 @@ import java.util.List;
  * the most vote wins). If there is a tie, no transition wins and the
  * current stage is maintained.
  */
-public class MajorityElection extends AbstractTransitionElection {
+public class MajorityElection implements TransitionElection {
   private static Logger logger = Logger.getLogger(MajorityElection.class);
 
   /**
@@ -44,7 +44,11 @@ public class MajorityElection extends AbstractTransitionElection {
   );
 
   @Override
-  protected void resolveElection(MultistageMasterCompute master, Multiset<Integer> votes) {
+  public void resolveElection(MultistageMasterCompute master, Multiset<Integer> votes) {
+    if (votes.isEmpty()) {
+      return;
+    }
+
     List<Multiset.Entry<Integer>> best2 = ORDER.greatestOf(votes.entrySet(), 2);
 
     // If there is only one element, that one wins. Otherwise, make sure that there is

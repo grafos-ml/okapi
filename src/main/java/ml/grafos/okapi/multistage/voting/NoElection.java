@@ -15,6 +15,7 @@
  */
 package ml.grafos.okapi.multistage.voting;
 
+import com.google.common.collect.Multiset;
 import ml.grafos.okapi.multistage.MultistageMasterCompute;
 
 /**
@@ -30,10 +31,10 @@ import ml.grafos.okapi.multistage.MultistageMasterCompute;
  * information to make the decision.
  */
 public class NoElection implements TransitionElection {
-  @Override
-  public void initialize(MultistageMasterCompute master)
-      throws InstantiationException, IllegalAccessException{}
 
   @Override
-  public void resolveElection(MultistageMasterCompute master) {}
+  public void resolveElection(MultistageMasterCompute master, Multiset<Integer> votes) {
+
+  }
+
 }

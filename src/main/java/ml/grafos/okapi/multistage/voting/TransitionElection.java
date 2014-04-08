@@ -15,6 +15,7 @@
  */
 package ml.grafos.okapi.multistage.voting;
 
+import com.google.common.collect.Multiset;
 import ml.grafos.okapi.multistage.MultistageMasterCompute;
 
 /**
@@ -24,28 +25,12 @@ import ml.grafos.okapi.multistage.MultistageMasterCompute;
  * possible stage, and then applying the particular election rules.
  */
 public interface TransitionElection {
-
-  /**
-   * Identifier for the aggregator that collects vertices' votes.
-   */
-  public static final String AGGREGATOR_VOTING = "multistage.voting";
-
-  /**
-   * Initializes this election type, usually by registering the
-   * aggregator through which nodes can vote.
-   *
-   * @param master the multistage computation master.
-   * @throws InstantiationException
-   * @throws IllegalAccessException
-   */
-  public void initialize(MultistageMasterCompute master)
-      throws InstantiationException, IllegalAccessException;
-
   /**
    * Resolves the election according to its rules, and changes the
    * stage if the election is successful.
    *
    * @param master the multistage computation master.
+   * @param votes bag of votes emitted by the vertices in the last superstep.
    */
-  public void resolveElection(MultistageMasterCompute master);
+  public void resolveElection(MultistageMasterCompute master, Multiset<Integer> votes);
 }
