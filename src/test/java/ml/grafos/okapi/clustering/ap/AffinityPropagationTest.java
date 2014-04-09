@@ -37,10 +37,10 @@ public class AffinityPropagationTest {
   public void initialize() {
     conf = new GiraphConfiguration();
     conf.setComputationClass(AffinityPropagation.class);
-    conf.setMasterComputeClass(AffinityPropagation.MasterComputation.class);
+    conf.setMasterComputeClass(MasterComputation.class);
     conf.setInt(AffinityPropagation.MAX_ITERATIONS, 100);
     conf.setFloat(AffinityPropagation.DAMPING, 0.9f);
-    conf.setVertexOutputFormatClass(AffinityPropagation.APOutputFormat.class);
+    conf.setVertexOutputFormatClass(APOutputFormat.class);
     conf.setBoolean("giraph.useSuperstepCounters", false);
   }
 
@@ -55,7 +55,7 @@ public class AffinityPropagationTest {
       "1\t3", "2\t3", "3\t3"
     };
 
-    conf.setVertexInputFormatClass(AffinityPropagation.APVertexInputFormatter.class);
+    conf.setVertexInputFormatClass(APVertexInputFormatter.class);
 
     ImmutableList<String> results;
     try {
@@ -85,7 +85,7 @@ public class AffinityPropagationTest {
       "1\t3", "2\t3", "3\t3"
     };
 
-    conf.setEdgeInputFormatClass(AffinityPropagation.APEdgeInputFormatter.class);
+    conf.setEdgeInputFormatClass(APEdgeInputFormatter.class);
 
     ImmutableList<String> results;
     try {
@@ -113,7 +113,7 @@ public class AffinityPropagationTest {
         "1\t3", "2\t2", "3\t3"
     };
 
-    conf.setEdgeInputFormatClass(AffinityPropagation.APEdgeInputFormatter.class);
+    conf.setEdgeInputFormatClass(APEdgeInputFormatter.class);
 
     ImmutableList<String> results;
     try {
@@ -141,7 +141,7 @@ public class AffinityPropagationTest {
         StandardCharsets.UTF_8);
     String[] graph = lines.toArray(new String[0]);
 
-    conf.setEdgeInputFormatClass(AffinityPropagation.APEdgeInputFormatter.class);
+    conf.setEdgeInputFormatClass(APEdgeInputFormatter.class);
 
     ImmutableList<String> results;
     try {

@@ -15,7 +15,6 @@
  */
 package ml.grafos.okapi.clustering.ap;
 
-import com.google.common.collect.ComparisonChain;
 import es.csic.iiia.bms.CommunicationAdapter;
 import es.csic.iiia.bms.Factor;
 import es.csic.iiia.bms.MaxOperator;
@@ -25,26 +24,16 @@ import es.csic.iiia.bms.factors.SelectorFactor;
 import es.csic.iiia.bms.factors.WeightingFactor;
 import ml.grafos.okapi.common.data.LongArrayListWritable;
 import ml.grafos.okapi.common.data.MapWritable;
-import org.apache.giraph.aggregators.BasicAggregator;
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.BasicComputation;
 import org.apache.giraph.graph.Vertex;
-import org.apache.giraph.io.EdgeReader;
-import org.apache.giraph.io.formats.IdWithValueTextOutputFormat;
-import org.apache.giraph.io.formats.TextEdgeInputFormat;
-import org.apache.giraph.io.formats.TextVertexValueInputFormat;
-import org.apache.giraph.master.DefaultMasterCompute;
-import org.apache.hadoop.io.*;
-import org.apache.hadoop.mapreduce.InputSplit;
-import org.apache.hadoop.mapreduce.TaskAttemptContext;
-import org.jblas.util.Random;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Writable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.DataInput;
-import java.io.DataOutput;
 import java.io.IOException;
-import java.util.regex.Pattern;
 
 /**
  * Affinity Propagation is a clustering algorithm.
@@ -60,8 +49,8 @@ import java.util.regex.Pattern;
  * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
  */
 public class AffinityPropagation
-    extends BasicComputation<AffinityPropagation.APVertexID,
-    AffinityPropagation.APVertexValue, DoubleWritable, AffinityPropagation.APMessage> {
+    extends BasicComputation<APVertexID,
+    APVertexValue, DoubleWritable, APMessage> {
   private static MaxOperator MAX_OPERATOR = new Maximize();
 
   private static Logger logger = LoggerFactory.getLogger(AffinityPropagation.class);
@@ -85,7 +74,7 @@ public class AffinityPropagation
   @Override
   public void compute(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex,
                       Iterable<APMessage> messages) throws IOException {
-    logger.trace("vertex " + vertex.getId() + ", superstep " + getSuperstep());
+    logger.trace("vertex {}, superstep {}" , vertex.getId(), getSuperstep());
     final int maxIter = getContext().getConfiguration().getInt(MAX_ITERATIONS, MAX_ITERATIONS_DEFAULT);
     // Phases of the algorithm
     if (getSuperstep() == 0) {
@@ -209,9 +198,9 @@ public class AffinityPropagation
           LongArrayListWritable exemplars = new LongArrayListWritable();
           exemplars.add(new LongWritable(id.index));
           aggregate("exemplars", exemplars);
-          logger.trace("Point " + id.index + " decides to become an exemplar with value " + belief + ".");
+          logger.trace("Point {} decides to become an exemplar with value {}.", id.index, belief);
         } else {
-          logger.trace("Point " + id.index + " does not want to be an exemplar with value " + belief + ".");
+          logger.trace("Point {} does not want to be an exemplar with value {}.", id.index, belief);
         }
 
       }
@@ -251,131 +240,9 @@ public class AffinityPropagation
       }
     }
 
-    logger.trace("Point " + id.index + " decides to follow " + bestExemplar + ".");
+    logger.trace("Point {} decides to follow {}.", id.index, bestExemplar);
     vertex.getValue().exemplar = new LongWritable(bestExemplar);
     vertex.voteToHalt();
-  }
-
-  public static enum APVertexType {
-    COLUMN, ROW
-  }
-
-  public static class APVertexID implements WritableComparable<APVertexID> {
-
-    public APVertexType type = APVertexType.ROW;
-    public long index = 0;
-
-    public APVertexID() {
-    }
-
-    public APVertexID(APVertexID orig) {
-      this(orig.type, orig.index);
-    }
-
-    public APVertexID(APVertexType type, long index) {
-      this.type = type;
-      this.index = index;
-    }
-
-    @Override
-    public void write(DataOutput dataOutput) throws IOException {
-      dataOutput.writeInt(type.ordinal());
-      dataOutput.writeLong(index);
-    }
-
-    @Override
-    public void readFields(DataInput dataInput) throws IOException {
-      final int index = dataInput.readInt();
-      type = APVertexType.values()[index];
-      this.index = dataInput.readLong();
-    }
-
-    @Override
-    public int compareTo(APVertexID that) {
-      return ComparisonChain.start()
-          .compare(this.type, that.type)
-          .compare(this.index, that.index)
-          .result();
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-
-      APVertexID that = (APVertexID) o;
-      return index == that.index && type == that.type;
-    }
-
-    @Override
-    public int hashCode() {
-      int result = type.hashCode();
-      result = 31 * result + (int) (index ^ (index >>> 32));
-      return result;
-    }
-
-    @Override
-    public String toString() {
-      return "(" + type + ", " + index + ")";
-    }
-  }
-
-  public static class APVertexValue implements Writable {
-    public LongWritable exemplar;
-    public MapWritable weights;
-    public MapWritable lastMessages;
-
-    public APVertexValue() {
-      exemplar = new LongWritable();
-      weights = new MapWritable();
-      lastMessages = new MapWritable();
-    }
-
-    @Override
-    public void write(DataOutput dataOutput) throws IOException {
-      exemplar.write(dataOutput);
-      weights.write(dataOutput);
-      lastMessages.write(dataOutput);
-    }
-
-    @Override
-    public void readFields(DataInput dataInput) throws IOException {
-      exemplar.readFields(dataInput);
-      weights.readFields(dataInput);
-      lastMessages.readFields(dataInput);
-    }
-  }
-
-  public static class APMessage implements Writable {
-
-    public APVertexID from;
-    public double value;
-
-    public APMessage() {
-      from = new APVertexID();
-    }
-
-    public APMessage(APVertexID from, double value) {
-      this.from = from;
-      this.value = value;
-    }
-
-    @Override
-    public void write(DataOutput dataOutput) throws IOException {
-      from.write(dataOutput);
-      dataOutput.writeDouble(value);
-    }
-
-    @Override
-    public void readFields(DataInput dataInput) throws IOException {
-      from.readFields(dataInput);
-      value = dataInput.readDouble();
-    }
-
-    @Override
-    public String toString() {
-      return "APMessage{from=" + from + ", value=" + value + '}';
-    }
   }
 
   public class MessageRelayer implements CommunicationAdapter<APVertexID> {
@@ -392,218 +259,10 @@ public class AffinityPropagation
         final double lastMessage = ((DoubleWritable) lastMessages.get(recipient)).get();
         value = damping * lastMessage + (1-damping) * value;
       }
-      logger.trace(sender + " -> " + recipient + " : " + value);
+      logger.trace("{} -> {} : {}", sender, recipient, value);
       AffinityPropagation.this.sendMessage(recipient, new APMessage(sender, value));
       lastMessages.put(recipient, new DoubleWritable(value));
     }
   }
 
-  public static class MasterComputation extends DefaultMasterCompute {
-
-    @Override
-    public void initialize() throws InstantiationException, IllegalAccessException {
-      super.initialize();
-      registerPersistentAggregator("exemplars", ExemplarAggregator.class);
-    }
-
-  }
-
-  public static class ExemplarAggregator extends BasicAggregator<LongArrayListWritable> {
-
-    @Override
-    public void aggregate(LongArrayListWritable value) {
-      getAggregatedValue().addAll(value);
-    }
-
-    @Override
-    public LongArrayListWritable createInitialValue() {
-      return new LongArrayListWritable();
-    }
-  }
-
-  /**
-   * Vertex input formatter for Affinity Propagation problems.
-   * <p/>
-   * The input format consists of an entry for each of the data points to cluster.
-   * The first element of the entry is an integer value encoding the data point
-   * index (id). Subsequent elements in the entry are double values encoding the
-   * similarities between the data point of the current entry and the rest of
-   * data points in the problem.
-   * <p/>
-   * Example:<br/>
-   * 1 1 1 5
-   * 2 1 1 3
-   * 3 5 3 1
-   * <p/>
-   * Encodes a problem in which data point "1" has similarity 1 with itself,
-   * 1 with point "2" and 5 with point "3". In a similar manner, points "2",
-   * and "3" have similarities of [1, 1, 3] and [5, 3, 1] respectively with
-   * points "1", "2", and "3".
-   *
-   * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
-   * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
-   */
-  public static class APVertexInputFormatter
-      extends TextVertexValueInputFormat<APVertexID, APVertexValue, DoubleWritable> {
-
-    private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
-
-    @Override
-    public TextVertexValueReader createVertexValueReader(InputSplit split, TaskAttemptContext context) throws IOException {
-      return new APInputReader();
-    }
-
-    public class APInputReader extends TextVertexValueReaderFromEachLineProcessed<String[]> {
-
-      @Override
-      protected String[] preprocessLine(Text line) throws IOException {
-        return SEPARATOR.split(line.toString());
-      }
-
-      @Override
-      protected APVertexID getId(String[] line) throws IOException {
-        return new APVertexID(APVertexType.ROW,
-            Long.valueOf(line[0]));
-      }
-
-      @Override
-      protected APVertexValue getValue(String[] line) throws IOException {
-        APVertexValue value = new APVertexValue();
-        for (int i = 1; i < line.length; i++) {
-          APVertexID neighId = new APVertexID(APVertexType.COLUMN, i);
-          value.weights.put(neighId, new DoubleWritable(Double.valueOf(line[i])
-              + Random.nextDouble()*getConf().getFloat(NOISE, NOISE_DEFAULT)));
-        }
-        return value;
-      }
-    }
-  }
-
-  /**
-   * Edge input formatter for Affinity Propagation problems.
-   * <p/>
-   * The input format consists of an entry for each pair of points. The first
-   * element of the entry denotes the id of the first point. Similarly, the
-   * second element denotes the id of the second point. Finally, the third
-   * element contains a double value encoding the similarity between the first
-   * and second points.
-   * <p/>
-   * Example:<br/>
-   * 1 1 1
-   * 1 2 1
-   * 1 3 5
-   * 2 1 1
-   * 2 2 1
-   * 2 3 3
-   * 3 1 5
-   * 3 2 3
-   * 3 3 1
-   * <p/>
-   * Encodes a problem in which data point "1" has similarity 1 with itself,
-   * 1 with point "2" and 5 with point "3". In a similar manner, points "2",
-   * and "3" have similarities of [1, 1, 3] and [5, 3, 1] respectively with
-   * points "1", "2", and "3".
-   *
-   * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
-   * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
-   */
-  public static class APEdgeInputFormatter extends TextEdgeInputFormat<APVertexID, DoubleWritable> {
-
-    private static final Pattern SEPARATOR = Pattern.compile("[\001\t ]");
-
-    @Override
-    public EdgeReader<APVertexID, DoubleWritable> createEdgeReader(InputSplit split, TaskAttemptContext context) throws IOException {
-      return new APEdgeInputReader();
-    }
-
-    public class APEdgeInputReader extends TextEdgeReaderFromEachLineProcessed<String []> {
-
-      @Override
-      protected String[] preprocessLine(Text line) throws IOException {
-        return SEPARATOR.split(line.toString());
-      }
-
-      @Override
-      protected APVertexID getTargetVertexId(String[] line) throws IOException {
-        return new APVertexID(APVertexType.COLUMN, Long.valueOf(line[1]));
-      }
-
-      @Override
-      protected APVertexID getSourceVertexId(String[] line) throws IOException {
-        return new APVertexID(APVertexType.ROW, Long.valueOf(line[0]));
-      }
-
-      @Override
-      protected DoubleWritable getValue(String[] line) throws IOException {
-        return new DoubleWritable(Double.valueOf(line[2])
-            + getConf().getFloat(NOISE, NOISE_DEFAULT));
-      }
-    }
-  }
-
-  /**
-   * Output Formatter for Affinity Propagation problems.
-   * <p/>
-   * The output format consists of an entry for each of the data points to cluster.
-   * The first element of the entry is a integer value encoding the data point
-   * index (id), whereas the second value encodes the exemplar id chosen for
-   * that point.
-   * <p/>
-   * Example:<br/>
-   * 1 3
-   * 2 3
-   * 3 3
-   * <p/>
-   * Encodes a solution in which data points "1", "2", and "3" choose point "3"
-   * as an exemplar.
-   *
-   * @author Marc Pujol-Gonzalez <mpujol@iiia.csic.es>
-   * @author Toni Penya-Alba <tonipenya@iiia.csic.es>
-   */
-  @SuppressWarnings("rawtypes")
-  public static class APOutputFormat
-      extends IdWithValueTextOutputFormat<APVertexID,APVertexValue, DoubleWritable> {
-
-    /**
-     * Specify the output delimiter
-     */
-    public static final String LINE_TOKENIZE_VALUE = "output.delimiter";
-    /**
-     * Default output delimiter
-     */
-    public static final String LINE_TOKENIZE_VALUE_DEFAULT = "\t";
-
-    @Override
-    public TextVertexWriter createVertexWriter(TaskAttemptContext context) {
-      return new IdWithValueVertexWriter();
-    }
-
-    protected class IdWithValueVertexWriter extends TextVertexWriterToEachLine {
-      /**
-       * Saved delimiter
-       */
-      private String delimiter;
-
-      @Override
-      public void initialize(TaskAttemptContext context) throws IOException,
-          InterruptedException {
-        super.initialize(context);
-        delimiter = getConf().get(
-            LINE_TOKENIZE_VALUE, LINE_TOKENIZE_VALUE_DEFAULT);
-      }
-
-      @Override
-      protected Text convertVertexToLine(Vertex<APVertexID,
-          APVertexValue, DoubleWritable> vertex)
-          throws IOException {
-
-        if (vertex.getId().type != APVertexType.ROW) {
-          return null;
-        }
-
-        return new Text(String.valueOf(vertex.getId().index)
-            + delimiter + Long.toString(vertex.getValue().exemplar.get()));
-      }
-    }
-  }
 }
