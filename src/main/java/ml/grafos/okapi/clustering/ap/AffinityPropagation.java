@@ -70,6 +70,11 @@ public class AffinityPropagation
    */
   public static final String NOISE = "affinity.noise";
   public static float NOISE_DEFAULT = 0f;
+  /**
+   * Epsilon factor. Do not send message to a neighbor if the new message has not changed more than epsilon.
+   */
+  public static final String EPSILON = "affinity.epsilon";
+  public static float EPSILON_DEFAULT = 0.0001f;
 
   @Override
   public void compute(Vertex<APVertexID, APVertexValue, DoubleWritable> vertex,
@@ -248,6 +253,7 @@ public class AffinityPropagation
   public class MessageRelayer implements CommunicationAdapter<APVertexID> {
     private MapWritable lastMessages;
     final float damping = getContext().getConfiguration().getFloat(DAMPING, DAMPING_DEFAULT);
+    final float epsilon = getContext().getConfiguration().getFloat(EPSILON, EPSILON_DEFAULT);
 
     public MessageRelayer(MapWritable lastMessages) {
       this.lastMessages = lastMessages;
@@ -257,6 +263,10 @@ public class AffinityPropagation
     public void send(double value, APVertexID sender, APVertexID recipient) {
       if (lastMessages.containsKey(recipient)) {
         final double lastMessage = ((DoubleWritable) lastMessages.get(recipient)).get();
+        if (Math.abs(lastMessage - value) < epsilon) {
+          return;
+        }
+
         value = damping * lastMessage + (1-damping) * value;
       }
       logger.trace("{} -> {} : {}", sender, recipient, value);
