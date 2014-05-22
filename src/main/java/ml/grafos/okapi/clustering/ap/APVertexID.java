@@ -83,8 +83,8 @@ public class APVertexID implements WritableComparable<APVertexID> {
 
   @Override
   public int hashCode() {
-    int result = type.hashCode();
-    result = 31 * result + (int) (index ^ (index >>> 32));
+    int result = (int) (index ^ (index >>> 32));
+    result = 31 * result + type.ordinal();
     return result;
   }
 
