@@ -29,7 +29,7 @@ import org.jblas.FloatMatrix;
 
 
 /**
- * Computes the popularity ranking based on the number of of times a user rated/seen the item.
+ * Computes the popularity ranking based on the number of users rated/seen the item.
  * The idea is to represent users and items as bipartite graph. Then compute how many messages
  * each item received which is equal to the number of users rated the item.
  * @author linas
@@ -44,6 +44,7 @@ public class PopularityRankingComputation extends BasicComputation<CfLongId, Flo
 	@Override
     public void compute(Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex, Iterable<FloatMatrixMessage> messages) throws IOException {
         if (getSuperstep() == 0){//send empty message with the count
+        	vertex.setValue(new FloatMatrixWritable(FloatMatrix.ones(1))); //set all users to 1
 			if (vertex.getId().isUser()){
 				Iterable<Edge<CfLongId, FloatWritable>> edges = vertex.getEdges();
 				sendMessage(vertex.getId(), emptyMsg); //send message to myself in order to be executed in the next super step
@@ -51,17 +52,16 @@ public class PopularityRankingComputation extends BasicComputation<CfLongId, Flo
 					sendMessage(edge.getTargetVertexId(), new FloatMatrixMessage(vertex.getId(), emptyList, edge.getValue().get()));
 				}
 			}
-		}else if(getSuperstep() == 1){//compute how many messages were sent
-			int cnt = 0;
-            FloatMatrix output = FloatMatrix.ones(1);
-            float score = 0f;
+		}else if(getSuperstep() == 1){//compute how many messages were received by an item (how many users rated this item)
 			if (vertex.getId().isItem()){
-				for (FloatMatrixMessage msg : messages) {
-					cnt+= msg.getScore();
+				int cnt = 0;
+				for (@SuppressWarnings("unused") FloatMatrixMessage msg : messages) {
+					cnt+= 1;
 				}
+				FloatMatrix output = FloatMatrix.zeros(1);
 				output.put(0, cnt);
+				vertex.setValue(new FloatMatrixWritable(output));
 			}
-			vertex.setValue(new FloatMatrixWritable(output));
 		}
 		vertex.voteToHalt();
 	}

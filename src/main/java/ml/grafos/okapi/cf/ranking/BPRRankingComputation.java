@@ -179,9 +179,9 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
 
 	@Override
 	/**
-	 * BPR samples single relevant and single irrelevant item.
+	 * BPR samples single irrelevant item for each relevant item.
 	 */
-	int getBufferSize() {
-		return 1;
+	int getBufferSize(int numberOfRelevants) {
+		return numberOfRelevants;
 	}
 }
