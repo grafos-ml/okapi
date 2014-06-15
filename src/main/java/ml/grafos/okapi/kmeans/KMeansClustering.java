@@ -51,7 +51,7 @@ public class KMeansClustering {
   /** Maximum number of iterations */
   public static final String MAX_ITERATIONS = "kmeans.iterations";
   /** Default value for iterations */
-  public static final int ITERATIONS_DEFAULT = 8;
+  public static final int ITERATIONS_DEFAULT = 100;
   /** Number of cluster centers */
   public static final String CLUSTER_CENTERS_COUNT = "kmeans.cluster.centers.count";
   /** Default number of cluster centers */
@@ -147,11 +147,11 @@ public class KMeansClustering {
 	 * @return
 	 */
 	private double euclideanDistance(DoubleArrayListWritable v1, DoubleArrayListWritable v2, int dim) {
-		double distance = 0;		
+		double distance = 0.0;
 		for ( int i = 0; i < dim; i++ ) {
-			distance += math.sqrt(math.pow(v1.get(i).get() - v2.get(i).get(), 2));
+			distance += math.pow(v1.get(i).get() - v2.get(i).get(), 2);
 		}
-		return distance;
+		return math.sqrt(distance);
 	}
   }
 
