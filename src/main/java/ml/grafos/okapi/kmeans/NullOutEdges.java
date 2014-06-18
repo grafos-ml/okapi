@@ -7,12 +7,13 @@ import java.util.Iterator;
 
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.edge.OutEdges;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.NullWritable;
 
-public class NullOutEdges implements OutEdges<NullWritable, NullWritable> {
+public class NullOutEdges implements OutEdges<LongWritable, NullWritable> {
 
 	@Override
-	public Iterator<Edge<NullWritable, NullWritable>> iterator() {
+	public Iterator<Edge<LongWritable, NullWritable>> iterator() {
 		return null;
 	}
 
@@ -29,7 +30,7 @@ public class NullOutEdges implements OutEdges<NullWritable, NullWritable> {
 	}
 
 	@Override
-	public void initialize(Iterable<Edge<NullWritable, NullWritable>> edges) {
+	public void initialize(Iterable<Edge<LongWritable, NullWritable>> edges) {
 		// TODO Auto-generated method stub
 		
 	}
@@ -47,13 +48,13 @@ public class NullOutEdges implements OutEdges<NullWritable, NullWritable> {
 	}
 
 	@Override
-	public void add(Edge<NullWritable, NullWritable> edge) {
+	public void add(Edge<LongWritable, NullWritable> edge) {
 		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
-	public void remove(NullWritable targetVertexId) {
+	public void remove(LongWritable targetVertexId) {
 		// TODO Auto-generated method stub
 		
 	}
