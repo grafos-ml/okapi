@@ -20,11 +20,12 @@ import org.apache.giraph.partition.GraphPartitionerFactory;
 import org.apache.giraph.partition.HashMasterPartitioner;
 import org.apache.giraph.partition.MasterGraphPartitioner;
 import org.apache.giraph.partition.WorkerGraphPartitioner;
+import org.apache.giraph.worker.LocalData;
 import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.io.WritableComparable;
 
 /*
- * set it through giraph.graphPartitionerFactoryClass
+ * Set it through giraph.graphPartitionerFactoryClass
  * expects I as PrefixIntWritable
  */
 @SuppressWarnings("rawtypes")
@@ -52,4 +53,7 @@ public class PrefixHashPartitionerFactory<I extends WritableComparable, V extend
 	public void setConf(ImmutableClassesGiraphConfiguration conf) {
 		this.conf = conf;
 	}
+
+  @Override
+  public void initialize(LocalData<I, V, E, ? extends Writable> localData) { }
 }
