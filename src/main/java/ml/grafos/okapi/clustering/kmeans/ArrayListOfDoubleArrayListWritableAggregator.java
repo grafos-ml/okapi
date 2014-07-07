@@ -1,6 +1,9 @@
-package ml.grafos.okapi.kmeans;
+package ml.grafos.okapi.clustering.kmeans;
 
 import java.util.Random;
+
+import ml.grafos.okapi.common.data.ArrayListOfDoubleArrayListWritable;
+
 import org.apache.giraph.aggregators.Aggregator;
 import org.apache.giraph.conf.DefaultImmutableClassesGiraphConfigurable;
 

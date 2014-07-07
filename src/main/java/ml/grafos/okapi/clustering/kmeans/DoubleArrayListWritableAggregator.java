@@ -1,4 +1,4 @@
-package ml.grafos.okapi.kmeans;
+package ml.grafos.okapi.clustering.kmeans;
 
 import ml.grafos.okapi.common.data.DoubleArrayListWritable;
 import org.apache.giraph.aggregators.BasicAggregator;

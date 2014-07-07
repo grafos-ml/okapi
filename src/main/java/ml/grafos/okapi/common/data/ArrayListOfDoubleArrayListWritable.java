@@ -1,6 +1,4 @@
-package ml.grafos.okapi.kmeans;
-
-import ml.grafos.okapi.common.data.DoubleArrayListWritable;
+package ml.grafos.okapi.common.data;
 
 import org.apache.giraph.utils.ArrayListWritable;
 

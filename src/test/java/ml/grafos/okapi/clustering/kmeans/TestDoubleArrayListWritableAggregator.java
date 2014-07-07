@@ -1,6 +1,7 @@
-package ml.grafos.okapi.kmeans;
+package ml.grafos.okapi.clustering.kmeans;
 
 import static org.junit.Assert.*;
+import ml.grafos.okapi.clustering.kmeans.DoubleArrayListWritableAggregator;
 import ml.grafos.okapi.common.data.DoubleArrayListWritable;
 
 import org.apache.hadoop.io.DoubleWritable;

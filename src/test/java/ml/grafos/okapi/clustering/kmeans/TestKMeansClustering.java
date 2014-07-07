@@ -1,8 +1,15 @@
-package ml.grafos.okapi.kmeans;
+package ml.grafos.okapi.clustering.kmeans;
 
 import static org.junit.Assert.*;
 
 import java.util.Set;
+
+import ml.grafos.okapi.clustering.kmeans.ArrayListOfDoubleArrayListWritableAggregator;
+import ml.grafos.okapi.clustering.kmeans.KMeansClustering;
+import ml.grafos.okapi.clustering.kmeans.KMeansTextInputFormat;
+import ml.grafos.okapi.clustering.kmeans.KMeansTextOutputFormat;
+import ml.grafos.okapi.common.graph.NullOutEdges;
+
 import org.apache.giraph.conf.GiraphConfiguration;
 import org.apache.giraph.utils.InternalVertexRunner;
 import org.junit.Test;

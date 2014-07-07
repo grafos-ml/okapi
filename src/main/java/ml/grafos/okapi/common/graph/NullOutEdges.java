@@ -1,4 +1,4 @@
-package ml.grafos.okapi.kmeans;
+package ml.grafos.okapi.common.graph;
 
 import java.io.DataInput;
 import java.io.DataOutput;

@@ -1,4 +1,4 @@
-package ml.grafos.okapi.kmeans;
+package ml.grafos.okapi.clustering.kmeans;
 
 import static org.junit.Assert.*;
 
