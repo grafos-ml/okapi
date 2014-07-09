@@ -13,7 +13,7 @@ if len(sys.argv) <= 1:
     sys.exit(1)
 
 giraphDir = os.path.abspath(sys.argv[1])
-okapiDir = os.getcwd()
+okapiDir = os.path.join(os.getcwd(), "..")
 okapiTargetDir = os.path.join(okapiDir, "target")
 okapiJarDir = os.path.join(okapiDir, "jars")
 
@@ -36,16 +36,16 @@ builds = [
         "computation": "mr2",
         "withGiraph": True,
         "destOkapiJar": "okapi-giraph-mr2-{version}.jar",
-        "giraphBuildCustomArguments": "-Phadoop_2 -Dhadoop.version=2.2.0",
+        "giraphBuildCustomArguments": "-Phadoop_2",
         "okapiBuildCustomArguments": "-Phadoop_yarn"
     },
-    {
-        "computation": "yarn",
-        "withGiraph": True,
-        "destOkapiJar": "okapi-giraph-yarn-{version}.jar",
-        "giraphBuildCustomArguments": "-Phadoop_yarn -Dhadoop.version=2.2.0",
-        "okapiBuildCustomArguments": "-Phadoop_yarn"
-    },
+    #{
+        #"computation": "yarn",
+        #"withGiraph": True,
+        #"destOkapiJar": "okapi-giraph-yarn-{version}.jar",
+        #"giraphBuildCustomArguments": "-Phadoop_yarn -Dhadoop.version=2.2.0",
+        #"okapiBuildCustomArguments": "-Phadoop_yarn"
+    #},
     {
         "computation": "all",
         "withGiraph": False,
