@@ -31,14 +31,12 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.log4j.Logger;
 
 /**
- * Greedy algorithm for Maximum B-Matching problem as described in 
- * G. De Francisci Morales, A. Gionis, M. Sozio "Social Content Matching in MapReduce" 
- * in PVLDB: Proceedings of the VLDB Endowment, 4(7):460-469, 2011.
+ * Greedy algorithm for Maximum B-Matching problem as described in G. De Francisci Morales, A. Gionis, M. Sozio "Social Content Matching in MapReduce" in PVLDB:
+ * Proceedings of the VLDB Endowment, 4(7):460-469, 2011.
  * 
- * Given a weighted graph, with integer capacities assigned to each vertex,
- * the maximum b-matching problem is to select a subgraph of maximum weight such that the 
- * number of edges incident to each vertex in the subgraph does not exceed its capacity.
- * This is a greedy algorithm that provides a 1/2 approximation guarantee.
+ * Given a weighted graph, with integer capacities assigned to each vertex, the maximum b-matching problem is to select a subgraph of maximum weight such that
+ * the number of edges incident to each vertex in the subgraph does not exceed its capacity. This is a greedy algorithm that provides a 1/2 approximation
+ * guarantee.
  */
 public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MBMEdgeState, MBMMessage> {
 
@@ -61,10 +59,10 @@ public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MB
             for (MBMMessage msg : messages) {
                 MBMEdgeState edgeState = vertex.getEdgeValue(msg.getId());
                 if (edgeState == null)
-                    throw new AssertionError("Error: superstep=" + getSuperstep() + " vertex=" + vertex.getId() + " msgSource=" + msg.getId());
+                    throw new AssertionError("Null edge state: superstep=" + getSuperstep() + " vertex=" + vertex.getId() + " msgSource=" + msg.getId());
                 if (msg.getState() == State.PROPOSED && edgeState.getState() == State.PROPOSED) {
                     edgeState.setState(State.INCLUDED);
-                    vertex.setValue(new IntWritable(vertex.getValue().get() - 1)); // vertex.value--
+                    vertex.getValue().set(vertex.getValue().get() - 1); // vertex.value--
                     numAccepted++;
                 } else if (msg.getState() == State.REMOVED) {
                     edgeState.setState(State.REMOVED);
@@ -122,6 +120,6 @@ public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MB
     private void check(Iterable<Edge<LongWritable, MBMEdgeState>> collection) {
         for (Edge<LongWritable, MBMEdgeState> e : collection)
             if (e.getValue().getState() != State.INCLUDED)
-                throw new AssertionError("All the edges remaining should be INCLUDED, this was " + e.getValue().getState());
+                throw new AssertionError(String.format("All the edges in the matching should be {1}, {2} was {3}", State.INCLUDED, e, e.getValue().getState()));
     }
 }

@@ -12,6 +12,11 @@ public class MBMEdgeState implements Writable {
     private double weight = 0.0;
     private State state = State.DEFAULT;
 
+    public MBMEdgeState(double weight) {
+        super();
+        this.setWeight(weight);
+    }
+
     public double getWeight() {
         return weight;
     }
@@ -30,7 +35,34 @@ public class MBMEdgeState implements Writable {
 
     @Override
     public String toString() {
-        return state.toString() + "(" + weight + ")";
+        return weight + "\t" + state.toString();
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((state == null) ? 0 : state.hashCode());
+        long temp;
+        temp = Double.doubleToLongBits(weight);
+        result = prime * result + (int) (temp ^ (temp >>> 32));
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (!(obj instanceof MBMEdgeState))
+            return false;
+        MBMEdgeState other = (MBMEdgeState) obj;
+        if (state != other.state)
+            return false;
+        if (Double.doubleToLongBits(weight) != Double.doubleToLongBits(other.weight))
+            return false;
+        return true;
     }
 
     @Override
@@ -46,7 +78,10 @@ public class MBMEdgeState implements Writable {
     }
 
     public static enum State {
-        DEFAULT((byte) 1), PROPOSED((byte) 2), REMOVED((byte) 3), INCLUDED((byte) 4);
+        DEFAULT ((byte) 1), // starting state
+        PROPOSED((byte) 2), // proposed for inclusion in the matching
+        REMOVED ((byte) 3), // cannot be included in the matching
+        INCLUDED((byte) 4); // included in the matching
 
         private final byte value;
         private static final Map<Byte, State> lookup = new HashMap<Byte, State>();

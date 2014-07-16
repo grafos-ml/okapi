@@ -10,15 +10,15 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Writable;
 
 public class MBMMessage implements Writable {
-    private LongWritable id;
+    private LongWritable vertexID;
     private State state;
 
     public LongWritable getId() {
-        return id;
+        return vertexID;
     }
 
     public void setId(LongWritable id) {
-        this.id = id;
+        this.vertexID = id;
     }
 
     public State getState() {
@@ -30,19 +30,52 @@ public class MBMMessage implements Writable {
     }
 
     public MBMMessage(LongWritable id, State proposed) {
-        this.id = id;
+        this.vertexID = id;
         this.state = proposed;
     }
 
     @Override
+    public String toString() {
+        return "(" + vertexID + ", " + state + ")";
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((state == null) ? 0 : state.hashCode());
+        result = prime * result + ((vertexID == null) ? 0 : vertexID.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (!(obj instanceof MBMMessage))
+            return false;
+        MBMMessage other = (MBMMessage) obj;
+        if (state != other.state)
+            return false;
+        if (vertexID == null) {
+            if (other.vertexID != null)
+                return false;
+        } else if (!vertexID.equals(other.vertexID))
+            return false;
+        return true;
+    }
+
+    @Override
     public void readFields(DataInput in) throws IOException {
-        id = new LongWritable(in.readLong());
+        vertexID = new LongWritable(in.readLong());
         state = State.fromValue(in.readByte());
     }
 
     @Override
     public void write(DataOutput out) throws IOException {
-        out.writeLong(id.get());
+        out.writeLong(vertexID.get());
         out.writeByte(state.value());
     }
 }
