@@ -18,7 +18,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
  * 
  * E.g., "1 5 2 0.5 3 0.1" creates a vertex with id=1, capacity=5, and two edges to vertices 2 and 3, with weights 0.5 and 0.1, respectively.
  */
-public class MBMTextInputFormat extends AdjacencyListTextVertexInputFormat<LongWritable, IntWritable, MBMEdgeState> {
+public class MBMTextInputFormat extends AdjacencyListTextVertexInputFormat<LongWritable, IntWritable, MBMEdgeValue> {
 
     @Override
     public AdjacencyListTextVertexReader createVertexReader(InputSplit split, TaskAttemptContext context) {
@@ -28,14 +28,8 @@ public class MBMTextInputFormat extends AdjacencyListTextVertexInputFormat<LongW
     public class MBMVertexReader extends AdjacencyListTextVertexReader {
 
         @Override
-        protected Iterable<Edge<LongWritable, MBMEdgeState>> getEdges(String[] line) throws IOException {
-            // no edges
-            return null;
-        }
-
-        @Override
-        public Edge<LongWritable, MBMEdgeState> decodeEdge(String e, String w) {
-            return EdgeFactory.create(new LongWritable(Long.parseLong(e)), new MBMEdgeState(Double.parseDouble(w)));
+        public Edge<LongWritable, MBMEdgeValue> decodeEdge(String e, String w) {
+            return EdgeFactory.create(new LongWritable(Long.parseLong(e)), new MBMEdgeValue(Double.parseDouble(w)));
         }
 
         @Override

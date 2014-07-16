@@ -15,13 +15,12 @@
  */
 package ml.grafos.okapi.graphs.maxbmatching;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.Map.Entry;
 import java.util.Set;
 
-import ml.grafos.okapi.graphs.maxbmatching.MBMEdgeState.State;
+import ml.grafos.okapi.graphs.maxbmatching.MBMEdgeValue.State;
 
 import org.apache.giraph.edge.Edge;
 import org.apache.giraph.graph.BasicComputation;
@@ -29,97 +28,130 @@ import org.apache.giraph.graph.Vertex;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.log4j.Logger;
+import org.python.google.common.collect.Maps;
+
+import com.google.common.collect.MinMaxPriorityQueue;
 
 /**
- * Greedy algorithm for Maximum B-Matching problem as described in G. De Francisci Morales, A. Gionis, M. Sozio "Social Content Matching in MapReduce" in PVLDB:
- * Proceedings of the VLDB Endowment, 4(7):460-469, 2011.
+ * Greedy algorithm for the Maximum B-Matching problem as described in G. De Francisci Morales, A. Gionis, M. Sozio "Social Content Matching in MapReduce" in
+ * PVLDB: Proceedings of the VLDB Endowment, 4(7):460-469, 2011.
  * 
- * Given a weighted graph, with integer capacities assigned to each vertex, the maximum b-matching problem is to select a subgraph of maximum weight such that
- * the number of edges incident to each vertex in the subgraph does not exceed its capacity. This is a greedy algorithm that provides a 1/2 approximation
- * guarantee.
+ * Given a weighted undirected graph, with integer capacities assigned to each vertex, the maximum b-matching problem is to select a subgraph of maximum weight
+ * such that the number of edges incident to each vertex in the subgraph does not exceed its capacity. This is a greedy algorithm that provides a 1/2
+ * approximation guarantee.
  */
-public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MBMEdgeState, MBMMessage> {
-
-    /* Logger */
+public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MBMEdgeValue, MBMMessage> {
     private static final Logger LOG = Logger.getLogger(MaxBMatching.class);
 
     @Override
-    public void compute(Vertex<LongWritable, IntWritable, MBMEdgeState> vertex, Iterable<MBMMessage> messages) {
-        /* Messages */
-        final MBMMessage removeMsg = new MBMMessage(vertex.getId(), State.REMOVED);
+    public void compute(Vertex<LongWritable, IntWritable, MBMEdgeValue> vertex, Iterable<MBMMessage> messages) {
+        if (LOG.isDebugEnabled())
+            debug(vertex);
+        if (vertex.getValue().get() < 0)
+            throw new AssertionError("Capacity should never be negative: " + vertex);
+        else if (vertex.getValue().get() == 0) {
+            // vote to halt if capacity reaches zero, tell neighbors to remove edges connecting to this vertex
+            removeVertex(vertex);
+            vertex.voteToHalt();
+        } else if (vertex.getValue().get() > 0) {
+            // propose edges to neighbors in decreasing order by weight up to capacity
+            sendUpdates(vertex);
+        }
+        if (getSuperstep() > 0) {
+            // accept intersection between proposed and received
+            processUpdates(vertex, messages);
+        }
+    }
+
+    private void sendUpdates(Vertex<LongWritable, IntWritable, MBMEdgeValue> vertex) {
         final MBMMessage proposeMsg = new MBMMessage(vertex.getId(), State.PROPOSED);
 
-        if (vertex.getValue().get() < 0)
-            throw new AssertionError("Capacity should never be negative");
-
-        if (getSuperstep() > 0) {
-            Set<LongWritable> toRemove = new HashSet<LongWritable>();
-            int numAccepted = 0;
-            // process messages: accept intersection between proposed and received
-            for (MBMMessage msg : messages) {
-                MBMEdgeState edgeState = vertex.getEdgeValue(msg.getId());
-                if (edgeState == null)
-                    throw new AssertionError("Null edge state: superstep=" + getSuperstep() + " vertex=" + vertex.getId() + " msgSource=" + msg.getId());
-                if (msg.getState() == State.PROPOSED && edgeState.getState() == State.PROPOSED) {
-                    edgeState.setState(State.INCLUDED);
-                    vertex.getValue().set(vertex.getValue().get() - 1); // vertex.value--
-                    numAccepted++;
-                } else if (msg.getState() == State.REMOVED) {
-                    edgeState.setState(State.REMOVED);
-                    toRemove.add(msg.getId());
-                }
+        // get top-capacity available edges by weight
+        final int capacity = vertex.getValue().get();
+        MinMaxPriorityQueue<Entry<LongWritable, MBMEdgeValue>> maxHeap = MinMaxPriorityQueue.orderedBy(new Comparator<Entry<LongWritable, MBMEdgeValue>>() {
+            @Override
+            public int compare(Entry<LongWritable, MBMEdgeValue> o1, Entry<LongWritable, MBMEdgeValue> o2) {
+                return -1 * Double.compare(o1.getValue().getWeight(), o2.getValue().getWeight()); // reverse comparator, largest weight first
             }
-            for (LongWritable e : toRemove)
-                vertex.removeEdges(e);
-            if (LOG.isInfoEnabled())
-                LOG.info(String.format("Superstep %d: accepted %d edges", getSuperstep(), numAccepted));
-        }
-
-        // vote to stop if capacity reached zero, tell neighbors to remove edges connecting to this vertex
-        if (vertex.getValue().get() == 0) {
-            for (Edge<LongWritable, MBMEdgeState> e : vertex.getEdges()) {
-                MBMEdgeState edgeState = e.getValue();
-                if (edgeState.getState() != State.INCLUDED) { // remove DEFAULT and PROPOSED edges
-                    sendMessage(e.getTargetVertexId(), removeMsg);
-                    sendMessage(vertex.getId(), new MBMMessage(e.getTargetVertexId(), State.REMOVED));
-                }
-            }
-            vertex.voteToHalt();
-            return;
-        }
-
+        }).maximumSize(capacity).create();
         // prepare list of available edges
-        ArrayList<Edge<LongWritable, MBMEdgeState>> arrayList = new ArrayList<Edge<LongWritable, MBMEdgeState>>();
-        for (Edge<LongWritable, MBMEdgeState> e : vertex.getEdges()) {
-            if (e.getValue().getState() == State.DEFAULT || e.getValue().getState() == State.PROPOSED)
-                arrayList.add(e);
+        for (Edge<LongWritable, MBMEdgeValue> e : vertex.getEdges()) {
+            if (e.getValue().getState() == State.DEFAULT || e.getValue().getState() == State.PROPOSED) {
+                maxHeap.add(Maps.immutableEntry(e.getTargetVertexId(), e.getValue()));
+            }
         }
-
-        // nothing else to do
-        if (arrayList.size() == 0) {
-            check(vertex.getEdges());
+        if (maxHeap.size() == 0) {
+            // all remaining edges are INCLUDED, nothing else to do
+            checkSolution(vertex.getEdges());
             vertex.voteToHalt();
         } else {
-            // sort it by decreasing weight
-            Collections.sort(arrayList, new Comparator<Edge<LongWritable, MBMEdgeState>>() {
-                @Override
-                public int compare(Edge<LongWritable, MBMEdgeState> e1, Edge<LongWritable, MBMEdgeState> e2) {
-                    return -1 * Double.compare(e1.getValue().getWeight(), e2.getValue().getWeight());
-                }
-            });
             // propose up to capacity
-            int numToPropose = (int) Math.min(vertex.getValue().get(), arrayList.size());
-            for (int i = 0; i < numToPropose; i++) {
-                Edge<LongWritable, MBMEdgeState> edge = arrayList.get(i);
-                edge.getValue().setState(State.PROPOSED);
-                sendMessage(edge.getTargetVertexId(), proposeMsg);
+            while (!maxHeap.isEmpty()) {
+                Entry<LongWritable, MBMEdgeValue> entry = maxHeap.removeFirst();
+                vertex.getEdgeValue(entry.getKey()).setState(State.PROPOSED);
+                sendMessage(entry.getKey(), proposeMsg);
             }
         }
     }
 
-    private void check(Iterable<Edge<LongWritable, MBMEdgeState>> collection) {
-        for (Edge<LongWritable, MBMEdgeState> e : collection)
+    private void processUpdates(Vertex<LongWritable, IntWritable, MBMEdgeValue> vertex, Iterable<MBMMessage> messages) throws AssertionError {
+        Set<LongWritable> toRemove = new HashSet<LongWritable>();
+        int numIncluded = 0;
+
+        for (MBMMessage msg : messages) {
+            MBMEdgeValue edgeValue = vertex.getEdgeValue(msg.getId());
+            if (edgeValue == null) {
+                // edge has already been removed, do nothing
+                if (LOG.isDebugEnabled())
+                    LOG.debug(String.format("Superstep %d Vertex %d: message for removed edge from vertex %d", getSuperstep(), vertex.getId().get(), msg
+                            .getId().get()));
+            } else {
+                if (msg.getState() == State.PROPOSED && edgeValue.getState() == State.PROPOSED) {
+                    edgeValue.setState(State.INCLUDED);
+                    numIncluded++;
+                } else if (msg.getState() == State.REMOVED) {
+                    // edgeValue.setState(State.REMOVED);
+                    toRemove.add(msg.getId());
+                }
+            }
+        }
+        // update capacity
+        vertex.getValue().set(vertex.getValue().get() - numIncluded);
+        // remove edges locally
+        for (LongWritable e : toRemove)
+            vertex.removeEdges(e);
+
+        if (LOG.isDebugEnabled())
+            LOG.debug(String.format("Superstep %d Vertex %d: included %d edges, removed %d edges", getSuperstep(), vertex.getId().get(), numIncluded,
+                    toRemove.size()));
+    }
+
+    private void removeVertex(Vertex<LongWritable, IntWritable, MBMEdgeValue> vertex) {
+        Set<LongWritable> toRemove = new HashSet<LongWritable>();
+        final MBMMessage removeMsg = new MBMMessage(vertex.getId(), State.REMOVED);
+
+        for (Edge<LongWritable, MBMEdgeValue> e : vertex.getEdges()) {
+            MBMEdgeValue edgeState = e.getValue();
+            // remove remaining DEFAULT edges
+            if (edgeState.getState() == State.DEFAULT) {
+                sendMessage(e.getTargetVertexId(), removeMsg);
+                toRemove.add(e.getTargetVertexId());
+                // edgeState.setState(State.REMOVED);
+            }
+        }
+        for (LongWritable e : toRemove)
+            vertex.removeEdges(e);
+    }
+
+    private void checkSolution(Iterable<Edge<LongWritable, MBMEdgeValue>> collection) {
+        for (Edge<LongWritable, MBMEdgeValue> e : collection)
             if (e.getValue().getState() != State.INCLUDED)
-                throw new AssertionError(String.format("All the edges in the matching should be {1}, {2} was {3}", State.INCLUDED, e, e.getValue().getState()));
+                throw new AssertionError(String.format("All the edges in the matching should be %d, %d was %d", State.INCLUDED, e, e.getValue().getState()));
+    }
+
+    private void debug(Vertex<LongWritable, IntWritable, MBMEdgeValue> vertex) {
+        LOG.debug(vertex);
+        for (Edge<LongWritable, MBMEdgeValue> e : vertex.getEdges())
+            LOG.debug(String.format("Edge(%d, %s)", e.getTargetVertexId().get(), e.getValue().toString()));
     }
 }

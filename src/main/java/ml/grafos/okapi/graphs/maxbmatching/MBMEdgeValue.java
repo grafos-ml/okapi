@@ -8,13 +8,21 @@ import java.util.Map;
 
 import org.apache.hadoop.io.Writable;
 
-public class MBMEdgeState implements Writable {
-    private double weight = 0.0;
-    private State state = State.DEFAULT;
+public class MBMEdgeValue implements Writable {
+    private double weight;
+    private State state;
 
-    public MBMEdgeState(double weight) {
-        super();
+    public MBMEdgeValue() {
+        this(0, State.DEFAULT);
+    }
+
+    public MBMEdgeValue(double weight) {
+        this(weight, State.DEFAULT);
+    }
+
+    public MBMEdgeValue(double weight, State state) {
         this.setWeight(weight);
+        this.setState(state);
     }
 
     public double getWeight() {
@@ -55,9 +63,9 @@ public class MBMEdgeState implements Writable {
             return true;
         if (obj == null)
             return false;
-        if (!(obj instanceof MBMEdgeState))
+        if (!(obj instanceof MBMEdgeValue))
             return false;
-        MBMEdgeState other = (MBMEdgeState) obj;
+        MBMEdgeValue other = (MBMEdgeValue) obj;
         if (state != other.state)
             return false;
         if (Double.doubleToLongBits(weight) != Double.doubleToLongBits(other.weight))

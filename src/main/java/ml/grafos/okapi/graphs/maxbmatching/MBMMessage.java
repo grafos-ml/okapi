@@ -4,7 +4,7 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 
-import ml.grafos.okapi.graphs.maxbmatching.MBMEdgeState.State;
+import ml.grafos.okapi.graphs.maxbmatching.MBMEdgeValue.State;
 
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Writable;
@@ -12,6 +12,14 @@ import org.apache.hadoop.io.Writable;
 public class MBMMessage implements Writable {
     private LongWritable vertexID;
     private State state;
+
+    public MBMMessage() {
+    }
+
+    public MBMMessage(LongWritable id, State proposed) {
+        this.vertexID = id;
+        this.state = proposed;
+    }
 
     public LongWritable getId() {
         return vertexID;
@@ -27,11 +35,6 @@ public class MBMMessage implements Writable {
 
     public void setState(State state) {
         this.state = state;
-    }
-
-    public MBMMessage(LongWritable id, State proposed) {
-        this.vertexID = id;
-        this.state = proposed;
     }
 
     @Override
