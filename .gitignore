@@ -2,4 +2,5 @@ target
 .settings
 .classpath
 .idea
+.project
 graphlib.iml
