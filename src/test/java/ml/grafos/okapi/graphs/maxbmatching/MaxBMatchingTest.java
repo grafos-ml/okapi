@@ -14,7 +14,6 @@ import org.junit.Test;
 import org.python.google.common.collect.Maps;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Splitter;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Table;
