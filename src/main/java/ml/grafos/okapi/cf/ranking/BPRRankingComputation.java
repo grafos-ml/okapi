@@ -67,7 +67,7 @@ import org.jblas.FloatMatrix;
 @OkapiAutotuning
 public class BPRRankingComputation extends AbstractCFRankingComputation{
 
-    protected static final Logger logger = Logger.getLogger(BPRRankingComputation.class);
+    protected final Logger logger = Logger.getLogger(BPRRankingComputation.class);
 
     public void computeModelUpdates(
             Vertex<CfLongId, FloatMatrixWritable, FloatWritable> vertex,
@@ -104,10 +104,10 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
     /**
      * Updates the model based on the factors received.
      * It is a direct port from myMediaLite.
-     * @param u
-     * @param i
-     * @param itemIid
-     * @param j
+     * @param u - column vector of user factors
+     * @param i - column vector of item 1 factors
+     * @param itemIid 
+     * @param j - column vector of item 2 factors
      * @param itemJid
      * @param vertex
      */
@@ -127,9 +127,9 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
         float newIBias = (learnRate * updateI);
         float newJBias = (learnRate * updateJ);
 
-        FloatMatrix uDelta = FloatMatrix.zeros(u.columns);
-        FloatMatrix iDelta = FloatMatrix.zeros(u.columns);
-        FloatMatrix jDelta = FloatMatrix.zeros(u.columns);
+        FloatMatrix uDelta = FloatMatrix.zeros(u.rows);
+        FloatMatrix iDelta = FloatMatrix.zeros(u.rows);
+        FloatMatrix jDelta = FloatMatrix.zeros(u.rows);
         uDelta.put(ITEM_BIAS_INDEX, 0); //because it is update for user, it should never update 1 into something else. therefore 0.
         iDelta.put(ITEM_BIAS_INDEX, newIBias);
         jDelta.put(ITEM_BIAS_INDEX, newJBias);
@@ -150,7 +150,6 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
         applyUpdate(uDelta, vertex);
         sendItemFactorsUpdate(itemIid, vertex.getId(), iDelta);
         sendItemFactorsUpdate(itemJid, vertex.getId(), jDelta);
-
     }
 
     /**
@@ -180,9 +179,9 @@ public class BPRRankingComputation extends AbstractCFRankingComputation{
 
 	@Override
 	/**
-	 * BPR samples single relevant and single irrelevant item.
+	 * BPR samples single irrelevant item for each relevant item.
 	 */
-	int getBufferSize() {
-		return 1;
+	int getBufferSize(int numberOfRelevants) {
+		return numberOfRelevants;
 	}
 }

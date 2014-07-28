@@ -92,7 +92,7 @@ public class ClusteringCoefficient {
    * Used to aggregate the local clustering coefficients, and compute the 
    * global one.
    */
-  private static String CL_CEOFFICIENT_AGGREGATOR = "coefficient.aggregator";
+  private static String CL_COEFFICIENT_AGGREGATOR = "coefficient.aggregator";
 
   /**
    * Aggregator used to store the global clustering coefficient.
@@ -138,7 +138,7 @@ public class ClusteringCoefficient {
           ((double)triangles) / ((double)edges*(edges-1));
 
       DoubleWritable clCoefficient = new DoubleWritable(clusteringCoefficient);
-      aggregate(CL_CEOFFICIENT_AGGREGATOR, clCoefficient);
+      aggregate(CL_COEFFICIENT_AGGREGATOR, clCoefficient);
       vertex.setValue(clCoefficient);
       vertex.voteToHalt();
     }
@@ -169,7 +169,7 @@ public class ClusteringCoefficient {
     public final void initialize() throws InstantiationException,
         IllegalAccessException {
 
-      registerAggregator(CL_CEOFFICIENT_AGGREGATOR, DoubleSumAggregator.class);
+      registerAggregator(CL_COEFFICIENT_AGGREGATOR, DoubleSumAggregator.class);
     }
 
     @Override
@@ -182,7 +182,7 @@ public class ClusteringCoefficient {
       }
       if (superstep == 2) {
         double partialSum = ((DoubleWritable)getAggregatedValue(
-            CL_CEOFFICIENT_AGGREGATOR)).get();
+            CL_COEFFICIENT_AGGREGATOR)).get();
         double globalCoefficient = partialSum/(double)getTotalNumVertices();
         Counters.updateCounter(getContext(), COUNTER_GROUP, COUNTER_NAME,
             (long)(1000*globalCoefficient));
