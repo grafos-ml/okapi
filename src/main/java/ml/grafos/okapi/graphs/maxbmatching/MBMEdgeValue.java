@@ -43,7 +43,7 @@ public class MBMEdgeValue implements Writable {
 
     @Override
     public String toString() {
-        return weight + "\t" + state.toString();
+        return String.valueOf(weight); // + "\t" + state.toString();
     }
 
     @Override
