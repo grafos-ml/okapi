@@ -33,12 +33,12 @@ import org.python.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 
 /**
- * Greedy algorithm for the Maximum B-Matching problem as described in G. De Francisci Morales, A. Gionis, M. Sozio "Social Content Matching in MapReduce" in
- * PVLDB: Proceedings of the VLDB Endowment, 4(7):460-469, 2011.
+ * Greedy algorithm for the Maximum B-Matching problem as described in G. De Francisci Morales, A. Gionis, M. Sozio 
+ * "Social Content Matching in MapReduce" in * PVLDB: Proceedings of the VLDB Endowment, 4(7):460-469, 2011.
  * 
- * Given a weighted undirected graph, with integer capacities assigned to each vertex, the maximum b-matching problem is to select a subgraph of maximum weight
- * such that the number of edges incident to each vertex in the subgraph does not exceed its capacity. This is a greedy algorithm that provides a 1/2
- * approximation guarantee.
+ * Given a weighted undirected graph, with integer capacities assigned to each vertex, the maximum b-matching problem
+ * is to select a subgraph of maximum weight  * such that the number of edges incident to each vertex in the subgraph
+ * does not exceed its capacity. This is a greedy algorithm that provides a 1/2-approximation guarantee.
  */
 public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MBMEdgeValue, MBMMessage> {
     private static final Logger LOG = Logger.getLogger(MaxBMatching.class);
@@ -110,7 +110,6 @@ public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MB
                     edgeValue.setState(State.INCLUDED);
                     numIncluded++;
                 } else if (msg.getState() == State.REMOVED) {
-                    // edgeValue.setState(State.REMOVED);
                     toRemove.add(msg.getId());
                 }
             }
@@ -136,7 +135,6 @@ public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MB
             if (edgeState.getState() == State.DEFAULT) {
                 sendMessage(e.getTargetVertexId(), removeMsg);
                 toRemove.add(e.getTargetVertexId());
-                // edgeState.setState(State.REMOVED);
             }
         }
         for (LongWritable e : toRemove)

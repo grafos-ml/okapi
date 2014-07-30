@@ -43,7 +43,7 @@ public class MBMEdgeValue implements Writable {
 
     @Override
     public String toString() {
-        return String.valueOf(weight); // + "\t" + state.toString();
+        return String.valueOf(weight) + "\t" + state.toString();
     }
 
     @Override
@@ -86,10 +86,10 @@ public class MBMEdgeValue implements Writable {
     }
 
     public static enum State {
-        DEFAULT ((byte) 1), // starting state
-        PROPOSED((byte) 2), // proposed for inclusion in the matching
-        REMOVED ((byte) 3), // cannot be included in the matching
-        INCLUDED((byte) 4); // included in the matching
+        DEFAULT ((byte) 0), // starting state
+        PROPOSED((byte) 1), // proposed for inclusion in the matching
+        REMOVED ((byte) 2), // cannot be included in the matching
+        INCLUDED((byte) 3); // included in the matching
 
         private final byte value;
         private static final Map<Byte, State> lookup = new HashMap<Byte, State>();
