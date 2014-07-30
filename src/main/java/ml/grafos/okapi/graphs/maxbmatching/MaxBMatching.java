@@ -80,7 +80,7 @@ public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MB
                 maxHeap.add(Maps.immutableEntry(e.getTargetVertexId(), e.getValue()));
             }
         }
-        if (maxHeap.size() == 0) {
+        if (maxHeap.isEmpty()) {
             // all remaining edges are INCLUDED, nothing else to do
             checkSolution(vertex.getEdges());
             vertex.voteToHalt();
