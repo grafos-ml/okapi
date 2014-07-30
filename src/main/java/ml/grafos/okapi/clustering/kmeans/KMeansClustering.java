@@ -39,16 +39,16 @@ public class KMeansClustering {
    * Each of them aggregates the vector coordinates of points assigned to the cluster center,
    * in order to compute the means as the coordinates of the new cluster centers.
    */
-  private static String CENTER_AGGR_PREFIX = "center.aggr.prefix";
+  public static String CENTER_AGGR_PREFIX = "center.aggr.prefix";
 
   /**
    * The prefix for the aggregators used to store the number of points 
    * assigned to each cluster center
    */
-  private static String ASSIGNED_POINTS_PREFIX = "assigned.points.prefix";
+  public static String ASSIGNED_POINTS_PREFIX = "assigned.points.prefix";
   
   /** The initial centers aggregator*/
-  private static String INITIAL_CENTERS = "kmeans.initial.centers";
+  public static String INITIAL_CENTERS = "kmeans.initial.centers";
   
   /** Maximum number of iterations */
   public static final String MAX_ITERATIONS = "kmeans.iterations";
