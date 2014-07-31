@@ -2,16 +2,28 @@ package ml.grafos.okapi.clustering.kmeans;
 
 import static org.junit.Assert.*;
 
+import java.io.IOException;
 import java.util.Set;
 
 import ml.grafos.okapi.clustering.kmeans.ArrayListOfDoubleArrayListWritableAggregator;
 import ml.grafos.okapi.clustering.kmeans.KMeansClustering;
 import ml.grafos.okapi.clustering.kmeans.KMeansTextInputFormat;
 import ml.grafos.okapi.clustering.kmeans.KMeansTextOutputFormat;
+import ml.grafos.okapi.clustering.kmeans.KMeansClustering.KMeansClusteringComputation;
+import ml.grafos.okapi.common.data.ArrayListOfDoubleArrayListWritable;
+import ml.grafos.okapi.common.data.DoubleArrayListWritable;
 import ml.grafos.okapi.common.graph.NullOutEdges;
 
+import org.apache.giraph.aggregators.IntSumAggregator;
 import org.apache.giraph.conf.GiraphConfiguration;
+import org.apache.giraph.graph.BasicComputation;
+import org.apache.giraph.graph.Vertex;
+import org.apache.giraph.master.DefaultMasterCompute;
 import org.apache.giraph.utils.InternalVertexRunner;
+import org.apache.hadoop.io.DoubleWritable;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.junit.Test;
 
 import com.google.common.base.Splitter;
@@ -21,6 +33,8 @@ import com.google.common.collect.SetMultimap;
 
 public class TestKMeansClustering {
 
+	private static ArrayListOfDoubleArrayListWritable initial_centers = new ArrayListOfDoubleArrayListWritable();
+	
 	@Test
 	public void test1() throws Exception {
         String[] graph = new String[] {
@@ -33,12 +47,28 @@ public class TestKMeansClustering {
         		"7,3.5	4.5"
                  };
      
+        /** set the initial centers **/
+	     
+        initial_centers.clear();
+        
+      	// create the centers points
+      	DoubleArrayListWritable c1 = new DoubleArrayListWritable();
+      	c1.add(new DoubleWritable(1.0));
+      	c1.add(new DoubleWritable(1.0));
+      	DoubleArrayListWritable c2 = new DoubleArrayListWritable();
+      	c2.add(new DoubleWritable(1.5));
+      	c2.add(new DoubleWritable(2.0));
+      	
+      	// add them to the array list
+      	initial_centers.add(c1);
+      	initial_centers.add(c2);
+	      	
         // run to check results correctness
         GiraphConfiguration conf = new GiraphConfiguration();
         conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.CLUSTER_CENTERS_COUNT, 2);
 		conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.POINTS_COUNT, 7);
-        conf.setMasterComputeClass(KMeansClustering.KMeansMasterCompute.class);
-        conf.setComputationClass(KMeansClustering.RandomCentersInitialization.class);
+        conf.setMasterComputeClass(KMeansTestMasterCompute.class);
+        conf.setComputationClass(NoOpComputation.class);
         conf.setVertexInputFormatClass(KMeansTextInputFormat.class);
         conf.setOutEdgesClass(NullOutEdges.class);
         conf.setVertexOutputFormatClass(KMeansTextOutputFormat.class);
@@ -94,12 +124,32 @@ public class TestKMeansClustering {
         		"8,4.0	9.0"
                  };
      
+        /** set the initial centers **/
+      	
+        initial_centers.clear();
+        
+      	// create the centers points
+      	DoubleArrayListWritable c1 = new DoubleArrayListWritable();
+      	c1.add(new DoubleWritable(2.0));
+      	c1.add(new DoubleWritable(10.0));
+      	DoubleArrayListWritable c2 = new DoubleArrayListWritable();
+      	c2.add(new DoubleWritable(2.0));
+      	c2.add(new DoubleWritable(5.0));
+      	DoubleArrayListWritable c3 = new DoubleArrayListWritable();
+      	c3.add(new DoubleWritable(8.0));
+      	c3.add(new DoubleWritable(4.0));
+      	
+      	// add them to the array list
+      	initial_centers.add(c1);
+      	initial_centers.add(c2);
+      	initial_centers.add(c3);
+      	
         // run to check results correctness
         GiraphConfiguration conf = new GiraphConfiguration();
         conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.CLUSTER_CENTERS_COUNT, 3);
 		conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.POINTS_COUNT, 8);
-        conf.setMasterComputeClass(KMeansClustering.KMeansMasterCompute.class);
-        conf.setComputationClass(KMeansClustering.RandomCentersInitialization.class);
+        conf.setMasterComputeClass(KMeansTestMasterCompute.class);
+        conf.setComputationClass(NoOpComputation.class);
         conf.setVertexInputFormatClass(KMeansTextInputFormat.class);
         conf.setOutEdgesClass(NullOutEdges.class);
         conf.setVertexOutputFormatClass(KMeansTextOutputFormat.class);
@@ -152,12 +202,30 @@ public class TestKMeansClustering {
         		"10,-4.78011	1.2099	-4.55519"
                  };
      
+        /** set the initial centers **/
+      	
+        initial_centers.clear();
+        
+      	// create the centers points
+      	DoubleArrayListWritable c1 = new DoubleArrayListWritable();
+      	c1.add(new DoubleWritable(-4.31568));
+      	c1.add(new DoubleWritable(-0.396959));
+      	c1.add(new DoubleWritable(-6.29507));
+      	DoubleArrayListWritable c2 = new DoubleArrayListWritable();
+      	c2.add(new DoubleWritable(-4.56112));
+      	c2.add(new DoubleWritable(-1.74917));
+      	c2.add(new DoubleWritable(-4.57874));
+      	
+      	// add them to the array list
+      	initial_centers.add(c1);
+      	initial_centers.add(c2);
+      	
         // run to check results correctness
         GiraphConfiguration conf = new GiraphConfiguration();
         conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.CLUSTER_CENTERS_COUNT, 2);
 		conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.POINTS_COUNT, 10);
-        conf.setMasterComputeClass(KMeansClustering.KMeansMasterCompute.class);
-        conf.setComputationClass(KMeansClustering.RandomCentersInitialization.class);
+        conf.setMasterComputeClass(KMeansTestMasterCompute.class);
+        conf.setComputationClass(NoOpComputation.class);
         conf.setVertexInputFormatClass(KMeansTextInputFormat.class);
         conf.setOutEdgesClass(NullOutEdges.class);
         conf.setVertexOutputFormatClass(KMeansTextOutputFormat.class);
@@ -255,13 +323,33 @@ public class TestKMeansClustering {
 				"59,-53.73	32.84",
 				"60,53.16	-50.16"
                  };
+        
+        /** set the initial centers **/
+      	
+        initial_centers.clear();
+        
+      	// create the centers points
+      	DoubleArrayListWritable c1 = new DoubleArrayListWritable();
+      	c1.add(new DoubleWritable(-3.78));
+      	c1.add(new DoubleWritable(-42.01));
+      	DoubleArrayListWritable c2 = new DoubleArrayListWritable();
+      	c2.add(new DoubleWritable(-36.57));
+      	c2.add(new DoubleWritable(32.63));
+      	DoubleArrayListWritable c3 = new DoubleArrayListWritable();
+      	c3.add(new DoubleWritable(50.65));
+      	c3.add(new DoubleWritable(-52.40));
+      	
+      	// add them to the array list
+      	initial_centers.add(c1);
+      	initial_centers.add(c2);
+      	initial_centers.add(c3);
 
         // run to check results correctness
         GiraphConfiguration conf = new GiraphConfiguration();
         conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.CLUSTER_CENTERS_COUNT, 3);
 		conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.POINTS_COUNT, 60);
-        conf.setMasterComputeClass(KMeansClustering.KMeansMasterCompute.class);
-        conf.setComputationClass(KMeansClustering.RandomCentersInitialization.class);
+        conf.setMasterComputeClass(KMeansTestMasterCompute.class);
+        conf.setComputationClass(NoOpComputation.class);
         conf.setVertexInputFormatClass(KMeansTextInputFormat.class);
         conf.setOutEdgesClass(NullOutEdges.class);
         conf.setVertexOutputFormatClass(KMeansTextOutputFormat.class);
@@ -316,13 +404,33 @@ public class TestKMeansClustering {
 				"9,38.19	-36.27",
 				"10,-13.63	-42.26"
 				};
+    	
+    	/** set the initial centers **/
+      	
+        initial_centers.clear();
+        
+      	// create the centers points
+      	DoubleArrayListWritable c1 = new DoubleArrayListWritable();
+      	c1.add(new DoubleWritable(-3.78));
+      	c1.add(new DoubleWritable(-42.01));
+      	DoubleArrayListWritable c2 = new DoubleArrayListWritable();
+      	c2.add(new DoubleWritable(-26.95));
+      	c2.add(new DoubleWritable(43.10));
+      	DoubleArrayListWritable c3 = new DoubleArrayListWritable();
+      	c3.add(new DoubleWritable(56.37));
+      	c3.add(new DoubleWritable(-46.62));
+      	
+      	// add them to the array list
+      	initial_centers.add(c1);
+      	initial_centers.add(c2);
+      	initial_centers.add(c3);
 
         // run to check results correctness
         GiraphConfiguration conf = new GiraphConfiguration();
         conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.CLUSTER_CENTERS_COUNT, 3);
 		conf.setInt(ArrayListOfDoubleArrayListWritableAggregator.POINTS_COUNT, 10);
-        conf.setMasterComputeClass(KMeansClustering.KMeansMasterCompute.class);
-        conf.setComputationClass(KMeansClustering.RandomCentersInitialization.class);
+        conf.setMasterComputeClass(KMeansTestMasterCompute.class);
+        conf.setComputationClass(NoOpComputation.class);
         conf.setVertexInputFormatClass(KMeansTextInputFormat.class);
         conf.setOutEdgesClass(NullOutEdges.class);
         conf.setVertexOutputFormatClass(KMeansTextOutputFormat.class);
@@ -355,5 +463,137 @@ public class TestKMeansClustering {
         		}
         }
     }
+    
+    /** 
+     * 
+     * Special Master implementation only used for testing.
+     * It is basically a copy of the KMeansMasterCompute class
+     * that uses hard-code initial centroids, instead of 
+     * using the random initialization. 
+     *
+     */
+    public static class KMeansTestMasterCompute extends DefaultMasterCompute {
+  	  private int maxIterations;
+  	  private DoubleArrayListWritable[] currentClusterCenters;
+  	  private int clustersCount;
+  	  private int dimensions;
+  	    
+      @Override
+      public final void initialize() throws InstantiationException,
+          IllegalAccessException {
+      	maxIterations = getContext().getConfiguration().getInt(KMeansClustering.MAX_ITERATIONS, 
+      			KMeansClustering.ITERATIONS_DEFAULT);
+      	clustersCount = getContext().getConfiguration().getInt(KMeansClustering.CLUSTER_CENTERS_COUNT, 
+      			KMeansClustering.CLUSTER_CENTERS_COUNT_DEFAULT);
+      	dimensions = getContext().getConfiguration().getInt(KMeansClustering.DIMENSIONS, 0);
+      	currentClusterCenters = new DoubleArrayListWritable[clustersCount];
+      	// register initial centers aggregator
+      	registerAggregator(KMeansClustering.INITIAL_CENTERS, ArrayListOfDoubleArrayListWritableAggregator.class);
+      	// register aggregators, one per center for the coordinates and
+      	// one per center for counts of assigned elements
+      	for ( int i = 0; i < clustersCount; i++ ) {
+      		registerAggregator(KMeansClustering.CENTER_AGGR_PREFIX + "C_" + i, DoubleArrayListWritableAggregator.class);
+      		registerAggregator(KMeansClustering.ASSIGNED_POINTS_PREFIX + "C_" + i, IntSumAggregator.class);
+      	}
+      }
+      
+      @Override
+      public final void compute() {
+  	    long superstep = getSuperstep();
 
+  	    if ( superstep == 0 ) {
+  	      	setComputation(NoOpComputation.class);
+  	    }
+  	    else {
+  	    	setComputation(KMeansClusteringComputation.class);
+
+		    if ( superstep == 1 ) {
+		    	// initialize the centers aggregators
+		    	ArrayListOfDoubleArrayListWritable initialCenters = initial_centers;
+		    	for ( int i = 0; i < clustersCount; i++ ) {
+		    		setAggregatedValue(KMeansClustering.CENTER_AGGR_PREFIX + "C_" + i, initialCenters.get(i));
+		    		currentClusterCenters[i] = initialCenters.get(i);
+		    	}
+		    }
+		    else {
+			    // compute the new centers positions
+		    	DoubleArrayListWritable[] newClusters = computeClusterCenters();		
+			     //check for convergence
+			    if ( (superstep > maxIterations) || (clusterPositionsDiff(currentClusterCenters, newClusters)) ) {
+			    	
+			    	// if enabled, print the final centers coordinates
+			    	if ( getContext().getConfiguration().getBoolean(KMeansClustering.PRINT_FINAL_CENTERS, 
+			    			KMeansClustering.PRINT_FINAL_CENTERS_DEFAULT) ) {
+			    		printFinalCentersCoordinates();
+			    	}
+			    	
+			  	  	haltComputation();
+			    }
+			    else {
+			  	  	// update the aggregators with the new cluster centers
+			  	  	for ( int i = 0; i < clustersCount; i ++ ) {
+			  	  		setAggregatedValue(KMeansClustering.CENTER_AGGR_PREFIX + "C_" + i, newClusters[i]);
+			  	  	}
+			  	  	currentClusterCenters = newClusters;
+			    } 
+		    }
+  	    }
+      }
+      
+      private DoubleArrayListWritable[] computeClusterCenters() {
+  		DoubleArrayListWritable[] newClusterCenters = new DoubleArrayListWritable[clustersCount];
+  		DoubleArrayListWritable clusterCoordinates;
+  		IntWritable assignedPoints;
+  		for ( int i = 0; i < clustersCount; i++ ) {
+  			clusterCoordinates = getAggregatedValue(KMeansClustering.CENTER_AGGR_PREFIX + "C_" + i);
+  			assignedPoints = getAggregatedValue(KMeansClustering.ASSIGNED_POINTS_PREFIX + "C_" + i);
+  			for ( int j = 0; j < clusterCoordinates.size(); j++ ) {
+  				clusterCoordinates.set(j, new DoubleWritable(
+  						clusterCoordinates.get(j).get() / assignedPoints.get()));
+  			}
+  			newClusterCenters[i] = clusterCoordinates;
+  		}
+  		return newClusterCenters;
+  	}
+
+	  	private boolean clusterPositionsDiff(
+	  			DoubleArrayListWritable[] currentClusterCenters,
+	  			DoubleArrayListWritable[] newClusters) {
+	  		final double E = 0.001f;
+	  		double diff = 0;
+	  		for ( int i = 0; i < clustersCount; i ++ ) {
+	  			for ( int j = 0; j < dimensions; j ++ ) {
+	  				diff += Math.abs(currentClusterCenters[i].get(j).get() - newClusters[i].get(j).get());
+	  			}
+	  		}
+	  		if ( diff > E )
+	  			return false;
+	  		else
+	  			return true;
+	  	}
+  	
+	  	private void printFinalCentersCoordinates() {
+	  		System.out.println("Centers Coordinates: ");
+	      	for (int i = 0; i < clustersCount; i ++ ) {
+	      		System.out.print("cluster id " + i + ": ");
+	      		for ( int j = 0; j < currentClusterCenters[i].size(); j ++ ) {
+	      			System.out.print(currentClusterCenters[i].get(j) + " ");
+	      		}
+	      		System.out.println();
+	      	}		
+	  	}
+    }
+    
+    public static class NoOpComputation extends BasicComputation<
+    LongWritable, KMeansVertexValue, NullWritable, NullWritable> {
+  	
+	  	@Override
+	  	public void compute(
+	  			Vertex<LongWritable, KMeansVertexValue, NullWritable> vertex,
+	  			Iterable<NullWritable> messages) throws IOException {
+	
+	  		// do nothing
+	  	}
+    }
+    
 }
