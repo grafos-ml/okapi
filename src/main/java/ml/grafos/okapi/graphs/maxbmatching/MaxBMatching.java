@@ -53,13 +53,16 @@ public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MB
             // vote to halt if capacity reaches zero, tell neighbors to remove edges connecting to this vertex
             removeVertex(vertex);
             vertex.voteToHalt();
-        } else if (vertex.getValue().get() > 0) {
-            // propose edges to neighbors in decreasing order by weight up to capacity
-            sendUpdates(vertex);
-        }
-        if (getSuperstep() > 0) {
-            // accept intersection between proposed and received
-            processUpdates(vertex, messages);
+            return;
+        } else {
+            if (getSuperstep() > 0) {
+                // accept intersection between proposed and received
+                processUpdates(vertex, messages);
+            }
+            if (vertex.getValue().get() > 0) {
+                // propose edges to neighbors in decreasing order by weight up to capacity
+                sendUpdates(vertex);
+            }
         }
     }
 
@@ -80,6 +83,7 @@ public class MaxBMatching extends BasicComputation<LongWritable, IntWritable, MB
                 maxHeap.add(Maps.immutableEntry(e.getTargetVertexId(), e.getValue()));
             }
         }
+
         if (maxHeap.isEmpty()) {
             // all remaining edges are INCLUDED, nothing else to do
             checkSolution(vertex.getEdges());
