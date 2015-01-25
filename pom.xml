@@ -9,7 +9,7 @@
 	<url>http://maven.apache.org</url>
 
 	<properties>
-		<giraph.version>1.1.0-SNAPSHOT</giraph.version>
+		<giraph.version>1.1.0</giraph.version>
 		<hadoop.version>0.20.203.0</hadoop.version>
 		<giraph.scope>compile</giraph.scope>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -102,6 +102,7 @@
 			<id>hadoop_yarn</id>
 			<properties>
 				<hadoop.version>2.2.0</hadoop.version>
+				<giraph.version>1.1.0-hadoop2</giraph.version>
 			</properties>
 			<dependencies>
 				<dependency>
