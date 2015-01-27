@@ -163,6 +163,13 @@
 			<artifactId>jblas</artifactId>
 			<version>1.2.3</version>
 		</dependency>
+
+        <!-- Required by the AffinityPropagation algorithm -->
+        <dependency>
+            <groupId>es.csic.iiia.bms</groupId>
+            <artifactId>bms</artifactId>
+            <version>RELEASE</version>
+        </dependency>
 	</dependencies>
 
 	<repositories>
