@@ -1,0 +1,22 @@
+Inria Sophia Antipolis - Team COATI - 2015 - Flavian Jacquot
+
+This folder contains an implementation of the iFub algorithm : an exact algorithm to compute the diameter of undirected graphs.
+It's described in an article at http://www.sciencedirect.com/science/article/pii/S0304397512008687
+
+I've tried it on several graphs from http://snap.stanford.edu/data/ :
+com-amazon 	~1M edges
+com-Friendster	~2B edges
+
+In this folder you can found formats to make an undirected graph.
+The master compute iFubMasterCompute must be declared in the giraph job command with -mc :
+
+Example :
+
+COMPUTE_CLASS="ml.graphos.okapi.iFub.iFubBFSCompute -mc ml.graphos.okapi.iFub.iFubMasterCompute"
+EIF=ml.graphos.okapi.iFub.iFubInputToUndirected
+EIP=data/com-amazon.ungraph.txt
+VOF=org.apache.giraph.io.formats.IdWithValueTextOutputFormat
+OP=output/FS30G.UN.txt
+WORKER=8
+
+$HADOOP_HOME/bin/hadoop jar $GIRAPH_JAR org.apache.giraph.GiraphRunner $COMPUTE_CLASS -eif $EIF -eip $EIP -vof $VOF -op $OP -w $WORKER
